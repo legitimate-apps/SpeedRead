@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject var syncService: WatchSyncService
     @Query(sort: \Book.dateAdded, order: .reverse) private var books: [Book]
 
     @State private var showImporter = false
@@ -63,6 +64,13 @@ struct LibraryView: View {
             ForEach(books) { book in
                 NavigationLink(value: book) {
                     BookRowView(book: book)
+                }
+                .contextMenu {
+                    Button {
+                        syncService.sendBook(title: book.title, author: book.author, text: book.extractedText)
+                    } label: {
+                        Label("Send to Watch", systemImage: "applewatch")
+                    }
                 }
             }
             .onDelete(perform: deleteBooks)
