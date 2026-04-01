@@ -1,16 +1,14 @@
 //  ContentView.swift
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
     var body: some View {
-        NavigationStack {
-            Text("SpeedRead")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-        }
+        LibraryView()
     }
 }
 
 #Preview {
     ContentView()
+        .modelContainer(for: Book.self, inMemory: true)
 }
