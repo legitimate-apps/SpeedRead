@@ -15,6 +15,7 @@ struct BookTests {
         #expect(book.author == "Test Author")
         #expect(book.lastReadWordIndex == 0)
         #expect(book.sourceFileName == "test.epub")
+        #expect(book.wordCount == 6)
     }
 
     @Test func wordsPropertySplitsText() {
@@ -26,6 +27,7 @@ struct BookTests {
         )
         let words = book.words
         #expect(words.count == 6)
+        #expect(book.wordCount == 6)
         #expect(words[0] == "Hello")
         #expect(words[5] == "test")
     }
@@ -39,6 +41,7 @@ struct BookTests {
         )
         let words = book.words
         #expect(words.count == 3)
+        #expect(book.wordCount == 3)
         #expect(words[0] == "Hello")
         #expect(words[1] == "world")
         #expect(words[2] == "test")
@@ -52,6 +55,7 @@ struct BookTests {
             sourceFileName: "t.epub"
         )
         #expect(book.words.isEmpty)
+        #expect(book.wordCount == 0)
     }
 
     @Test func progressCalculation() {

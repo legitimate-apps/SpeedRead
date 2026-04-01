@@ -85,12 +85,6 @@ struct WordTimerTests {
         #expect(delay == 520) // 200 * 1.3 * 2.0
     }
 
-    @Test func paragraphBreakDelay() {
-        let timer = WordTimer(wpm: 300)
-        let delay = timer.paragraphBreakDelay
-        #expect(delay == 500)
-    }
-
     @Test func updatingWPMChangesBaseDelay() {
         var timer = WordTimer(wpm: 300)
         #expect(timer.baseDelayMs == 200)

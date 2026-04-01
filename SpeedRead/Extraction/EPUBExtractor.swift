@@ -73,9 +73,11 @@ struct EPUBExtractor: TextExtractor {
             let sig = readUInt32(bytes, at: offset)
             guard sig == 0x04034b50 else { break }
 
+            let generalFlag = readUInt16(bytes, at: offset + 6)
+            let hasDataDescriptor = (generalFlag & 0x0008) != 0
             let method = readUInt16(bytes, at: offset + 8)
-            let compressedSize = Int(readUInt32(bytes, at: offset + 18))
-            let uncompressedSize = Int(readUInt32(bytes, at: offset + 22))
+            var compressedSize = Int(readUInt32(bytes, at: offset + 18))
+            var uncompressedSize = Int(readUInt32(bytes, at: offset + 22))
             let nameLength = Int(readUInt16(bytes, at: offset + 26))
             let extraLength = Int(readUInt16(bytes, at: offset + 28))
 
@@ -85,6 +87,28 @@ struct EPUBExtractor: TextExtractor {
             let name = String(data: nameData, encoding: .utf8) ?? ""
 
             let dataStart = nameStart + nameLength + extraLength
+
+            // Handle data descriptor (bit 3): sizes may be zero in local header
+            if hasDataDescriptor && compressedSize == 0 && uncompressedSize == 0 {
+                // Scan forward for data descriptor signature 0x08074b50
+                var scanOffset = dataStart
+                var found = false
+                while scanOffset + 16 <= count {
+                    if readUInt32(bytes, at: scanOffset) == 0x08074b50 {
+                        // Data descriptor: signature(4) + crc32(4) + compressedSize(4) + uncompressedSize(4)
+                        compressedSize = Int(readUInt32(bytes, at: scanOffset + 8))
+                        uncompressedSize = Int(readUInt32(bytes, at: scanOffset + 12))
+                        found = true
+                        break
+                    }
+                    scanOffset += 1
+                }
+                if !found {
+                    offset = dataStart
+                    continue
+                }
+            }
+
             let dataEnd = dataStart + compressedSize
             guard dataEnd <= count else { throw ExtractionError.invalidData }
 
@@ -102,7 +126,17 @@ struct EPUBExtractor: TextExtractor {
                 }
             }
 
-            offset = dataEnd
+            // Advance past data descriptor if present
+            if hasDataDescriptor {
+                // Check for signature-based descriptor (16 bytes) or without signature (12 bytes)
+                if dataEnd + 4 <= count && readUInt32(bytes, at: dataEnd) == 0x08074b50 {
+                    offset = dataEnd + 16
+                } else {
+                    offset = dataEnd + 12
+                }
+            } else {
+                offset = dataEnd
+            }
         }
 
         if entries.isEmpty && count > 0 {
@@ -201,7 +235,7 @@ struct EPUBExtractor: TextExtractor {
 
     private func parseOPFSpineHrefs(_ xml: String) -> [String] {
         var manifest: [String: String] = [:]
-        let manifestPattern = "<item\\s+[^>]*id=\"([^\"]+)\"[^>]*href=\"([^\"]+)\"[^>]*/>"
+        let manifestPattern = "<item\\s+[^>]*id=\"([^\"]+)\"[^>]*href=\"([^\"]+)\"[^>]*(?:/>|>[^<]*</item>)"
         if let regex = try? NSRegularExpression(pattern: manifestPattern, options: .dotMatchesLineSeparators) {
             let matches = regex.matches(in: xml, range: NSRange(xml.startIndex..., in: xml))
             for match in matches {
@@ -212,7 +246,7 @@ struct EPUBExtractor: TextExtractor {
             }
         }
 
-        let manifestPattern2 = "<item\\s+[^>]*href=\"([^\"]+)\"[^>]*id=\"([^\"]+)\"[^>]*/>"
+        let manifestPattern2 = "<item\\s+[^>]*href=\"([^\"]+)\"[^>]*id=\"([^\"]+)\"[^>]*(?:/>|>[^<]*</item>)"
         if let regex = try? NSRegularExpression(pattern: manifestPattern2, options: .dotMatchesLineSeparators) {
             let matches = regex.matches(in: xml, range: NSRange(xml.startIndex..., in: xml))
             for match in matches {

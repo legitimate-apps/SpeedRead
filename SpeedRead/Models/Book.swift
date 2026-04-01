@@ -12,6 +12,7 @@ final class Book {
     var dateAdded: Date
     var lastReadWordIndex: Int
     var lastReadDate: Date?
+    var wordCount: Int
 
     init(
         title: String,
@@ -27,6 +28,10 @@ final class Book {
         self.dateAdded = Date()
         self.lastReadWordIndex = 0
         self.lastReadDate = nil
+        self.wordCount = extractedText
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .count
     }
 
     var words: [String] {
@@ -36,8 +41,7 @@ final class Book {
     }
 
     var progress: Double {
-        let totalWords = words.count
-        guard totalWords > 0 else { return 0.0 }
-        return Double(lastReadWordIndex) / Double(totalWords)
+        guard wordCount > 0 else { return 0.0 }
+        return Double(lastReadWordIndex) / Double(wordCount)
     }
 }

@@ -8,10 +8,6 @@ struct WordTimer {
         60_000 / wpm
     }
 
-    var paragraphBreakDelay: Int {
-        Int(Double(baseDelayMs) * 2.5)
-    }
-
     func delay(for word: String) -> Int {
         var multiplier = 1.0
 
