@@ -1,0 +1,100 @@
+import Testing
+@testable import SpeedRead
+
+@Suite("ORP Calculator Tests")
+struct ORPCalculatorTests {
+
+    // MARK: - Basic word length buckets
+
+    @Test func singleCharacterWord() {
+        #expect(ORPCalculator.orpIndex(for: "I") == 0)
+        #expect(ORPCalculator.orpIndex(for: "a") == 0)
+    }
+
+    @Test func twoToFiveCharacterWords() {
+        #expect(ORPCalculator.orpIndex(for: "is") == 1)
+        #expect(ORPCalculator.orpIndex(for: "the") == 1)
+        #expect(ORPCalculator.orpIndex(for: "four") == 1)
+        #expect(ORPCalculator.orpIndex(for: "hello") == 1)
+    }
+
+    @Test func sixToNineCharacterWords() {
+        #expect(ORPCalculator.orpIndex(for: "reading") == 2)
+        #expect(ORPCalculator.orpIndex(for: "absolute") == 2)
+        #expect(ORPCalculator.orpIndex(for: "recognize") == 2)
+    }
+
+    @Test func tenToThirteenCharacterWords() {
+        #expect(ORPCalculator.orpIndex(for: "understand") == 3)
+        #expect(ORPCalculator.orpIndex(for: "presentation") == 3)
+        #expect(ORPCalculator.orpIndex(for: "communication") == 3)
+    }
+
+    @Test func fourteenPlusCharacterWords() {
+        #expect(ORPCalculator.orpIndex(for: "representations") == 4)
+        #expect(ORPCalculator.orpIndex(for: "acknowledgements") == 4)
+    }
+
+    // MARK: - Leading punctuation handling
+
+    @Test func leadingQuote() {
+        #expect(ORPCalculator.orpIndex(for: "\"Hello\"") == 2)
+    }
+
+    @Test func leadingParenthesis() {
+        #expect(ORPCalculator.orpIndex(for: "(test)") == 2)
+    }
+
+    @Test func leadingSingleQuote() {
+        #expect(ORPCalculator.orpIndex(for: "'word") == 2)
+    }
+
+    // MARK: - Edge cases
+
+    @Test func emptyString() {
+        #expect(ORPCalculator.orpIndex(for: "") == 0)
+    }
+
+    @Test func punctuationOnly() {
+        #expect(ORPCalculator.orpIndex(for: "...") == 0)
+    }
+
+    @Test func wordWithTrailingPunctuation() {
+        #expect(ORPCalculator.orpIndex(for: "world.") == 1)
+    }
+
+    @Test func numberWord() {
+        #expect(ORPCalculator.orpIndex(for: "42") == 1)
+        #expect(ORPCalculator.orpIndex(for: "12345") == 1)
+    }
+
+    // MARK: - Word segments for display
+
+    @Test func segmentsForSimpleWord() {
+        let segments = ORPCalculator.segments(for: "reading")
+        #expect(segments.before == "re")
+        #expect(segments.focus == "a")
+        #expect(segments.after == "ding")
+    }
+
+    @Test func segmentsForShortWord() {
+        let segments = ORPCalculator.segments(for: "Hi")
+        #expect(segments.before == "H")
+        #expect(segments.focus == "i")
+        #expect(segments.after == "")
+    }
+
+    @Test func segmentsForSingleChar() {
+        let segments = ORPCalculator.segments(for: "I")
+        #expect(segments.before == "")
+        #expect(segments.focus == "I")
+        #expect(segments.after == "")
+    }
+
+    @Test func segmentsForWordWithLeadingPunct() {
+        let segments = ORPCalculator.segments(for: "\"Hello\"")
+        #expect(segments.before == "\"H")
+        #expect(segments.focus == "e")
+        #expect(segments.after == "llo\"")
+    }
+}
