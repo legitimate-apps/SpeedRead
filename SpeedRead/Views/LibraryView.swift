@@ -22,6 +22,9 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("SpeedRead")
+            .task {
+                SampleBookLoader(modelContext: modelContext).loadSampleBooksIfNeeded()
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
