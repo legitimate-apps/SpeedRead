@@ -11,7 +11,7 @@ struct RSVPWordView: View {
     }
 
     private var font: Font {
-        .system(size: fontSize, weight: .bold, design: .monospaced)
+        .rsvpWord(size: fontSize)
     }
 
     private var charWidth: CGFloat {
@@ -27,17 +27,17 @@ struct RSVPWordView: View {
             HStack(spacing: 0) {
                 Text(segments.before)
                     .font(font)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.rsvpText.opacity(0.5))
                     .frame(width: charWidth * CGFloat(maxSideChars), alignment: .trailing)
 
                 Text(segments.focus)
                     .font(font)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.crimson)
                     .frame(width: charWidth, alignment: .center)
 
                 Text(segments.after)
                     .font(font)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.rsvpText.opacity(0.5))
                     .frame(width: charWidth * CGFloat(maxSideChars), alignment: .leading)
             }
 
@@ -51,7 +51,7 @@ struct RSVPWordView: View {
             Spacer()
                 .frame(width: charWidth * CGFloat(maxSideChars))
             Rectangle()
-                .fill(.red)
+                .fill(Color.crimson)
                 .frame(width: 2, height: 8)
                 .frame(width: charWidth)
             Spacer()
@@ -63,15 +63,15 @@ struct RSVPWordView: View {
 
 #Preview("Simple word") {
     RSVPWordView(segments: ORPCalculator.segments(for: "reading"))
-        .preferredColorScheme(.dark)
+        .background(Color.rsvpBackground)
 }
 
 #Preview("Short word") {
     RSVPWordView(segments: ORPCalculator.segments(for: "Hi"))
-        .preferredColorScheme(.dark)
+        .background(Color.rsvpBackground)
 }
 
 #Preview("Long word") {
     RSVPWordView(segments: ORPCalculator.segments(for: "presentation"))
-        .preferredColorScheme(.dark)
+        .background(Color.rsvpBackground)
 }
