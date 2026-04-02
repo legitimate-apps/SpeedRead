@@ -20,7 +20,7 @@ final class RSVPEngine {
     var wpm: Int {
         get { _wpm }
         set {
-            _wpm = max(100, min(1000, newValue))
+            _wpm = max(100, min(1500, newValue))
             timer.wpm = _wpm
         }
     }

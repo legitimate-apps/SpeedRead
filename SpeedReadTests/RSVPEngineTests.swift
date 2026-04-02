@@ -70,7 +70,13 @@ struct RSVPEngineTests {
         engine.wpm = 50
         #expect(engine.wpm == 100)
         engine.wpm = 2000
-        #expect(engine.wpm == 1000)
+        #expect(engine.wpm == 1500)
+    }
+
+    @Test @MainActor func wpm1500IsValid() {
+        let engine = RSVPEngine()
+        engine.wpm = 1500
+        #expect(engine.wpm == 1500)
     }
 
     @Test @MainActor func pauseWhileIdle() {
