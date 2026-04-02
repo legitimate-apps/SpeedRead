@@ -20,17 +20,32 @@ struct RSVPView: View {
                         engine.stop()
                         dismiss()
                     } label: {
-                        Image(systemName: "xmark")
-                            .font(.title2)
-                            .foregroundStyle(.white)
+                        HStack(spacing: 6) {
+                            Image(systemName: "xmark")
+                            Text("Close")
+                        }
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.ultraThinMaterial, in: Capsule())
                     }
+                    .frame(minWidth: 44, minHeight: 44)
 
                     Spacer()
 
-                    Text("\(engine.wpm) WPM")
-                        .font(.caption)
-                        .foregroundStyle(.gray)
-                        .monospacedDigit()
+                    Button {
+                        showSettings.toggle()
+                    } label: {
+                        Text("\(engine.wpm) WPM")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.7))
+                            .monospacedDigit()
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(.ultraThinMaterial, in: Capsule())
+                    }
+                    .frame(minHeight: 44)
 
                     Spacer()
 
@@ -38,9 +53,12 @@ struct RSVPView: View {
                         showSettings.toggle()
                     } label: {
                         Image(systemName: "gearshape")
-                            .font(.title2)
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(.white)
+                            .padding(10)
+                            .background(.ultraThinMaterial, in: Circle())
                     }
+                    .frame(minWidth: 44, minHeight: 44)
                 }
                 .padding()
 
