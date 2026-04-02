@@ -46,6 +46,7 @@ struct RSVPView: View {
                             .background(.ultraThinMaterial, in: Capsule())
                     }
                     .frame(minHeight: 44)
+                    .accessibilityLabel("\(engine.wpm) words per minute, tap to adjust")
 
                     Spacer()
 
@@ -59,6 +60,7 @@ struct RSVPView: View {
                             .background(.ultraThinMaterial, in: Circle())
                     }
                     .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityLabel("Settings")
                 }
                 .padding()
 
