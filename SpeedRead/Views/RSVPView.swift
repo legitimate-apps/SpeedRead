@@ -44,19 +44,15 @@ struct RSVPView: View {
                 }
                 .padding()
 
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        engine.togglePlayPause()
-                    }
-
-                RSVPWordView(segments: engine.currentSegments, fontSize: 36)
-
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        engine.togglePlayPause()
-                    }
+                VStack(spacing: 0) {
+                    Color.clear
+                    RSVPWordView(segments: engine.currentSegments, fontSize: 36)
+                    Color.clear
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    engine.togglePlayPause()
+                }
 
                 VStack(spacing: 16) {
                     if engine.state != .playing {
