@@ -36,24 +36,25 @@ struct BookSpineView: View {
                 )
                 .shadow(color: .black.opacity(0.4), radius: 2, x: 1, y: 1)
 
-            // Title and author text
-            VStack(spacing: 4) {
+            // Title and author text — rotated 90° (top-to-bottom, US/UK convention)
+            HStack(spacing: 4) {
                 Text(title)
-                    .font(.displayFont(size: 11, weight: .semibold))
+                    .font(.displayFont(size: 10, weight: .semibold))
                     .foregroundStyle(Color.parchment)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+
+                Text("·")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Color.parchment.opacity(0.5))
 
                 Text(author)
                     .font(.system(size: 8, weight: .regular))
                     .foregroundStyle(Color.parchment.opacity(0.7))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
             }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 8)
-            .frame(maxHeight: .infinity)
+            .fixedSize()
+            .rotationEffect(.degrees(90))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Progress indicator — gold line at bottom
             if progress > 0 {
