@@ -1,6 +1,9 @@
 import Combine
 import Foundation
 import WatchConnectivity
+#if os(watchOS)
+import WatchKit
+#endif
 
 final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     static let shared = WatchSyncService()
@@ -9,6 +12,11 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     @Published var lastReceivedBookText: String?
     @Published var lastReceivedBookAuthor: String?
     @Published var lastReceivedPosition: Int = 0
+
+    #if os(watchOS)
+    @Published var isReceiving = false
+    @Published var receivingTitle: String?
+    #endif
 
     #if os(iOS)
     enum SendState: Equatable {
@@ -26,6 +34,9 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func activate() {
+        #if os(watchOS)
+        loadPersistedBook()
+        #endif
         guard WCSession.isSupported() else { return }
         WCSession.default.delegate = self
         WCSession.default.activate()
@@ -74,6 +85,37 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         ])
     }
 
+    #if os(watchOS)
+    private struct PersistedBook: Codable {
+        let title: String
+        let author: String
+        let text: String
+        var position: Int
+    }
+
+    private static var persistURL: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("watchbook.json")
+    }
+
+    func loadPersistedBook() {
+        guard let data = try? Data(contentsOf: Self.persistURL),
+              let book = try? JSONDecoder().decode(PersistedBook.self, from: data) else { return }
+        lastReceivedBookTitle = book.title
+        lastReceivedBookAuthor = book.author
+        lastReceivedBookText = book.text
+        lastReceivedPosition = book.position
+    }
+
+    private func persistBook() {
+        guard let title = lastReceivedBookTitle,
+              let author = lastReceivedBookAuthor,
+              let text = lastReceivedBookText else { return }
+        let book = PersistedBook(title: title, author: author, text: text, position: lastReceivedPosition)
+        try? JSONEncoder().encode(book).write(to: Self.persistURL)
+    }
+    #endif
+
     // MARK: - WCSessionDelegate
 
     func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {}
@@ -105,16 +147,32 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             if let index = applicationContext["wordIndex"] as? Int {
                 self.lastReceivedPosition = index
             }
+            #if os(watchOS)
+            self.persistBook()
+            #endif
         }
     }
 
     func session(_ session: WCSession, didReceive file: WCSessionFile) {
         let metadata = file.metadata ?? [:]
+        #if os(watchOS)
+        DispatchQueue.main.async {
+            self.isReceiving = true
+            self.receivingTitle = metadata["title"] as? String
+        }
+        #endif
         if let text = try? String(contentsOf: file.fileURL, encoding: .utf8) {
             DispatchQueue.main.async {
                 self.lastReceivedBookTitle = metadata["title"] as? String
                 self.lastReceivedBookAuthor = metadata["author"] as? String
                 self.lastReceivedBookText = text
+                self.lastReceivedPosition = 0
+                #if os(watchOS)
+                self.persistBook()
+                WKInterfaceDevice.current().play(.success)
+                self.isReceiving = false
+                self.receivingTitle = nil
+                #endif
             }
         }
     }
