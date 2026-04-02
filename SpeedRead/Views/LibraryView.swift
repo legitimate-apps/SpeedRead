@@ -5,10 +5,12 @@ import UniformTypeIdentifiers
 
 struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(ThemeManager.self) private var themeManager
     @EnvironmentObject var syncService: WatchSyncService
     @Query(sort: \Book.dateAdded, order: .reverse) private var books: [Book]
 
     @State private var showImporter = false
+    @State private var showThemePicker = false
     @State private var importError: String?
     @State private var showError = false
 
@@ -23,7 +25,7 @@ struct LibraryView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.parchment.ignoresSafeArea()
+                themeManager.currentTheme.backgroundColor.ignoresSafeArea()
 
                 if books.isEmpty {
                     emptyLibraryView
@@ -32,17 +34,26 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("Your Library")
-            .toolbarBackground(Color.parchment, for: .navigationBar)
+            .toolbarBackground(themeManager.currentTheme.backgroundColor, for: .navigationBar)
             .task {
                 SampleBookLoader(modelContext: modelContext).loadSampleBooksIfNeeded()
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showImporter = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .foregroundStyle(Color.crimsonSoft)
+                    HStack(spacing: 12) {
+                        Button {
+                            showThemePicker = true
+                        } label: {
+                            Image(systemName: "paintpalette")
+                                .foregroundStyle(Color.crimsonSoft)
+                        }
+
+                        Button {
+                            showImporter = true
+                        } label: {
+                            Image(systemName: "plus")
+                                .foregroundStyle(Color.crimsonSoft)
+                        }
                     }
                 }
             }
@@ -71,6 +82,9 @@ struct LibraryView: View {
                 }
             }
             .animation(.easeInOut, value: syncService.sendState != .idle)
+            .sheet(isPresented: $showThemePicker) {
+                ThemePickerView()
+            }
         }
     }
 

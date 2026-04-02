@@ -7,7 +7,8 @@ struct BookSpineView: View {
     let progress: Double
     let wordCount: Int
 
-    // Spine height varies by word count: 120-180pt
+    @Environment(ThemeManager.self) private var themeManager
+
     private var spineHeight: CGFloat {
         let base: CGFloat = 120
         let extra = min(CGFloat(wordCount) / 50_000.0, 1.0) * 60
@@ -15,12 +16,13 @@ struct BookSpineView: View {
     }
 
     private var spineColor: Color {
-        SpineColor.color(for: title)
+        SpineColor.color(for: title, from: themeManager.currentTheme.spineColors)
     }
 
     var body: some View {
+        let theme = themeManager.currentTheme
+
         ZStack(alignment: .bottom) {
-            // Spine body
             RoundedRectangle(cornerRadius: 4)
                 .fill(spineColor)
                 .overlay(
@@ -36,20 +38,19 @@ struct BookSpineView: View {
                 )
                 .shadow(color: .black.opacity(0.4), radius: 2, x: 1, y: 1)
 
-            // Title above author, wrapping within spine width
             VStack(spacing: 4) {
                 Spacer(minLength: 0)
 
                 Text(title)
-                    .font(.displayFont(size: 9, weight: .semibold))
-                    .foregroundStyle(Color.parchment)
+                    .font(.system(size: 9, weight: .semibold, design: theme.fontDesign))
+                    .foregroundStyle(theme.spineTextColor)
                     .lineLimit(3)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.7)
 
                 Text(author)
-                    .font(.system(size: 7, weight: .regular))
-                    .foregroundStyle(Color.parchment.opacity(0.6))
+                    .font(.system(size: 7, weight: .regular, design: theme.fontDesign))
+                    .foregroundStyle(theme.spineTextColor.opacity(0.6))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.7)
@@ -60,7 +61,6 @@ struct BookSpineView: View {
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // Progress indicator — gold line at bottom
             if progress > 0 {
                 GeometryReader { geo in
                     Rectangle()
@@ -83,4 +83,5 @@ struct BookSpineView: View {
     }
     .padding()
     .background(Color.walnut)
+    .environment(ThemeManager())
 }

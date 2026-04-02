@@ -4,13 +4,14 @@ import SwiftUI
 struct BookshelfRowView<Content: View>: View {
     let content: Content
 
+    @Environment(ThemeManager.self) private var themeManager
+
     init(@ViewBuilder content: () -> Content) {
         self.content = content()
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Books sitting on the shelf
             HStack(alignment: .bottom, spacing: 8) {
                 content
                 Spacer()
@@ -18,20 +19,21 @@ struct BookshelfRowView<Content: View>: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 0)
 
-            // Shelf plank
             shelfPlank
         }
     }
 
     private var shelfPlank: some View {
-        ZStack {
+        let theme = themeManager.currentTheme
+
+        return ZStack {
             Rectangle()
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color.walnutLight,
-                            Color.walnut,
-                            Color.walnut.opacity(0.9)
+                            theme.shelfColor.opacity(0.8),
+                            theme.shelfColor,
+                            theme.shelfColor.opacity(0.9)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -39,9 +41,8 @@ struct BookshelfRowView<Content: View>: View {
                 )
                 .frame(height: 12)
 
-            // Subtle edge highlight
             Rectangle()
-                .fill(Color.lamplight.opacity(0.15))
+                .fill(theme.shelfHighlightColor.opacity(0.15))
                 .frame(height: 1)
                 .frame(maxHeight: .infinity, alignment: .top)
         }
@@ -58,4 +59,5 @@ struct BookshelfRowView<Content: View>: View {
         }
     }
     .background(Color.parchment)
+    .environment(ThemeManager())
 }
