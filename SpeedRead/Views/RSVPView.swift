@@ -25,55 +25,100 @@ struct RSVPView: View {
     private let hapticInterval = 10
 
     var body: some View {
-        ZStack {
-            Color.rsvpBackground
-                .ignoresSafeArea()
-                .overlay(
-                    RadialGradient(
-                        colors: [.clear, .black.opacity(0.3)],
-                        center: .center,
-                        startRadius: 200,
-                        endRadius: 500
-                    )
+        NavigationStack {
+            ZStack {
+                Color.rsvpBackground
                     .ignoresSafeArea()
-                )
+                    .overlay(
+                        RadialGradient(
+                            colors: [.clear, .black.opacity(0.3)],
+                            center: .center,
+                            startRadius: 200,
+                            endRadius: 500
+                        )
+                        .ignoresSafeArea()
+                    )
 
-            VStack(spacing: 0) {
-                // ─── ZONE 1: Top Bar ───
-                topBar
-                    .padding()
-
-                // ─── ZONE 2: Word Display (fixed center) ───
-                Spacer(minLength: 0)
-
-                RSVPWordView(segments: engine.currentSegments, fontSize: 36)
+                VStack(spacing: 0) {
+                    // ─── ZONE 2: Word Display (fixed center, tappable + scrubable) ───
+                    VStack {
+                        Spacer(minLength: 0)
+                        RSVPWordView(segments: engine.currentSegments, fontSize: 36)
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         engine.togglePlayPause()
                     }
                     .gesture(scrubGesture)
 
-                Spacer(minLength: 0)
+                    // ─── ZONE 3: Control Panel (fixed height) ───
+                    controlPanel
+                        .frame(height: 160)
+                        .padding(.bottom, 20)
+                }
 
-                // ─── ZONE 3: Control Panel (fixed height) ───
-                controlPanel
-                    .frame(height: 160)
-                    .padding(.bottom, 20)
-            }
+                // Bookmark flash overlay
+                if bookmarkFlash {
+                    Color.agedGold.opacity(0.15)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                }
 
-            // Bookmark flash overlay
-            if bookmarkFlash {
-                Color.agedGold.opacity(0.15)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
+                // Highlight flash overlay
+                if highlightFlash {
+                    Color.crimson.opacity(0.15)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                }
             }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        book.lastReadWordIndex = engine.currentIndex
+                        engine.stop()
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "xmark")
+                            Text("Close")
+                        }
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Color.rsvpText)
+                    }
+                }
 
-            // Highlight flash overlay
-            if highlightFlash {
-                Color.crimson.opacity(0.15)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
+                ToolbarItem(placement: .principal) {
+                    Text(book.title)
+                        .font(.system(size: 13, weight: .medium, design: .serif))
+                        .foregroundStyle(Color.rsvpText.opacity(0.4))
+                        .lineLimit(1)
+                }
+
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button {
+                            showBookmarks = true
+                        } label: {
+                            Label("Bookmarks", systemImage: "bookmark")
+                        }
+                        Button {
+                            showHighlights = true
+                        } label: {
+                            Label("Highlights", systemImage: "highlighter")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Color.rsvpText)
+                    }
+                }
             }
+            .toolbarBackground(Color.rsvpBackground, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
         }
         .preferredColorScheme(.dark)
         .onAppear {
@@ -87,58 +132,6 @@ struct RSVPView: View {
         }
         .sheet(isPresented: $showHighlights) {
             HighlightListView(book: book, engine: engine)
-        }
-    }
-
-    // MARK: - Zone 1: Top Bar
-
-    private var topBar: some View {
-        HStack {
-            Button {
-                book.lastReadWordIndex = engine.currentIndex
-                engine.stop()
-                dismiss()
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "xmark")
-                    Text("Close")
-                }
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Color.rsvpText)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Color.walnut.opacity(0.6), in: Capsule())
-            }
-            .frame(minWidth: 44, minHeight: 44)
-
-            Spacer()
-
-            Text(book.title)
-                .font(.system(size: 13, weight: .medium, design: .serif))
-                .foregroundStyle(Color.rsvpText.opacity(0.4))
-                .lineLimit(1)
-
-            Spacer()
-
-            Menu {
-                Button {
-                    showBookmarks = true
-                } label: {
-                    Label("Bookmarks", systemImage: "bookmark")
-                }
-                Button {
-                    showHighlights = true
-                } label: {
-                    Label("Highlights", systemImage: "highlighter")
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color.rsvpText)
-                    .padding(10)
-                    .background(Color.walnut.opacity(0.6), in: Circle())
-            }
-            .frame(minWidth: 44, minHeight: 44)
         }
     }
 
@@ -269,7 +262,7 @@ struct RSVPView: View {
                 guard engine.state != .playing else { return }
 
                 let now = Date.now
-                let deltaX = value.translation.width - lastDragX
+                let deltaX = -(value.translation.width - lastDragX)
                 let deltaTime = now.timeIntervalSince(lastDragTime)
 
                 if deltaTime > 0 {
