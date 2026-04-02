@@ -50,21 +50,35 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             clearSendStateAfterDelay()
             return
         }
-        guard WCSession.default.isReachable else {
-            sendState = .failed("Watch not reachable")
-            clearSendStateAfterDelay()
-            return
-        }
 
+        sendState = .sending(title)
+        let message: [String: Any] = ["title": title, "author": author, "text": text]
+
+        if WCSession.default.isReachable {
+            WCSession.default.sendMessage(message, replyHandler: { _ in
+                DispatchQueue.main.async {
+                    self.sendState = .sent(title)
+                    self.clearSendStateAfterDelay()
+                }
+            }, errorHandler: { error in
+                self.fallbackToFileTransfer(title: title, author: author, text: text)
+            })
+        } else {
+            fallbackToFileTransfer(title: title, author: author, text: text)
+        }
+    }
+
+    private func fallbackToFileTransfer(title: String, author: String, text: String) {
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(UUID().uuidString).txt")
         do {
             try text.write(to: tempURL, atomically: true, encoding: .utf8)
             WCSession.default.transferFile(tempURL, metadata: ["title": title, "author": author])
-            sendState = .sending(title)
         } catch {
-            sendState = .failed("Failed to prepare book")
-            clearSendStateAfterDelay()
+            DispatchQueue.main.async {
+                self.sendState = .failed("Failed to prepare book")
+                self.clearSendStateAfterDelay()
+            }
         }
     }
 
@@ -151,6 +165,32 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             self.persistBook()
             #endif
         }
+    }
+
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
+        guard let title = message["title"] as? String,
+              let author = message["author"] as? String,
+              let text = message["text"] as? String else {
+            replyHandler(["status": "error"])
+            return
+        }
+        DispatchQueue.main.async {
+            #if os(watchOS)
+            self.isReceiving = true
+            self.receivingTitle = title
+            #endif
+            self.lastReceivedBookTitle = title
+            self.lastReceivedBookAuthor = author
+            self.lastReceivedBookText = text
+            self.lastReceivedPosition = 0
+            #if os(watchOS)
+            self.persistBook()
+            WKInterfaceDevice.current().play(.success)
+            self.isReceiving = false
+            self.receivingTitle = nil
+            #endif
+        }
+        replyHandler(["status": "ok"])
     }
 
     func session(_ session: WCSession, didReceive file: WCSessionFile) {
