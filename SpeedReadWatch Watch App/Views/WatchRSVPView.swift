@@ -81,6 +81,9 @@ struct WatchRSVPView: View {
                         .foregroundStyle(.gray)
                         .padding(.bottom, 4)
                 }
+                .onLongPressGesture {
+                    showSettings = true
+                }
             }
         }
         .focusable()
