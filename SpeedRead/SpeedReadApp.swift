@@ -12,6 +12,6 @@ struct SpeedReadApp: App {
                 .environmentObject(syncService)
                 .onAppear { syncService.activate() }
         }
-        .modelContainer(for: Book.self)
+        .modelContainer(for: [Book.self, Bookmark.self, Highlight.self])
     }
 }

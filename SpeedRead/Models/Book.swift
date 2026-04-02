@@ -14,6 +14,12 @@ final class Book {
     var lastReadDate: Date?
     var wordCount: Int
 
+    @Relationship(deleteRule: .cascade, inverse: \Bookmark.book)
+    var bookmarks: [Bookmark] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \Highlight.book)
+    var highlights: [Highlight] = []
+
     init(
         title: String,
         author: String,
