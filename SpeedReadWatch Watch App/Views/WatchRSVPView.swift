@@ -19,26 +19,13 @@ struct WatchRSVPView: View {
             Color.black.ignoresSafeArea()
 
             if engine.state == .playing {
-                // Playing -- show word, tap to pause
+                // Playing -- tap to pause, long press for settings
                 RSVPWordView(segments: engine.currentSegments, fontSize: 20)
                     .onTapGesture { engine.pause() }
-
-                VStack {
-                    HStack {
-                        Spacer()
-                        Button { showSettings = true } label: {
-                            Image(systemName: "gearshape")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.6))
-                                .padding(8)
-                                .background(.ultraThinMaterial, in: Circle())
-                        }
-                        .buttonStyle(.plain)
+                    .onLongPressGesture {
+                        engine.pause()
+                        showSettings = true
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.top, 4)
-                    Spacer()
-                }
             } else {
                 // Paused
                 VStack(spacing: 0) {
