@@ -10,6 +10,17 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     @Published var lastReceivedBookAuthor: String?
     @Published var lastReceivedPosition: Int = 0
 
+    #if os(iOS)
+    enum SendState: Equatable {
+        case idle
+        case sending(String)
+        case sent(String)
+        case failed(String)
+    }
+
+    @Published var sendState: SendState = .idle
+    #endif
+
     private override init() {
         super.init()
     }
@@ -23,11 +34,33 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     // iPhone -> Watch: send book text via transferFile
     #if os(iOS)
     func sendBook(title: String, author: String, text: String) {
-        guard WCSession.default.activationState == .activated else { return }
+        guard WCSession.default.activationState == .activated else {
+            sendState = .failed("Watch not connected")
+            clearSendStateAfterDelay()
+            return
+        }
+        guard WCSession.default.isReachable else {
+            sendState = .failed("Watch not reachable")
+            clearSendStateAfterDelay()
+            return
+        }
+
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(UUID().uuidString).txt")
-        try? text.write(to: tempURL, atomically: true, encoding: .utf8)
-        WCSession.default.transferFile(tempURL, metadata: ["title": title, "author": author])
+        do {
+            try text.write(to: tempURL, atomically: true, encoding: .utf8)
+            WCSession.default.transferFile(tempURL, metadata: ["title": title, "author": author])
+            sendState = .sending(title)
+        } catch {
+            sendState = .failed("Failed to prepare book")
+            clearSendStateAfterDelay()
+        }
+    }
+
+    private func clearSendStateAfterDelay() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            self.sendState = .idle
+        }
     }
     #endif
 
@@ -49,6 +82,18 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     func sessionDidBecomeInactive(_ session: WCSession) {}
     func sessionDidDeactivate(_ session: WCSession) {
         WCSession.default.activate()
+    }
+
+    func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
+        DispatchQueue.main.async {
+            if let error = error {
+                self.sendState = .failed(error.localizedDescription)
+            } else {
+                let title = fileTransfer.file.metadata?["title"] as? String ?? "Book"
+                self.sendState = .sent(title)
+            }
+            self.clearSendStateAfterDelay()
+        }
     }
     #endif
 
