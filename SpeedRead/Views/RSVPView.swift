@@ -10,10 +10,21 @@ struct RSVPView: View {
 
     var body: some View {
         ZStack {
-            Color.black
+            // Warm dark background with vignette
+            Color.rsvpBackground
                 .ignoresSafeArea()
+                .overlay(
+                    RadialGradient(
+                        colors: [.clear, .black.opacity(0.3)],
+                        center: .center,
+                        startRadius: 200,
+                        endRadius: 500
+                    )
+                    .ignoresSafeArea()
+                )
 
             VStack {
+                // Header
                 HStack {
                     Button {
                         book.lastReadWordIndex = engine.currentIndex
@@ -24,11 +35,11 @@ struct RSVPView: View {
                             Image(systemName: "xmark")
                             Text("Close")
                         }
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Color.rsvpText)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(.ultraThinMaterial, in: Capsule())
+                        .background(Color.walnut.opacity(0.6), in: Capsule())
                     }
                     .frame(minWidth: 44, minHeight: 44)
 
@@ -38,12 +49,11 @@ struct RSVPView: View {
                         showSettings.toggle()
                     } label: {
                         Text("\(engine.wpm) WPM")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.white.opacity(0.7))
-                            .monospacedDigit()
+                            .font(.numeric(size: 14, weight: .medium))
+                            .foregroundStyle(Color.agedGold)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
-                            .background(.ultraThinMaterial, in: Capsule())
+                            .background(Color.walnut.opacity(0.6), in: Capsule())
                     }
                     .frame(minHeight: 44)
                     .accessibilityLabel("\(engine.wpm) words per minute, tap to adjust")
@@ -54,16 +64,17 @@ struct RSVPView: View {
                         showSettings.toggle()
                     } label: {
                         Image(systemName: "gearshape")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.white)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Color.rsvpText)
                             .padding(10)
-                            .background(.ultraThinMaterial, in: Circle())
+                            .background(Color.walnut.opacity(0.6), in: Circle())
                     }
                     .frame(minWidth: 44, minHeight: 44)
                     .accessibilityLabel("Settings")
                 }
                 .padding()
 
+                // Word display area
                 VStack(spacing: 0) {
                     Color.clear
                     RSVPWordView(segments: engine.currentSegments, fontSize: 36)
@@ -74,6 +85,7 @@ struct RSVPView: View {
                     engine.togglePlayPause()
                 }
 
+                // Bottom controls
                 VStack(spacing: 16) {
                     if engine.state != .playing {
                         Button {
@@ -81,20 +93,39 @@ struct RSVPView: View {
                         } label: {
                             Image(systemName: "play.circle.fill")
                                 .font(.system(size: 64))
-                                .foregroundStyle(.red)
+                                .foregroundStyle(Color.crimsonSoft)
                         }
+                        .transition(.opacity.animation(.easeInOut(duration: 0.15)))
                     }
 
                     VStack(spacing: 4) {
-                        ProgressView(value: engine.progress)
-                            .tint(.red)
+                        // Gold progress bar
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(Color.walnut)
+                                    .frame(height: 4)
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.agedGold.opacity(0.7), Color.agedGold],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: geo.size.width * engine.progress, height: 4)
+                                    .animation(.linear(duration: 0.1), value: engine.progress)
+                            }
+                        }
+                        .frame(height: 4)
+
                         HStack {
                             Text("Word \(engine.currentIndex + 1)")
                             Spacer()
                             Text("of \(engine.totalWords)")
                         }
-                        .font(.caption2)
-                        .foregroundStyle(.gray)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.rsvpText.opacity(0.4))
                         .monospacedDigit()
                     }
                     .padding(.horizontal)
@@ -116,38 +147,42 @@ struct RSVPView: View {
 
     private var wpmSettingsSheet: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                Text("\(engine.wpm)")
-                    .font(.system(size: 64, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.red)
+            ZStack {
+                Color.rsvpBackground.ignoresSafeArea()
 
-                Text("Words Per Minute")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                VStack(spacing: 24) {
+                    Text("\(engine.wpm)")
+                        .font(.numeric(size: 64))
+                        .foregroundStyle(Color.agedGold)
 
-                Slider(
-                    value: Binding(
-                        get: { Double(engine.wpm) },
-                        set: { engine.wpm = Int($0) }
-                    ),
-                    in: 100...1000,
-                    step: 25
-                )
-                .tint(.red)
-                .padding(.horizontal)
+                    Text("Words Per Minute")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.rsvpText.opacity(0.5))
 
-                HStack {
-                    Text("100")
+                    Slider(
+                        value: Binding(
+                            get: { Double(engine.wpm) },
+                            set: { engine.wpm = Int($0) }
+                        ),
+                        in: 100...1000,
+                        step: 25
+                    )
+                    .tint(Color.agedGold)
+                    .padding(.horizontal)
+
+                    HStack {
+                        Text("100")
+                        Spacer()
+                        Text("1000")
+                    }
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.rsvpText.opacity(0.4))
+                    .padding(.horizontal)
+
                     Spacer()
-                    Text("1000")
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal)
-
-                Spacer()
+                .padding(.top, 40)
             }
-            .padding(.top, 40)
             .navigationTitle("Speed")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -155,6 +190,7 @@ struct RSVPView: View {
                     Button("Done") {
                         showSettings = false
                     }
+                    .foregroundStyle(Color.agedGold)
                 }
             }
         }
