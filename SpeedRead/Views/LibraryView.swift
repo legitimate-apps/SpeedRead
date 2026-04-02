@@ -46,6 +46,16 @@ struct LibraryView: View {
             } message: {
                 Text(importError ?? "Unknown error")
             }
+            .overlay(alignment: .bottom) {
+                if case .sending(let title) = syncService.sendState {
+                    SendToast(icon: "arrow.up.circle", message: "Sending \(title)...", color: .blue)
+                } else if case .sent(let title) = syncService.sendState {
+                    SendToast(icon: "checkmark.circle.fill", message: "Sent \(title) to Watch", color: .green)
+                } else if case .failed(let error) = syncService.sendState {
+                    SendToast(icon: "exclamationmark.triangle.fill", message: error, color: .red)
+                }
+            }
+            .animation(.easeInOut, value: syncService.sendState != .idle)
         }
     }
 
@@ -121,5 +131,25 @@ struct BookRowView: View {
                 .tint(.red)
         }
         .padding(.vertical, 4)
+    }
+}
+
+private struct SendToast: View {
+    let icon: String
+    let message: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+            Text(message)
+                .font(.subheadline.weight(.medium))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.bottom, 80)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
