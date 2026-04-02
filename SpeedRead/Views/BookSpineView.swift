@@ -36,25 +36,29 @@ struct BookSpineView: View {
                 )
                 .shadow(color: .black.opacity(0.4), radius: 2, x: 1, y: 1)
 
-            // Title and author text — rotated 90° (top-to-bottom, US/UK convention)
-            HStack(spacing: 4) {
-                Text(title)
-                    .font(.displayFont(size: 10, weight: .semibold))
-                    .foregroundStyle(Color.parchment)
-                    .lineLimit(1)
+            // Title above author, wrapping within spine width
+            VStack(spacing: 4) {
+                Spacer(minLength: 0)
 
-                Text("·")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(Color.parchment.opacity(0.5))
+                Text(title)
+                    .font(.displayFont(size: 9, weight: .semibold))
+                    .foregroundStyle(Color.parchment)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.7)
 
                 Text(author)
-                    .font(.system(size: 8, weight: .regular))
-                    .foregroundStyle(Color.parchment.opacity(0.7))
-                    .lineLimit(1)
+                    .font(.system(size: 7, weight: .regular))
+                    .foregroundStyle(Color.parchment.opacity(0.6))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.7)
+
+                Spacer(minLength: 0)
             }
-            .frame(width: spineHeight - 16) // constrain text width to spine height before rotation
-            .rotationEffect(.degrees(90))
-            .frame(width: 60, height: spineHeight) // clamp rotated frame to spine dimensions
+            .padding(.horizontal, 4)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Progress indicator — gold line at bottom
             if progress > 0 {
