@@ -27,4 +27,10 @@ enum SpineColor {
     static func color(for title: String) -> Color {
         spineColors[colorIndex(for: title)]
     }
+
+    static func color(for title: String, from palette: [Color]) -> Color {
+        guard !palette.isEmpty else { return spineColors[colorIndex(for: title)] }
+        let hash = title.utf8.reduce(0) { ($0 &* 31) &+ Int($1) }
+        return palette[abs(hash) % palette.count]
+    }
 }
