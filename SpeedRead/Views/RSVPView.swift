@@ -12,9 +12,6 @@ struct RSVPView: View {
         ZStack {
             Color.black
                 .ignoresSafeArea()
-                .onTapGesture {
-                    engine.togglePlayPause()
-                }
 
             VStack {
                 HStack {
@@ -47,11 +44,19 @@ struct RSVPView: View {
                 }
                 .padding()
 
-                Spacer()
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        engine.togglePlayPause()
+                    }
 
                 RSVPWordView(segments: engine.currentSegments, fontSize: 36)
 
-                Spacer()
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        engine.togglePlayPause()
+                    }
 
                 VStack(spacing: 16) {
                     if engine.state != .playing {
