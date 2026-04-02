@@ -78,4 +78,47 @@ struct BookTests {
         )
         #expect(book.progress == 0.0)
     }
+
+    // MARK: - Tokenization Tests
+
+    @Test func tokenizeSplitsHyphenatedWords() {
+        let tokens = Book.tokenize("self-awareness is key")
+        #expect(tokens == ["self-", "awareness", "is", "key"])
+    }
+
+    @Test func tokenizePreservesEmDash() {
+        let tokens = Book.tokenize("hello\u{2014}world")
+        #expect(tokens == ["hello\u{2014}world"])
+    }
+
+    @Test func tokenizePreservesEnDash() {
+        let tokens = Book.tokenize("pages 10\u{2013}20")
+        #expect(tokens == ["pages", "10\u{2013}20"])
+    }
+
+    @Test func tokenizeHandlesMultipleHyphens() {
+        let tokens = Book.tokenize("state-of-the-art design")
+        #expect(tokens == ["state-", "of-", "the-", "art", "design"])
+    }
+
+    @Test func tokenizeDoesNotSplitPureHyphens() {
+        let tokens = Book.tokenize("hello -- world")
+        #expect(tokens == ["hello", "--", "world"])
+    }
+
+    @Test func tokenizeDoesNotSplitLeadingHyphen() {
+        let tokens = Book.tokenize("-prefix word")
+        #expect(tokens == ["-prefix", "word"])
+    }
+
+    @Test func wordCountMatchesTokenizedWords() {
+        let book = Book(
+            title: "T",
+            author: "A",
+            extractedText: "self-awareness is well-known",
+            sourceFileName: "t.epub"
+        )
+        #expect(book.wordCount == 5)
+        #expect(book.words.count == 5)
+    }
 }
