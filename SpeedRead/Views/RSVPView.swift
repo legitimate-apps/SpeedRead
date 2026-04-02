@@ -1,16 +1,31 @@
 //  RSVPView.swift
+import SwiftData
 import SwiftUI
 
 struct RSVPView: View {
     @Bindable var book: Book
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     @State private var engine = RSVPEngine()
-    @State private var showSettings = false
+    @State private var highlightStartIndex: Int?
+    @State private var showBookmarks = false
+    @State private var showHighlights = false
+    @State private var bookmarkFlash = false
+    @State private var highlightFlash = false
+
+    // Scrub gesture state
+    @State private var lastDragX: CGFloat = 0
+    @State private var dragAccumulator: CGFloat = 0
+    @State private var lastDragTime: Date = .now
+    @State private var dragVelocity: CGFloat = 0
+
+    private let basePtsPerWord: CGFloat = 8
+    private let maxVelocityMultiplier: CGFloat = 50
+    private let hapticInterval = 10
 
     var body: some View {
         ZStack {
-            // Warm dark background with vignette
             Color.rsvpBackground
                 .ignoresSafeArea()
                 .overlay(
@@ -23,114 +38,41 @@ struct RSVPView: View {
                     .ignoresSafeArea()
                 )
 
-            VStack {
-                // Header
-                HStack {
-                    Button {
-                        book.lastReadWordIndex = engine.currentIndex
-                        engine.stop()
-                        dismiss()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "xmark")
-                            Text("Close")
-                        }
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Color.rsvpText)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.walnut.opacity(0.6), in: Capsule())
+            VStack(spacing: 0) {
+                // ─── ZONE 1: Top Bar ───
+                topBar
+                    .padding()
+
+                // ─── ZONE 2: Word Display (fixed center) ───
+                Spacer(minLength: 0)
+
+                RSVPWordView(segments: engine.currentSegments, fontSize: 36)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        engine.togglePlayPause()
                     }
-                    .frame(minWidth: 44, minHeight: 44)
+                    .gesture(scrubGesture)
 
-                    Spacer()
+                Spacer(minLength: 0)
 
-                    Button {
-                        showSettings.toggle()
-                    } label: {
-                        Text("\(engine.wpm) WPM")
-                            .font(.numeric(size: 14, weight: .medium))
-                            .foregroundStyle(Color.agedGold)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.walnut.opacity(0.6), in: Capsule())
-                    }
-                    .frame(minHeight: 44)
-                    .accessibilityLabel("\(engine.wpm) words per minute, tap to adjust")
+                // ─── ZONE 3: Control Panel (fixed height) ───
+                controlPanel
+                    .frame(height: 160)
+                    .padding(.bottom, 20)
+            }
 
-                    Spacer()
+            // Bookmark flash overlay
+            if bookmarkFlash {
+                Color.agedGold.opacity(0.15)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            }
 
-                    Button {
-                        showSettings.toggle()
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(Color.rsvpText)
-                            .padding(10)
-                            .background(Color.walnut.opacity(0.6), in: Circle())
-                    }
-                    .frame(minWidth: 44, minHeight: 44)
-                    .accessibilityLabel("Settings")
-                }
-                .padding()
-
-                // Word display area
-                VStack(spacing: 0) {
-                    Color.clear
-                    RSVPWordView(segments: engine.currentSegments, fontSize: 36)
-                    Color.clear
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    engine.togglePlayPause()
-                }
-
-                // Bottom controls
-                VStack(spacing: 16) {
-                    if engine.state != .playing {
-                        Button {
-                            engine.play()
-                        } label: {
-                            Image(systemName: "play.circle.fill")
-                                .font(.system(size: 64))
-                                .foregroundStyle(Color.crimsonSoft)
-                        }
-                        .transition(.opacity.animation(.easeInOut(duration: 0.15)))
-                    }
-
-                    VStack(spacing: 4) {
-                        // Gold progress bar
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(Color.walnut)
-                                    .frame(height: 4)
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color.agedGold.opacity(0.7), Color.agedGold],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .frame(width: geo.size.width * engine.progress, height: 4)
-                                    .animation(.linear(duration: 0.1), value: engine.progress)
-                            }
-                        }
-                        .frame(height: 4)
-
-                        HStack {
-                            Text("Word \(engine.currentIndex + 1)")
-                            Spacer()
-                            Text("of \(engine.totalWords)")
-                        }
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.rsvpText.opacity(0.4))
-                        .monospacedDigit()
-                    }
-                    .padding(.horizontal)
-                }
-                .padding(.bottom, 40)
+            // Highlight flash overlay
+            if highlightFlash {
+                Color.crimson.opacity(0.15)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
             }
         }
         .preferredColorScheme(.dark)
@@ -140,60 +82,257 @@ struct RSVPView: View {
         .onDisappear {
             book.lastReadWordIndex = engine.currentIndex
         }
-        .sheet(isPresented: $showSettings) {
-            wpmSettingsSheet
+        .sheet(isPresented: $showBookmarks) {
+            BookmarkListView(book: book, engine: engine)
+        }
+        .sheet(isPresented: $showHighlights) {
+            HighlightListView(book: book, engine: engine)
         }
     }
 
-    private var wpmSettingsSheet: some View {
-        NavigationStack {
-            ZStack {
-                Color.rsvpBackground.ignoresSafeArea()
+    // MARK: - Zone 1: Top Bar
 
-                VStack(spacing: 24) {
-                    Text("\(engine.wpm)")
-                        .font(.numeric(size: 64))
-                        .foregroundStyle(Color.agedGold)
-
-                    Text("Words Per Minute")
-                        .font(.system(size: 14))
-                        .foregroundStyle(Color.rsvpText.opacity(0.5))
-
-                    Slider(
-                        value: Binding(
-                            get: { Double(engine.wpm) },
-                            set: { engine.wpm = Int($0) }
-                        ),
-                        in: 100...1000,
-                        step: 25
-                    )
-                    .tint(Color.agedGold)
-                    .padding(.horizontal)
-
-                    HStack {
-                        Text("100")
-                        Spacer()
-                        Text("1000")
-                    }
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.rsvpText.opacity(0.4))
-                    .padding(.horizontal)
-
-                    Spacer()
+    private var topBar: some View {
+        HStack {
+            Button {
+                book.lastReadWordIndex = engine.currentIndex
+                engine.stop()
+                dismiss()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "xmark")
+                    Text("Close")
                 }
-                .padding(.top, 40)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color.rsvpText)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.walnut.opacity(0.6), in: Capsule())
             }
-            .navigationTitle("Speed")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        showSettings = false
-                    }
-                    .foregroundStyle(Color.agedGold)
+            .frame(minWidth: 44, minHeight: 44)
+
+            Spacer()
+
+            Text(book.title)
+                .font(.system(size: 13, weight: .medium, design: .serif))
+                .foregroundStyle(Color.rsvpText.opacity(0.4))
+                .lineLimit(1)
+
+            Spacer()
+
+            Menu {
+                Button {
+                    showBookmarks = true
+                } label: {
+                    Label("Bookmarks", systemImage: "bookmark")
                 }
+                Button {
+                    showHighlights = true
+                } label: {
+                    Label("Highlights", systemImage: "highlighter")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.rsvpText)
+                    .padding(10)
+                    .background(Color.walnut.opacity(0.6), in: Circle())
             }
+            .frame(minWidth: 44, minHeight: 44)
         }
-        .presentationDetents([.medium])
+    }
+
+    // MARK: - Zone 3: Control Panel
+
+    private var controlPanel: some View {
+        VStack(spacing: 12) {
+            wpmControls
+
+            actionButtons
+                .opacity(engine.state != .playing ? 1 : 0)
+                .allowsHitTesting(engine.state != .playing)
+
+            progressSection
+        }
+        .padding(.horizontal)
+    }
+
+    private var wpmControls: some View {
+        HStack(spacing: 20) {
+            Button {
+                engine.wpm -= 25
+            } label: {
+                Image(systemName: "minus.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(Color.walnut.opacity(0.8))
+            }
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel("Decrease speed by 25 words per minute")
+
+            Text("\(engine.wpm) WPM")
+                .font(.numeric(size: 18, weight: .medium))
+                .foregroundStyle(Color.agedGold)
+                .frame(minWidth: 100)
+                .accessibilityLabel("\(engine.wpm) words per minute")
+
+            Button {
+                engine.wpm += 25
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(Color.walnut.opacity(0.8))
+            }
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel("Increase speed by 25 words per minute")
+        }
+    }
+
+    private var actionButtons: some View {
+        HStack(spacing: 16) {
+            Button {
+                engine.play()
+            } label: {
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(Color.crimsonSoft)
+            }
+            .frame(minWidth: 44, minHeight: 44)
+
+            Button {
+                addBookmark()
+            } label: {
+                Image(systemName: "bookmark.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(Color.agedGold)
+                    .padding(10)
+                    .background(Color.walnut.opacity(0.6), in: Circle())
+            }
+            .frame(minWidth: 44, minHeight: 44)
+
+            Button {
+                toggleHighlight()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "highlighter")
+                    Text(highlightStartIndex != nil ? "Stop" : "Highlight")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                .foregroundStyle(highlightStartIndex != nil ? .white : Color.rsvpText)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    highlightStartIndex != nil ? Color.crimson : Color.walnut.opacity(0.6),
+                    in: Capsule()
+                )
+            }
+            .frame(minHeight: 44)
+        }
+    }
+
+    private var progressSection: some View {
+        VStack(spacing: 4) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.walnut)
+                        .frame(height: 4)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.agedGold.opacity(0.7), Color.agedGold],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geo.size.width * engine.progress, height: 4)
+                        .animation(.linear(duration: 0.1), value: engine.progress)
+                }
+            }
+            .frame(height: 4)
+
+            HStack {
+                Text("Word \(engine.currentIndex + 1)")
+                Spacer()
+                Text("of \(engine.totalWords)")
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(Color.rsvpText.opacity(0.4))
+            .monospacedDigit()
+        }
+    }
+
+    // MARK: - Scrub Gesture
+
+    private var scrubGesture: some Gesture {
+        DragGesture(minimumDistance: 5)
+            .onChanged { value in
+                guard engine.state != .playing else { return }
+
+                let now = Date.now
+                let deltaX = value.translation.width - lastDragX
+                let deltaTime = now.timeIntervalSince(lastDragTime)
+
+                if deltaTime > 0 {
+                    dragVelocity = abs(deltaX / CGFloat(deltaTime))
+                }
+
+                let velocityFactor = min(dragVelocity / 500, maxVelocityMultiplier / basePtsPerWord)
+                let effectivePtsPerWord = basePtsPerWord / max(1, velocityFactor)
+
+                dragAccumulator += deltaX
+                let wordDelta = Int(dragAccumulator / effectivePtsPerWord)
+
+                if wordDelta != 0 {
+                    let newIndex = engine.currentIndex + wordDelta
+                    engine.seek(to: newIndex)
+                    dragAccumulator -= CGFloat(wordDelta) * effectivePtsPerWord
+
+                    if abs(wordDelta) >= hapticInterval || engine.currentIndex % hapticInterval == 0 {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    }
+                }
+
+                lastDragX = value.translation.width
+                lastDragTime = now
+            }
+            .onEnded { _ in
+                lastDragX = 0
+                dragAccumulator = 0
+                dragVelocity = 0
+            }
+    }
+
+    // MARK: - Actions
+
+    private func addBookmark() {
+        let preview = Bookmark.previewText(from: book.words, at: engine.currentIndex)
+        let bookmark = Bookmark(wordIndex: engine.currentIndex, previewText: preview)
+        bookmark.book = book
+        modelContext.insert(bookmark)
+
+        withAnimation(.easeOut(duration: 0.3)) { bookmarkFlash = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.easeIn(duration: 0.2)) { bookmarkFlash = false }
+        }
+    }
+
+    private func toggleHighlight() {
+        if let startIndex = highlightStartIndex {
+            let endIndex = engine.currentIndex
+            let actualStart = min(startIndex, endIndex)
+            let actualEnd = max(startIndex, endIndex)
+            let text = Highlight.captureText(from: book.words, start: actualStart, end: actualEnd)
+            let highlight = Highlight(startWordIndex: actualStart, endWordIndex: actualEnd, highlightedText: text)
+            highlight.book = book
+            modelContext.insert(highlight)
+            highlightStartIndex = nil
+
+            withAnimation(.easeOut(duration: 0.3)) { highlightFlash = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                withAnimation(.easeIn(duration: 0.2)) { highlightFlash = false }
+            }
+        } else {
+            highlightStartIndex = engine.currentIndex
+        }
     }
 }
