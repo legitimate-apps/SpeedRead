@@ -37,7 +37,11 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         #if os(watchOS)
         loadPersistedBook()
         #endif
-        guard WCSession.isSupported() else { return }
+        guard WCSession.isSupported() else {
+            print("[WatchSync] WCSession NOT supported on this device")
+            return
+        }
+        print("[WatchSync] Activating WCSession...")
         WCSession.default.delegate = self
         WCSession.default.activate()
     }
@@ -54,16 +58,22 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         sendState = .sending(title)
         let message: [String: Any] = ["title": title, "author": author, "text": text]
 
+        print("[WatchSync] Sending '\(title)' — isReachable=\(WCSession.default.isReachable) isPaired=\(WCSession.default.isPaired) activationState=\(WCSession.default.activationState.rawValue)")
+
         if WCSession.default.isReachable {
-            WCSession.default.sendMessage(message, replyHandler: { _ in
+            print("[WatchSync] Using sendMessage...")
+            WCSession.default.sendMessage(message, replyHandler: { reply in
+                print("[WatchSync] sendMessage reply: \(reply)")
                 DispatchQueue.main.async {
                     self.sendState = .sent(title)
                     self.clearSendStateAfterDelay()
                 }
             }, errorHandler: { error in
+                print("[WatchSync] sendMessage FAILED: \(error.localizedDescription) — falling back to transferFile")
                 self.fallbackToFileTransfer(title: title, author: author, text: text)
             })
         } else {
+            print("[WatchSync] Watch not reachable, using transferFile fallback...")
             fallbackToFileTransfer(title: title, author: author, text: text)
         }
     }
@@ -132,7 +142,12 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
 
     // MARK: - WCSessionDelegate
 
-    func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {}
+    func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {
+        print("[WatchSync] Activation completed: state=\(state.rawValue) error=\(String(describing: error))")
+        #if os(iOS)
+        print("[WatchSync] isPaired=\(session.isPaired) isWatchAppInstalled=\(session.isWatchAppInstalled) isReachable=\(session.isReachable)")
+        #endif
+    }
 
     #if os(iOS)
     func sessionDidBecomeInactive(_ session: WCSession) {}
@@ -168,6 +183,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
+        print("[WatchSync] didReceiveMessage with keys: \(message.keys.sorted())")
         guard let title = message["title"] as? String,
               let author = message["author"] as? String,
               let text = message["text"] as? String else {
@@ -194,6 +210,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func session(_ session: WCSession, didReceive file: WCSessionFile) {
+        print("[WatchSync] didReceive file with metadata: \(file.metadata ?? [:])")
         let metadata = file.metadata ?? [:]
         #if os(watchOS)
         DispatchQueue.main.async {
