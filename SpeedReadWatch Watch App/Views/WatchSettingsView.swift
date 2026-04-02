@@ -6,21 +6,25 @@ struct WatchSettingsView: View {
     @State private var wpmValue: Double = 300
 
     var body: some View {
-        VStack(spacing: 12) {
-            Text("\(Int(wpmValue))")
-                .font(.system(size: 36, weight: .bold, design: .monospaced))
-                .foregroundStyle(.red)
+        ZStack {
+            Color.walnut.ignoresSafeArea()
 
-            Text("Words Per Minute")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            VStack(spacing: 12) {
+                Text("\(Int(wpmValue))")
+                    .font(.numeric(size: 36))
+                    .foregroundStyle(Color.agedGold)
 
-            Button("Done") {
-                engine.wpm = Int(wpmValue)
-                dismiss()
+                Text("Words Per Minute")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.parchment.opacity(0.6))
+
+                Button("Done") {
+                    engine.wpm = Int(wpmValue)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.crimsonSoft)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.red)
         }
         .focusable()
         .digitalCrownRotation(

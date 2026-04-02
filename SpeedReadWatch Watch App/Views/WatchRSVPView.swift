@@ -16,10 +16,9 @@ struct WatchRSVPView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.rsvpBackground.ignoresSafeArea()
 
             if engine.state == .playing {
-                // Playing -- tap to pause, long press for settings
                 RSVPWordView(segments: engine.currentSegments, fontSize: 20)
                     .onTapGesture { engine.pause() }
                     .onLongPressGesture {
@@ -27,9 +26,7 @@ struct WatchRSVPView: View {
                         showSettings = true
                     }
             } else {
-                // Paused
                 VStack(spacing: 0) {
-                    // Top bar: back (left), settings (right)
                     HStack {
                         Button {
                             syncService.syncReadingPosition(
@@ -41,9 +38,9 @@ struct WatchRSVPView: View {
                         } label: {
                             Image(systemName: "xmark")
                                 .font(.body.weight(.semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.rsvpText)
                                 .frame(width: 36, height: 36)
-                                .background(.white.opacity(0.15), in: Circle())
+                                .background(Color.walnut.opacity(0.6), in: Circle())
                         }
                         .buttonStyle(.plain)
 
@@ -52,9 +49,9 @@ struct WatchRSVPView: View {
                         Button { showSettings = true } label: {
                             Image(systemName: "gearshape")
                                 .font(.body.weight(.semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.rsvpText)
                                 .frame(width: 36, height: 36)
-                                .background(.white.opacity(0.15), in: Circle())
+                                .background(Color.walnut.opacity(0.6), in: Circle())
                         }
                         .buttonStyle(.plain)
                     }
@@ -63,22 +60,20 @@ struct WatchRSVPView: View {
 
                     Spacer()
 
-                    // Current word preview
                     RSVPWordView(segments: engine.currentSegments, fontSize: 18)
 
                     Spacer()
 
-                    // Play button
                     Button { engine.play() } label: {
                         Image(systemName: "play.circle.fill")
                             .font(.system(size: 44))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.crimsonSoft)
                     }
                     .buttonStyle(.plain)
 
                     Text("\(engine.wpm) WPM")
-                        .font(.caption2)
-                        .foregroundStyle(.gray)
+                        .font(.system(size: 11, weight: .regular, design: .monospaced))
+                        .foregroundStyle(Color.agedGold)
                         .padding(.bottom, 4)
                 }
                 .onLongPressGesture {
