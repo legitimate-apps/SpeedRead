@@ -22,6 +22,23 @@ struct WatchRSVPView: View {
                 // Playing -- show word, tap to pause
                 RSVPWordView(segments: engine.currentSegments, fontSize: 20)
                     .onTapGesture { engine.pause() }
+
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button { showSettings = true } label: {
+                            Image(systemName: "gearshape")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.6))
+                                .padding(8)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.top, 4)
+                    Spacer()
+                }
             } else {
                 // Paused
                 VStack(spacing: 0) {
