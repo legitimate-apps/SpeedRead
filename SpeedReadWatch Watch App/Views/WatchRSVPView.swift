@@ -29,17 +29,8 @@ struct WatchRSVPView: View {
             } else {
                 // Paused
                 VStack(spacing: 0) {
-                    // Top bar: settings (left), back (right)
+                    // Top bar: back (left), settings (right)
                     HStack {
-                        Button { showSettings = true } label: {
-                            Image(systemName: "gearshape")
-                                .font(.caption)
-                                .foregroundStyle(.white)
-                        }
-                        .buttonStyle(.plain)
-
-                        Spacer()
-
                         Button {
                             syncService.syncReadingPosition(
                                 bookTitle: syncService.lastReceivedBookTitle ?? "",
@@ -49,8 +40,21 @@ struct WatchRSVPView: View {
                             dismiss()
                         } label: {
                             Image(systemName: "xmark")
-                                .font(.caption)
+                                .font(.body.weight(.semibold))
                                 .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(.white.opacity(0.15), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+
+                        Spacer()
+
+                        Button { showSettings = true } label: {
+                            Image(systemName: "gearshape")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(.white.opacity(0.15), in: Circle())
                         }
                         .buttonStyle(.plain)
                     }
