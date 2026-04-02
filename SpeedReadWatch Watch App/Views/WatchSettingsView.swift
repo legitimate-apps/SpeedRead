@@ -27,13 +27,19 @@ struct WatchSettingsView: View {
             $wpmValue,
             from: 100,
             through: 1000,
-            by: 25,
-            sensitivity: .medium,
+            by: 10,
+            sensitivity: .low,
             isContinuous: false,
             isHapticFeedbackEnabled: true
         )
+        .onChange(of: wpmValue) { _, newValue in
+            let snapped = (newValue / 10).rounded() * 10
+            if snapped != newValue {
+                wpmValue = snapped
+            }
+        }
         .onAppear {
-            wpmValue = Double(engine.wpm)
+            wpmValue = (Double(engine.wpm) / 10).rounded() * 10
         }
     }
 }
