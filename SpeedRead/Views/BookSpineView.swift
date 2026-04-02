@@ -52,9 +52,9 @@ struct BookSpineView: View {
                     .foregroundStyle(Color.parchment.opacity(0.7))
                     .lineLimit(1)
             }
-            .fixedSize()
+            .frame(width: spineHeight - 16) // constrain text width to spine height before rotation
             .rotationEffect(.degrees(90))
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(width: 60, height: spineHeight) // clamp rotated frame to spine dimensions
 
             // Progress indicator — gold line at bottom
             if progress > 0 {
