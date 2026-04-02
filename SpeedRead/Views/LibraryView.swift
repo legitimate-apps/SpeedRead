@@ -12,16 +12,27 @@ struct LibraryView: View {
     @State private var importError: String?
     @State private var showError = false
 
+    private let booksPerShelf = 4
+
+    private var shelves: [[Book]] {
+        stride(from: 0, to: books.count, by: booksPerShelf).map {
+            Array(books[$0..<min($0 + booksPerShelf, books.count)])
+        }
+    }
+
     var body: some View {
         NavigationStack {
-            Group {
+            ZStack {
+                Color.parchment.ignoresSafeArea()
+
                 if books.isEmpty {
                     emptyLibraryView
                 } else {
-                    bookListView
+                    bookshelfView
                 }
             }
-            .navigationTitle("SpeedRead")
+            .navigationTitle("Your Library")
+            .toolbarBackground(Color.parchment, for: .navigationBar)
             .task {
                 SampleBookLoader(modelContext: modelContext).loadSampleBooksIfNeeded()
             }
@@ -30,7 +41,8 @@ struct LibraryView: View {
                     Button {
                         showImporter = true
                     } label: {
-                        Label("Import", systemImage: "plus")
+                        Image(systemName: "plus")
+                            .foregroundStyle(Color.crimsonSoft)
                     }
                 }
             }
@@ -46,13 +58,16 @@ struct LibraryView: View {
             } message: {
                 Text(importError ?? "Unknown error")
             }
+            .navigationDestination(for: Book.self) { book in
+                ReaderView(book: book)
+            }
             .overlay(alignment: .bottom) {
                 if case .sending(let title) = syncService.sendState {
-                    SendToast(icon: "arrow.up.circle", message: "Sending \(title)...", color: .blue)
+                    SendToast(icon: "arrow.up.circle", message: "Sending \(title)...", color: Color.agedGold)
                 } else if case .sent(let title) = syncService.sendState {
-                    SendToast(icon: "checkmark.circle.fill", message: "Sent \(title) to Watch", color: .green)
+                    SendToast(icon: "checkmark.circle.fill", message: "Sent \(title) to Watch", color: Color.agedGold)
                 } else if case .failed(let error) = syncService.sendState {
-                    SendToast(icon: "exclamationmark.triangle.fill", message: error, color: .red)
+                    SendToast(icon: "exclamationmark.triangle.fill", message: error, color: Color.crimsonSoft)
                 }
             }
             .animation(.easeInOut, value: syncService.sendState != .idle)
@@ -60,36 +75,61 @@ struct LibraryView: View {
     }
 
     private var emptyLibraryView: some View {
-        ContentUnavailableView {
-            Label("No Books", systemImage: "book.closed")
-        } description: {
-            Text("Import a PDF or EPUB to start speed reading.")
-        } actions: {
-            Button("Import Book") {
+        VStack(spacing: 20) {
+            BookshelfRowView { }
+            BookshelfRowView { }
+
+            Text("Your shelves are waiting...")
+                .font(.displayFont(size: 20, weight: .regular))
+                .italic()
+                .foregroundStyle(Color.walnutLight)
+                .padding(.top, 20)
+
+            Button {
                 showImporter = true
+            } label: {
+                Label("Import a Book", systemImage: "plus.circle.fill")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Color.parchment)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.crimsonSoft, in: Capsule())
             }
-            .buttonStyle(.borderedProminent)
         }
+        .padding()
     }
 
-    private var bookListView: some View {
-        List {
-            ForEach(books) { book in
-                NavigationLink(value: book) {
-                    BookRowView(book: book)
-                }
-                .contextMenu {
-                    Button {
-                        syncService.sendBook(title: book.title, author: book.author, text: book.extractedText)
-                    } label: {
-                        Label("Send to Watch", systemImage: "applewatch")
+    private var bookshelfView: some View {
+        ScrollView {
+            LazyVStack(spacing: 24) {
+                ForEach(Array(shelves.enumerated()), id: \.offset) { _, shelfBooks in
+                    BookshelfRowView {
+                        ForEach(shelfBooks) { book in
+                            NavigationLink(value: book) {
+                                BookSpineView(
+                                    title: book.title,
+                                    author: book.author,
+                                    progress: book.progress,
+                                    wordCount: book.wordCount
+                                )
+                            }
+                            .contextMenu {
+                                Button {
+                                    syncService.sendBook(title: book.title, author: book.author, text: book.extractedText)
+                                } label: {
+                                    Label("Send to Watch", systemImage: "applewatch")
+                                }
+                                Button(role: .destructive) {
+                                    modelContext.delete(book)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
                     }
                 }
             }
-            .onDelete(perform: deleteBooks)
-        }
-        .navigationDestination(for: Book.self) { book in
-            ReaderView(book: book)
+            .padding(.top, 16)
         }
     }
 
@@ -109,29 +149,6 @@ struct LibraryView: View {
             showError = true
         }
     }
-
-    private func deleteBooks(at offsets: IndexSet) {
-        for index in offsets {
-            modelContext.delete(books[index])
-        }
-    }
-}
-
-struct BookRowView: View {
-    let book: Book
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(book.title)
-                .font(.headline)
-            Text(book.author)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            ProgressView(value: book.progress)
-                .tint(.red)
-        }
-        .padding(.vertical, 4)
-    }
 }
 
 private struct SendToast: View {
@@ -144,7 +161,7 @@ private struct SendToast: View {
             Image(systemName: icon)
                 .foregroundStyle(color)
             Text(message)
-                .font(.subheadline.weight(.medium))
+                .font(.system(size: 14, weight: .medium))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
