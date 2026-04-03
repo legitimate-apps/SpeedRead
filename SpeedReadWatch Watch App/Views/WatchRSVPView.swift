@@ -8,10 +8,10 @@ struct WatchRSVPView: View {
     @State private var showSettings = false
     @State private var crownValue: Double = 0
 
+    private var currentBook: WatchBook? { syncService.currentBook }
+
     private var words: [String] {
-        (syncService.lastReceivedBookText ?? "")
-            .components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }
+        currentBook?.words ?? []
     }
 
     var body: some View {
@@ -29,10 +29,13 @@ struct WatchRSVPView: View {
                 VStack(spacing: 0) {
                     HStack {
                         Button {
-                            syncService.syncReadingPosition(
-                                bookTitle: syncService.lastReceivedBookTitle ?? "",
-                                wordIndex: engine.currentIndex
-                            )
+                            if let book = currentBook {
+                                syncService.syncReadingPosition(
+                                    bookId: book.id,
+                                    bookTitle: book.title,
+                                    wordIndex: engine.currentIndex
+                                )
+                            }
                             engine.stop()
                             dismiss()
                         } label: {
@@ -97,15 +100,18 @@ struct WatchRSVPView: View {
             }
         }
         .onAppear {
-            let w = words
-            engine.load(words: w, startingAt: syncService.lastReceivedPosition)
-            crownValue = Double(syncService.lastReceivedPosition)
+            guard let book = currentBook else { return }
+            engine.load(words: book.words, startingAt: book.lastReadIndex)
+            crownValue = Double(book.lastReadIndex)
         }
         .onDisappear {
-            syncService.syncReadingPosition(
-                bookTitle: syncService.lastReceivedBookTitle ?? "",
-                wordIndex: engine.currentIndex
-            )
+            if let book = currentBook {
+                syncService.syncReadingPosition(
+                    bookId: book.id,
+                    bookTitle: book.title,
+                    wordIndex: engine.currentIndex
+                )
+            }
             engine.stop()
         }
         .sheet(isPresented: $showSettings) {

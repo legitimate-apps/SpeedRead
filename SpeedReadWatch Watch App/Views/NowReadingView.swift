@@ -2,8 +2,9 @@ import SwiftUI
 
 struct NowReadingView: View {
     @EnvironmentObject var syncService: WatchSyncService
-
     @State private var showRSVP = false
+
+    private var currentBook: WatchBook? { syncService.currentBook }
 
     var body: some View {
         ZStack {
@@ -25,10 +26,9 @@ struct NowReadingView: View {
                     }
                     .padding()
                     .transition(.opacity)
-                } else if let title = syncService.lastReceivedBookTitle,
-                          syncService.lastReceivedBookText != nil {
+                } else if let book = currentBook {
                     VStack(spacing: 12) {
-                        Text(title)
+                        Text(book.title)
                             .font(.displayFont(size: 15, weight: .semibold))
                             .foregroundStyle(Color.parchment)
                             .multilineTextAlignment(.center)
@@ -53,7 +53,7 @@ struct NowReadingView: View {
                         Image(systemName: "books.vertical")
                             .font(.title2)
                             .foregroundStyle(Color.agedGold)
-                        Text("Open your library on iPhone")
+                        Text("Swipe up to browse your library")
                             .font(.displayFont(size: 13, weight: .regular))
                             .italic()
                             .multilineTextAlignment(.center)
