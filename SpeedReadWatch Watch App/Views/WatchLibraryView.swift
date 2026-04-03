@@ -3,11 +3,16 @@ import SwiftUI
 
 struct WatchLibraryView: View {
     @EnvironmentObject var syncService: WatchSyncService
+    @State private var showRSVP = false
+
+    private var currentBook: WatchBook? { syncService.currentBook }
 
     var body: some View {
         NavigationStack {
             Group {
-                if syncService.library.books.isEmpty {
+                if syncService.isReceiving {
+                    receivingState
+                } else if syncService.library.books.isEmpty {
                     emptyState
                 } else {
                     bookList
@@ -21,17 +26,72 @@ struct WatchLibraryView: View {
         }
     }
 
+    // MARK: - Book List
+
     private var bookList: some View {
         List {
-            ForEach(syncService.library.sortedBooks) { book in
-                NavigationLink(value: book) {
-                    bookRow(book)
+            // Now Reading section
+            if let book = currentBook {
+                Section {
+                    Button {
+                        showRSVP = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(SpineColor.color(for: book.title))
+                                .frame(width: 4, height: 44)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(book.title)
+                                    .font(.system(size: 15, weight: .semibold, design: .serif))
+                                    .foregroundStyle(Color.parchment)
+                                    .lineLimit(2)
+
+                                if book.progress > 0 {
+                                    Text("\(Int(book.progress * 100))% complete")
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.agedGold)
+                                }
+                            }
+
+                            Spacer(minLength: 0)
+
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(Color.crimsonSoft)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(Color.walnut.opacity(0.5))
+                } header: {
+                    Text("Now Reading")
+                        .foregroundStyle(Color.agedGold)
                 }
-                .listRowBackground(Color.walnut.opacity(0.3))
+                .sheet(isPresented: $showRSVP) {
+                    WatchRSVPView()
+                        .environmentObject(syncService)
+                }
             }
-            .onDelete(perform: deleteBooks)
+
+            // All books section
+            Section {
+                ForEach(syncService.library.sortedBooks) { book in
+                    NavigationLink(value: book) {
+                        bookRow(book)
+                    }
+                    .listRowBackground(Color.walnut.opacity(0.3))
+                }
+                .onDelete(perform: deleteBooks)
+            } header: {
+                if currentBook != nil {
+                    Text("All Books")
+                        .foregroundStyle(Color.parchment.opacity(0.6))
+                }
+            }
         }
     }
+
+    // MARK: - Book Row
 
     private func bookRow(_ book: WatchBook) -> some View {
         HStack(spacing: 10) {
@@ -71,6 +131,26 @@ struct WatchLibraryView: View {
         }
     }
 
+    // MARK: - States
+
+    private var receivingState: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .tint(Color.agedGold)
+            Text("Receiving")
+                .font(.displayFont(size: 16, weight: .semibold))
+                .foregroundStyle(Color.parchment)
+            if let title = syncService.receivingTitle {
+                Text(title)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.parchment.opacity(0.6))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+        }
+        .padding()
+    }
+
     private var emptyState: some View {
         VStack(spacing: 8) {
             Image(systemName: "books.vertical")
@@ -84,6 +164,8 @@ struct WatchLibraryView: View {
         }
         .padding()
     }
+
+    // MARK: - Actions
 
     private func deleteBooks(at offsets: IndexSet) {
         let sorted = syncService.library.sortedBooks

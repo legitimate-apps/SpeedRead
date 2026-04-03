@@ -8,7 +8,6 @@ struct WatchBookDetailView: View {
     let book: WatchBook
     @EnvironmentObject var syncService: WatchSyncService
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.selectedTab) private var selectedTab
     @State private var showDeleteConfirmation = false
 
     private var spineColor: Color {
@@ -77,9 +76,6 @@ struct WatchBookDetailView: View {
                     syncService.persistLibrary()
                     WKInterfaceDevice.current().play(.success)
                     dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        selectedTab.wrappedValue = 0
-                    }
                 } label: {
                     Text(latestBook.lastReadIndex > 0 ? "Continue Reading" : "Read")
                         .font(.system(size: 15, weight: .semibold, design: .serif))
