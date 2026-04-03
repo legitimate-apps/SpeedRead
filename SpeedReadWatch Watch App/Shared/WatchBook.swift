@@ -46,7 +46,7 @@ struct WatchLibrary: Codable {
     mutating func removeBook(id: UUID) {
         books.removeAll { $0.id == id }
         if currentBookId == id {
-            currentBookId = books.first?.id
+            currentBookId = sortedBooks.first?.id
         }
     }
 

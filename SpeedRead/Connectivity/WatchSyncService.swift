@@ -110,11 +110,11 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
 
     // Bidirectional: sync reading position
     func syncReadingPosition(bookId: UUID, bookTitle: String, wordIndex: Int) {
-        guard WCSession.default.activationState == .activated else { return }
         #if os(watchOS)
         library.updatePosition(bookId: bookId, index: wordIndex)
         persistLibrary()
         #endif
+        guard WCSession.default.activationState == .activated else { return }
         try? WCSession.default.updateApplicationContext([
             "bookId": bookId.uuidString,
             "bookTitle": bookTitle,
@@ -265,44 +265,49 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             self.receivingTitle = metadata["title"] as? String
         }
         #endif
-        if let text = try? String(contentsOf: file.fileURL, encoding: .utf8) {
-            let title = metadata["title"] as? String
-            let author = metadata["author"] as? String
-
-            let bookId: UUID
-            if let idStr = metadata["id"] as? String, let parsed = UUID(uuidString: idStr) {
-                bookId = parsed
-            } else {
-                bookId = UUID()
-            }
-            let wordCount: Int
-            if let wc = metadata["wordCount"] as? Int {
-                wordCount = wc
-            } else {
-                wordCount = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
-            }
-
+        guard let text = try? String(contentsOf: file.fileURL, encoding: .utf8) else {
+            #if os(watchOS)
             DispatchQueue.main.async {
-                #if os(watchOS)
-                // Dedup check
-                if self.library.books.contains(where: { $0.id == bookId }) {
-                    WKInterfaceDevice.current().play(.click)
-                    self.isReceiving = false
-                    self.receivingTitle = nil
-                } else {
-                    let book = WatchBook(
-                        id: bookId, title: title ?? "Untitled", author: author ?? "Unknown", text: text,
-                        lastReadIndex: 0, lastReadDate: nil,
-                        wordCount: wordCount, dateAdded: Date()
-                    )
-                    self.library.addBook(book)
-                    self.persistLibrary()
-                    WKInterfaceDevice.current().play(.success)
-                    self.isReceiving = false
-                    self.receivingTitle = nil
-                }
-                #endif
+                self.isReceiving = false
+                self.receivingTitle = nil
             }
+            #endif
+            return
+        }
+
+        let title = metadata["title"] as? String
+        let author = metadata["author"] as? String
+
+        let bookId: UUID
+        if let idStr = metadata["id"] as? String, let parsed = UUID(uuidString: idStr) {
+            bookId = parsed
+        } else {
+            bookId = UUID()
+        }
+        let wordCount: Int
+        if let wc = metadata["wordCount"] as? Int {
+            wordCount = wc
+        } else {
+            wordCount = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
+        }
+
+        DispatchQueue.main.async {
+            #if os(watchOS)
+            if self.library.books.contains(where: { $0.id == bookId }) {
+                WKInterfaceDevice.current().play(.click)
+            } else {
+                let book = WatchBook(
+                    id: bookId, title: title ?? "Untitled", author: author ?? "Unknown", text: text,
+                    lastReadIndex: 0, lastReadDate: nil,
+                    wordCount: wordCount, dateAdded: Date()
+                )
+                self.library.addBook(book)
+                self.persistLibrary()
+                WKInterfaceDevice.current().play(.success)
+            }
+            self.isReceiving = false
+            self.receivingTitle = nil
+            #endif
         }
     }
 }
