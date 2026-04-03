@@ -129,7 +129,7 @@ struct LibraryView: View {
                             }
                             .contextMenu {
                                 Button {
-                                    syncService.sendBook(title: book.title, author: book.author, text: book.extractedText)
+                                    syncService.sendBook(id: book.id, title: book.title, author: book.author, text: book.extractedText, wordCount: book.wordCount)
                                 } label: {
                                     Label("Send to Watch", systemImage: "applewatch")
                                 }
