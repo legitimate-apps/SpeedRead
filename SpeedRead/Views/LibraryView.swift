@@ -13,6 +13,8 @@ struct LibraryView: View {
     @State private var showThemePicker = false
     @State private var importError: String?
     @State private var showError = false
+    @State private var didLoadSamples = false
+    @State private var autoOpenedBook: Book?
 
     private let booksPerShelf = 4
 
@@ -36,7 +38,25 @@ struct LibraryView: View {
             .navigationTitle("Your Library")
             .toolbarBackground(themeManager.currentTheme.backgroundColor, for: .navigationBar)
             .task {
+                guard !didLoadSamples else { return }
+                didLoadSamples = true
                 SampleBookLoader(modelContext: modelContext).loadSampleBooksIfNeeded()
+                // Debug hook: --auto-send-first-book flag triggers a Watch send on
+                // launch so the paired-sim wiring can be verified without driving
+                // the context menu.
+                if ProcessInfo.processInfo.arguments.contains("--auto-send-first-book"),
+                   let book = books.first {
+                    try? await Task.sleep(for: .seconds(1))
+                    syncService.sendBook(
+                        id: book.id, title: book.title, author: book.author,
+                        text: book.extractedText, wordCount: book.wordCount
+                    )
+                }
+                if ProcessInfo.processInfo.arguments.contains("--auto-open-first-book") {
+                    try? await Task.sleep(for: .milliseconds(800))
+                    autoOpenedBook = books.first(where: { $0.title.localizedCaseInsensitiveContains("Metamorphosis") })
+                        ?? books.first
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -59,7 +79,7 @@ struct LibraryView: View {
             }
             .fileImporter(
                 isPresented: $showImporter,
-                allowedContentTypes: [.pdf, .epub],
+                allowedContentTypes: [.pdf, .epub, .plainText, .rtf, .text],
                 allowsMultipleSelection: false
             ) { result in
                 handleImport(result)
@@ -70,6 +90,9 @@ struct LibraryView: View {
                 Text(importError ?? "Unknown error")
             }
             .navigationDestination(for: Book.self) { book in
+                ReaderView(book: book)
+            }
+            .navigationDestination(item: $autoOpenedBook) { book in
                 ReaderView(book: book)
             }
             .overlay(alignment: .bottom) {

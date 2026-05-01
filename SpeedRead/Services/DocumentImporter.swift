@@ -22,6 +22,10 @@ struct DocumentImporter {
             extractor = PDFExtractor()
         case "epub":
             extractor = EPUBExtractor()
+        case "txt", "text":
+            extractor = TextFileExtractor()
+        case "rtf":
+            extractor = RTFExtractor()
         default:
             throw ExtractionError.unsupportedFormat
         }

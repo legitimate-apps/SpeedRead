@@ -14,6 +14,11 @@ final class Book {
     var lastReadDate: Date?
     var wordCount: Int
 
+    /// Tokens persisted at import so RSVP and reader don't re-tokenize the entire
+    /// book on every access. Empty for books imported before this field existed —
+    /// `words` falls back to live tokenization in that case.
+    private var tokenizedWords: [String] = []
+
     @Relationship(deleteRule: .cascade, inverse: \Bookmark.book)
     var bookmarks: [Bookmark] = []
 
@@ -34,62 +39,55 @@ final class Book {
         self.dateAdded = Date()
         self.lastReadWordIndex = 0
         self.lastReadDate = nil
-        self.wordCount = Book.tokenize(extractedText).count
+        let tokens = Book.tokenize(extractedText)
+        self.tokenizedWords = tokens
+        self.wordCount = tokens.count
     }
 
     /// Splits text into RSVP-friendly tokens, breaking hyphenated words
     /// into separate display tokens while preserving em-dashes and en-dashes.
     static func tokenize(_ text: String) -> [String] {
-        let rawWords = text
-            .components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }
+        text.split(whereSeparator: \.isWhitespace)
+            .flatMap(splitHyphens)
+    }
 
+    /// Splits a word on ASCII hyphens, keeping the hyphen attached to the left part.
+    /// Only splits when both sides of a hyphen contain at least one letter, so pure
+    /// hyphen runs ("--"), leading hyphens ("-prefix"), and em/en-dashes are preserved.
+    private static func splitHyphens(_ word: Substring) -> [String] {
         var tokens: [String] = []
-        for word in rawWords {
-            let parts = splitHyphens(word)
-            tokens.append(contentsOf: parts)
+        var segmentStart = word.startIndex
+        var i = word.startIndex
+        while i < word.endIndex {
+            if word[i] == "-",
+               word[segmentStart..<i].contains(where: \.isLetter),
+               word[word.index(after: i)...].contains(where: \.isLetter) {
+                let next = word.index(after: i)
+                tokens.append(String(word[segmentStart..<next]))
+                segmentStart = next
+            }
+            i = word.index(after: i)
+        }
+        if segmentStart < word.endIndex {
+            tokens.append(String(word[segmentStart..<word.endIndex]))
         }
         return tokens
     }
 
-    /// Splits a single word on ASCII hyphens, keeping the hyphen on the left part.
-    /// Only splits when both sides of the hyphen contain at least one letter.
-    /// Does not split on em-dashes (\u{2014}) or en-dashes (\u{2013}).
-    private static func splitHyphens(_ word: String) -> [String] {
-        let hyphen: Character = "-"
-        var results: [String] = []
-        var current = ""
-
-        let chars = Array(word)
-        var i = 0
-        while i < chars.count {
-            let ch = chars[i]
-            if ch == hyphen {
-                // Check that the left side (current) has a letter and the right side has a letter
-                let leftHasLetter = current.unicodeScalars.contains { CharacterSet.letters.contains($0) }
-                let rightHasLetter = chars[(i + 1)...].contains { c in
-                    c.unicodeScalars.contains { CharacterSet.letters.contains($0) }
-                }
-                if leftHasLetter && rightHasLetter {
-                    current.append(hyphen)
-                    results.append(current)
-                    current = ""
-                } else {
-                    current.append(ch)
-                }
-            } else {
-                current.append(ch)
-            }
-            i += 1
+    var words: [String] {
+        if !tokenizedWords.isEmpty {
+            return tokenizedWords
         }
-        if !current.isEmpty {
-            results.append(current)
-        }
-        return results
+        return Book.tokenize(extractedText)
     }
 
-    var words: [String] {
-        Book.tokenize(extractedText)
+    /// One-shot migration helper for books imported before `tokenizedWords` existed.
+    /// Idempotent and safe to call from any view's `.task`.
+    func ensureTokensCached() {
+        guard tokenizedWords.isEmpty else { return }
+        let tokens = Book.tokenize(extractedText)
+        tokenizedWords = tokens
+        if wordCount != tokens.count { wordCount = tokens.count }
     }
 
     var progress: Double {

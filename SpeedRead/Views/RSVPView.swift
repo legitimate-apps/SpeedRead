@@ -8,7 +8,9 @@ struct RSVPView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var engine = RSVPEngine()
+    @State private var cachedWords: [String] = []
     @State private var highlightStartIndex: Int?
+    @AppStorage("rsvpLastWPM") private var persistedWPM: Int = 300
     @State private var showBookmarks = false
     @State private var showHighlights = false
     @State private var bookmarkFlash = false
@@ -50,6 +52,7 @@ struct RSVPView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         engine.togglePlayPause()
+                        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
                     }
                     .gesture(scrubGesture)
 
@@ -77,8 +80,8 @@ struct RSVPView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
-                        book.lastReadWordIndex = engine.currentIndex
-                        engine.stop()
+                        let index = engine.snapshotIndexAndPause()
+                        book.lastReadWordIndex = index
                         dismiss()
                     } label: {
                         HStack(spacing: 6) {
@@ -122,10 +125,16 @@ struct RSVPView: View {
         }
         .preferredColorScheme(.dark)
         .onAppear {
-            engine.load(words: book.words, startingAt: book.lastReadWordIndex)
+            book.ensureTokensCached()
+            cachedWords = book.words
+            engine.wpm = persistedWPM
+            engine.load(words: cachedWords, startingAt: book.lastReadWordIndex)
         }
         .onDisappear {
-            book.lastReadWordIndex = engine.currentIndex
+            if engine.isLoaded {
+                book.lastReadWordIndex = engine.currentIndex
+            }
+            engine.stop()
         }
         .sheet(isPresented: $showBookmarks) {
             BookmarkListView(book: book, engine: engine)
@@ -154,6 +163,8 @@ struct RSVPView: View {
         HStack(spacing: 20) {
             Button {
                 engine.wpm -= 25
+                persistedWPM = engine.wpm
+                UISelectionFeedbackGenerator().selectionChanged()
             } label: {
                 Image(systemName: "minus.circle.fill")
                     .font(.system(size: 28))
@@ -170,6 +181,8 @@ struct RSVPView: View {
 
             Button {
                 engine.wpm += 25
+                persistedWPM = engine.wpm
+                UISelectionFeedbackGenerator().selectionChanged()
             } label: {
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 28))
@@ -298,7 +311,7 @@ struct RSVPView: View {
     // MARK: - Actions
 
     private func addBookmark() {
-        let preview = Bookmark.previewText(from: book.words, at: engine.currentIndex)
+        let preview = Bookmark.previewText(from: cachedWords, at: engine.currentIndex)
         let bookmark = Bookmark(wordIndex: engine.currentIndex, previewText: preview)
         bookmark.book = book
         modelContext.insert(bookmark)
@@ -314,7 +327,7 @@ struct RSVPView: View {
             let endIndex = engine.currentIndex
             let actualStart = min(startIndex, endIndex)
             let actualEnd = max(startIndex, endIndex)
-            let text = Highlight.captureText(from: book.words, start: actualStart, end: actualEnd)
+            let text = Highlight.captureText(from: cachedWords, start: actualStart, end: actualEnd)
             let highlight = Highlight(startWordIndex: actualStart, endWordIndex: actualEnd, highlightedText: text)
             highlight.book = book
             modelContext.insert(highlight)

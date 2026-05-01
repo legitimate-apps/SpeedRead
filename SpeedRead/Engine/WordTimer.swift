@@ -1,7 +1,7 @@
 //  WordTimer.swift
 import Foundation
 
-struct WordTimer {
+struct WordTimer: Sendable {
     var wpm: Int
 
     var baseDelayMs: Int {
@@ -9,29 +9,32 @@ struct WordTimer {
     }
 
     func delay(for word: String) -> Int {
+        Int(Double(baseDelayMs) * Self.multiplier(for: word))
+    }
+
+    static func multiplier(for word: String) -> Double {
+        let trimmed = word.trimmingCharacters(in: .punctuationCharacters)
         var multiplier = 1.0
 
-        let trimmed = word.trimmingCharacters(in: .punctuationCharacters)
-
-        // Long word check (8+ alphanumeric characters)
         if trimmed.count >= 8 {
             multiplier *= 1.3
         }
-
-        // Number check (entire word is numeric)
-        if trimmed.allSatisfy({ $0.isNumber }) && !trimmed.isEmpty {
+        if !trimmed.isEmpty, trimmed.unicodeScalars.allSatisfy(CharacterSet.decimalDigits.contains) {
             multiplier *= 1.8
         }
 
-        // Sentence-ending punctuation
-        if word.hasSuffix(".") || word.hasSuffix("?") || word.hasSuffix("!") {
+        switch word.last {
+        case let c? where sentenceTerminators.contains(c):
             multiplier *= 2.0
-        }
-        // Clause punctuation (only if not already sentence-ending)
-        else if word.hasSuffix(",") || word.hasSuffix(";") || word.hasSuffix(":") || word.hasSuffix("\u{2014}") || word.hasSuffix("\u{2013}") {
+        case let c? where clauseTerminators.contains(c):
             multiplier *= 1.5
+        default:
+            break
         }
 
-        return Int(Double(baseDelayMs) * multiplier)
+        return multiplier
     }
+
+    private static let sentenceTerminators: Set<Character> = [".", "?", "!"]
+    private static let clauseTerminators: Set<Character> = [",", ";", ":", "\u{2014}", "\u{2013}"]
 }
