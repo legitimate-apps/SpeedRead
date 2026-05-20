@@ -2,7 +2,7 @@
 
 **Created:** 2026-04-28
 **Status:** Live working doc — updated each session as items are addressed
-**Owner:** <operator-email>
+**Owner:** <owner>
 **Companion doc:** `2026-04-28-reader-overhaul.md` (the original reader overhaul scope)
 
 This document is the source of truth for known issues, planned improvements, and the prioritized feature backlog. Update the **Status** column as work lands.

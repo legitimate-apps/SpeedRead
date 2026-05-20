@@ -5,3 +5,14 @@
 build/
 DerivedData/
 *.xcuserstate
+xcuserdata/
+
+# Playwright artifacts (downloads, snapshots, console logs)
+.playwright-mcp/
+
+# Local secrets / env files
+.env
+.env.*
+*.p8
+*.p12
+*.mobileprovision

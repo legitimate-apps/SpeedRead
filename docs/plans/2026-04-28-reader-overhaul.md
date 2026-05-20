@@ -2,7 +2,7 @@
 
 **Created:** 2026-04-28
 **Status:** Live working doc — update across sessions
-**Owner:** <operator-email>
+**Owner:** <owner>
 
 This document captures the current state and direction of the reading experience in SpeedRead. It is the source of truth for cross-session work on the reader, format support, and the reader↔RSVP handoff. Update when scope, decisions, or architecture change.
 

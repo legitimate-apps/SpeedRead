@@ -90,7 +90,7 @@ func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer
 
 **Step 4: Build**
 
-Run: `cd "/Users/<operator>/Xcode Projects/SpeedRead" && xcodebuild build -scheme SpeedRead -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet 2>&1 | tail -5`
+Run: `cd "<PROJECT_DIR>" && xcodebuild build -scheme SpeedRead -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet 2>&1 | tail -5`
 Expected: BUILD SUCCEEDED
 
 **Step 5: Commit**
@@ -152,7 +152,7 @@ private struct SendToast: View {
 
 **Step 3: Build**
 
-Run: `cd "/Users/<operator>/Xcode Projects/SpeedRead" && xcodebuild build -scheme SpeedRead -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet 2>&1 | tail -5`
+Run: `cd "<PROJECT_DIR>" && xcodebuild build -scheme SpeedRead -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet 2>&1 | tail -5`
 Expected: BUILD SUCCEEDED
 
 **Step 4: Commit**
@@ -264,7 +264,7 @@ func activate() {
 
 **Step 5: Build for Watch**
 
-Run: `cd "/Users/<operator>/Xcode Projects/SpeedRead" && xcodebuild build -scheme "SpeedReadWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch SE 3 (44mm)' -quiet 2>&1 | tail -5`
+Run: `cd "<PROJECT_DIR>" && xcodebuild build -scheme "SpeedReadWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch SE 3 (44mm)' -quiet 2>&1 | tail -5`
 Expected: BUILD SUCCEEDED
 
 **Step 6: Commit**
@@ -393,7 +393,7 @@ var body: some View {
 
 **Step 4: Build for both platforms**
 
-Run: `cd "/Users/<operator>/Xcode Projects/SpeedRead" && xcodebuild build -scheme SpeedRead -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet 2>&1 | tail -3 && xcodebuild build -scheme "SpeedReadWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch SE 3 (44mm)' -quiet 2>&1 | tail -3`
+Run: `cd "<PROJECT_DIR>" && xcodebuild build -scheme SpeedRead -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet 2>&1 | tail -3 && xcodebuild build -scheme "SpeedReadWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch SE 3 (44mm)' -quiet 2>&1 | tail -3`
 Expected: Both BUILD SUCCEEDED
 
 **Step 5: Commit**
@@ -409,10 +409,10 @@ git commit -m "feat: add receiving feedback card and haptic on Watch when book a
 
 **Step 1: Run all tests**
 
-Run: `cd "/Users/<operator>/Xcode Projects/SpeedRead" && xcodebuild test -scheme SpeedRead -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet 2>&1 | tail -10`
+Run: `cd "<PROJECT_DIR>" && xcodebuild test -scheme SpeedRead -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet 2>&1 | tail -10`
 Expected: All tests pass, no regressions
 
 **Step 2: Verify Watch build**
 
-Run: `cd "/Users/<operator>/Xcode Projects/SpeedRead" && xcodebuild build -scheme "SpeedReadWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch SE 3 (44mm)' -quiet 2>&1 | tail -5`
+Run: `cd "<PROJECT_DIR>" && xcodebuild build -scheme "SpeedReadWatch Watch App" -destination 'platform=watchOS Simulator,name=Apple Watch SE 3 (44mm)' -quiet 2>&1 | tail -5`
 Expected: BUILD SUCCEEDED
