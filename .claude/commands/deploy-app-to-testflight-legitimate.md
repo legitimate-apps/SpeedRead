@@ -3,7 +3,7 @@
 Archive the SpeedRead app (iOS + watchOS) and upload to TestFlight.
 
 ## Prerequisites
-- App Store Connect API key at `~/.appstoreconnect/private_keys/AuthKey_XXXXXXXXXX.p8`
+- App Store Connect API key at `~/.appstoreconnect/private_keys/AuthKey_<ASC_KEY_ID>.p8`
 - `ExportOptions.plist` in project root
 - Valid code signing certificates in Keychain
 
@@ -28,8 +28,8 @@ cd "$PROJECT_DIR" && xcodebuild archive \
   -configuration Release \
   -archivePath build/SpeedRead.xcarchive \
   -allowProvisioningUpdates \
-  -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_XXXXXXXXXX.p8" \
-  -authenticationKeyID XXXXXXXXXX \
+  -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_<ASC_KEY_ID>.p8" \
+  -authenticationKeyID <ASC_KEY_ID> \
   -authenticationKeyIssuerID "<ASC_ISSUER_ID>" \
   2>&1 | tail -20
 ```
@@ -42,8 +42,8 @@ cd "$PROJECT_DIR" && xcodebuild -exportArchive \
   -exportOptionsPlist ExportOptions.plist \
   -exportPath build/export \
   -allowProvisioningUpdates \
-  -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_XXXXXXXXXX.p8" \
-  -authenticationKeyID XXXXXXXXXX \
+  -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_<ASC_KEY_ID>.p8" \
+  -authenticationKeyID <ASC_KEY_ID> \
   -authenticationKeyIssuerID "<ASC_ISSUER_ID>" \
   2>&1 | tail -30
 ```

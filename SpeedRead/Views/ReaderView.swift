@@ -1,8 +1,11 @@
 //  ReaderView.swift
 import SwiftUI
 import SwiftData
+import os
 
 struct ReaderView: View {
+    private static let logger = Logger(subsystem: "com.legitimateapps.SpeedRead", category: "Reader")
+
     @Bindable var book: Book
     @Environment(\.modelContext) private var modelContext
 
@@ -290,7 +293,11 @@ struct ReaderView: View {
     private func handleWordTap(at index: Int) {
         let clamped = max(0, min(index, max(0, cachedWords.count - 1)))
         book.lastReadWordIndex = clamped
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            Self.logger.error("Failed to persist lastReadWordIndex: \(error.localizedDescription, privacy: .public)")
+        }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
         flashedWordIndex = clamped

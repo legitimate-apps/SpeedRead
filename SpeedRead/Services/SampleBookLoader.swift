@@ -1,15 +1,24 @@
 //  SampleBookLoader.swift
 import Foundation
 import SwiftData
+import os
 
 struct SampleBookLoader {
+    private static let logger = Logger(subsystem: "com.legitimateapps.SpeedRead", category: "SampleLoader")
+
     let modelContext: ModelContext
 
-    private static let sampleFiles = [
-        "TheYellowWallpaper.epub",
-        "TheMetamorphosis.epub",
-        "AChristmasCarol.epub",
-        "AChristmasCarol.pdf"
+    private struct SampleBook {
+        let fileName: String
+        let title: String
+        let author: String
+    }
+
+    private static let sampleBooks: [SampleBook] = [
+        SampleBook(fileName: "TheYellowWallpaper.epub", title: "The Yellow Wallpaper", author: "Charlotte Perkins Gilman"),
+        SampleBook(fileName: "TheMetamorphosis.epub", title: "Metamorphosis", author: "Franz Kafka"),
+        SampleBook(fileName: "AChristmasCarol.epub", title: "A Christmas Carol", author: "Charles Dickens"),
+        SampleBook(fileName: "AChristmasCarol.pdf", title: "A Christmas Carol", author: "Charles Dickens")
     ]
 
     /// Loads bundled sample books on first launch. No-ops if books already exist.
@@ -18,8 +27,8 @@ struct SampleBookLoader {
         let existingCount = (try? modelContext.fetchCount(descriptor)) ?? 0
         guard existingCount == 0 else { return }
 
-        for fileName in Self.sampleFiles {
-            guard let url = Bundle.main.url(forResource: fileName, withExtension: nil) else {
+        for sample in Self.sampleBooks {
+            guard let url = Bundle.main.url(forResource: sample.fileName, withExtension: nil) else {
                 continue
             }
 
@@ -38,14 +47,14 @@ struct SampleBookLoader {
                 }
 
                 let result = try extractor.extractText(from: data)
-                let title = result.title ?? fileName.replacingOccurrences(of: ".\(ext)", with: "")
-                let author = result.author ?? "Unknown Author"
+                let title = sample.title
+                let author = sample.author
 
                 let book = Book(
                     title: title,
                     author: author,
                     extractedText: result.text,
-                    sourceFileName: fileName
+                    sourceFileName: sample.fileName
                 )
                 modelContext.insert(book)
             } catch {
@@ -54,6 +63,10 @@ struct SampleBookLoader {
             }
         }
 
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            Self.logger.error("Failed to save sample books: \(error.localizedDescription, privacy: .public)")
+        }
     }
 }
