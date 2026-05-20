@@ -7,6 +7,7 @@ struct WatchRSVPView: View {
     @State private var engine = RSVPEngine()
     @State private var showSettings = false
     @State private var crownValue: Double = 0
+    @AppStorage("rsvpLastWPM") private var persistedWPM: Int = 300
 
     private var currentBook: WatchBook? { syncService.currentBook }
 
@@ -16,15 +17,18 @@ struct WatchRSVPView: View {
 
     var body: some View {
         ZStack {
-            Color.rsvpBackground.ignoresSafeArea()
+            Color.rsvpBackground
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { togglePlayPause() }
+                .onLongPressGesture {
+                    if engine.state == .playing { engine.pause() }
+                    showSettings = true
+                }
 
             if engine.state == .playing {
                 RSVPWordView(segments: engine.currentSegments, fontSize: 20)
-                    .onTapGesture { engine.pause() }
-                    .onLongPressGesture {
-                        engine.pause()
-                        showSettings = true
-                    }
+                    .allowsHitTesting(false)
             } else {
                 VStack(spacing: 0) {
                     HStack {
@@ -64,23 +68,20 @@ struct WatchRSVPView: View {
                     Spacer()
 
                     RSVPWordView(segments: engine.currentSegments, fontSize: 18)
+                        .allowsHitTesting(false)
 
                     Spacer()
 
-                    Button { engine.play() } label: {
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 44))
-                            .foregroundStyle(Color.crimsonSoft)
-                    }
-                    .buttonStyle(.plain)
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 44))
+                        .foregroundStyle(Color.crimsonSoft)
+                        .allowsHitTesting(false)
 
                     Text("\(engine.wpm) WPM")
                         .font(.system(size: 11, weight: .regular, design: .monospaced))
                         .foregroundStyle(Color.agedGold)
                         .padding(.bottom, 4)
-                }
-                .onLongPressGesture {
-                    showSettings = true
+                        .allowsHitTesting(false)
                 }
             }
         }
@@ -102,6 +103,7 @@ struct WatchRSVPView: View {
         .onAppear {
             guard let book = currentBook else { return }
             engine.load(words: book.words, startingAt: book.lastReadIndex)
+            engine.wpm = persistedWPM
             crownValue = Double(book.lastReadIndex)
         }
         .onDisappear {
@@ -116,6 +118,14 @@ struct WatchRSVPView: View {
         }
         .sheet(isPresented: $showSettings) {
             WatchSettingsView(engine: engine)
+        }
+    }
+
+    private func togglePlayPause() {
+        if engine.state == .playing {
+            engine.pause()
+        } else {
+            engine.play()
         }
     }
 }

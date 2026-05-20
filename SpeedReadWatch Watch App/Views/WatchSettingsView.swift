@@ -4,6 +4,7 @@ struct WatchSettingsView: View {
     var engine: RSVPEngine
     @Environment(\.dismiss) private var dismiss
     @State private var wpmValue: Double = 300
+    @AppStorage("rsvpLastWPM") private var persistedWPM: Int = 300
 
     var body: some View {
         ZStack {
@@ -19,7 +20,9 @@ struct WatchSettingsView: View {
                     .foregroundStyle(Color.parchment.opacity(0.6))
 
                 Button("Done") {
-                    engine.wpm = Int(wpmValue)
+                    let newWPM = Int(wpmValue)
+                    engine.wpm = newWPM
+                    persistedWPM = newWPM
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
