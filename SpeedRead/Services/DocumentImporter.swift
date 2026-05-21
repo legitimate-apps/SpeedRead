@@ -14,7 +14,17 @@ struct DocumentImporter {
 
         let data = try Data(contentsOf: url)
         let fileName = url.lastPathComponent
-        let ext = url.pathExtension.lowercased()
+        return try importBytes(data, filename: fileName)
+    }
+
+    /// Import already-in-memory bytes (e.g. from an OPDS download). No
+    /// security-scoped resource handling; caller has already obtained the bytes.
+    func importData(_ data: Data, filename: String) throws -> Book {
+        try importBytes(data, filename: filename)
+    }
+
+    private func importBytes(_ data: Data, filename: String) throws -> Book {
+        let ext = (filename as NSString).pathExtension.lowercased()
 
         let extractor: TextExtractor
         switch ext {
@@ -31,14 +41,17 @@ struct DocumentImporter {
         }
 
         let result = try extractor.extractText(from: data)
-        let title = result.title ?? fileName.replacingOccurrences(of: ".\(ext)", with: "")
+        let defaultTitle = ext.isEmpty
+            ? filename
+            : filename.replacingOccurrences(of: ".\(ext)", with: "")
+        let title = result.title ?? defaultTitle
         let author = result.author ?? "Unknown Author"
 
         let book = Book(
             title: title,
             author: author,
             extractedText: result.text,
-            sourceFileName: fileName
+            sourceFileName: filename
         )
 
         modelContext.insert(book)

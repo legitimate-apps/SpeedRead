@@ -7,7 +7,7 @@ struct ExtractionResult {
     let author: String?
 }
 
-enum ExtractionError: Error {
+enum ExtractionError: Error, Equatable {
     case invalidData
     case parsingFailed(String)
     case unsupportedFormat
