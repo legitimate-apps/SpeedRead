@@ -14,6 +14,6 @@ struct SpeedReadApp: App {
                 .environment(themeManager)
                 .onAppear { syncService.activate() }
         }
-        .modelContainer(for: [Book.self, Bookmark.self, Highlight.self])
+        .modelContainer(for: [Book.self, Bookmark.self, Highlight.self, OPDSServer.self])
     }
 }
