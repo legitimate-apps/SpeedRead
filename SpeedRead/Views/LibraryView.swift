@@ -59,6 +59,17 @@ struct LibraryView: View {
                     autoOpenedBook = books.first(where: { $0.title.localizedCaseInsensitiveContains("Metamorphosis") })
                         ?? books.first
                 }
+                if ProcessInfo.processInfo.arguments.contains("--seed-test-opds-server") {
+                    seedTestOPDSServer()
+                }
+                if ProcessInfo.processInfo.arguments.contains("--auto-open-settings") {
+                    try? await Task.sleep(for: .milliseconds(700))
+                    showSettings = true
+                }
+                if ProcessInfo.processInfo.arguments.contains("--auto-open-browse") {
+                    try? await Task.sleep(for: .milliseconds(700))
+                    showBrowse = true
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -190,6 +201,29 @@ struct LibraryView: View {
             }
             .padding(.top, 16)
         }
+    }
+
+    /// Debug-only: seed an OPDS server pointing at the local CWNG test
+    /// instance so visual verification can capture the Browse / Detail
+    /// screens without driving the Settings form by hand. No-op if a
+    /// server with the same baseURL already exists.
+    private func seedTestOPDSServer() {
+        let url = URL(string: "https://books.example.com/opds/")!
+        let descriptor = FetchDescriptor<OPDSServer>()
+        if let existing = (try? modelContext.fetch(descriptor)) ?? nil,
+           existing.contains(where: { $0.baseURLString == url.absoluteString }) {
+            return
+        }
+        let server = OPDSServer(
+            name: "Home library",
+            baseURL: url,
+            username: "speedread-test",
+            allowInsecureHTTP: false,
+            sortIndex: Int(Date().timeIntervalSince1970)
+        )
+        modelContext.insert(server)
+        try? KeychainStore.setPassword("not-a-real-password", for: server.keychainTag)
+        try? modelContext.save()
     }
 
     private func handleImport(_ result: Result<[URL], Error>) {
