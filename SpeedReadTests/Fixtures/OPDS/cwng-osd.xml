@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+   <LongName>Calibre-Web NextGen</LongName>
+   <ShortName>Calibre-Web NextGen</ShortName>
+   <Description>Calibre-Web NextGen eBook Catalog</Description>
+   <Developer>CrocodileStick</Developer>
+   <Contact>https://github.com/new-usemame/Calibre-Web-NextGen</Contact><Url type="text/html"
+        template="/opds/search/{searchTerms}"/>
+   <Url type="application/atom+xml"
+        template="/opds/search?query={searchTerms}"/>
+   <SyndicationRight>open</SyndicationRight>
+   <Language>en</Language>
+   <OutputEncoding>UTF-8</OutputEncoding>
+   <InputEncoding>UTF-8</InputEncoding>
+</OpenSearchDescription>

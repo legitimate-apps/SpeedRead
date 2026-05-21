@@ -1,0 +1,202 @@
+import Testing
+import Foundation
+@testable import SpeedRead
+
+nonisolated final class MockURLProtocol: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var handler: ((URLRequest) -> (HTTPURLResponse, Data?))?
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let handler = MockURLProtocol.handler else {
+            client?.urlProtocol(self, didFailWithError: URLError(.unknown))
+            return
+        }
+        let (response, data) = handler(request)
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        if let data { client?.urlProtocol(self, didLoad: data) }
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+private func mockSession() -> URLSession {
+    let config = URLSessionConfiguration.ephemeral
+    config.protocolClasses = [MockURLProtocol.self]
+    return URLSession(configuration: config)
+}
+
+private func makeServer(
+    base: String = "https://books.example.com",
+    user: String = "tester",
+    allowInsecure: Bool = false
+) -> OPDSServer {
+    let server = OPDSServer(
+        name: "Test",
+        baseURL: URL(string: base)!,
+        username: user,
+        allowInsecureHTTP: allowInsecure
+    )
+    if !user.isEmpty {
+        try? KeychainStore.setPassword("secret", for: server.keychainTag)
+    }
+    return server
+}
+
+private func tinyAtom(title: String = "Mock Feed") -> Data {
+    let xml = """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <feed xmlns="http://www.w3.org/2005/Atom">
+        <title>\(title)</title>
+        <id>urn:test:mock</id>
+        <entry>
+            <title>An Entry</title>
+            <id>urn:entry:1</id>
+            <link href="/sub" type="application/atom+xml;profile=opds-catalog"/>
+        </entry>
+    </feed>
+    """
+    return Data(xml.utf8)
+}
+
+@Suite("OPDS Client", .serialized)
+struct OPDSClientTests {
+
+    @Test func fetchFeedHappyPath() async throws {
+        let server = makeServer()
+        MockURLProtocol.handler = { _ in
+            let resp = HTTPURLResponse(
+                url: URL(string: "https://books.example.com/opds/")!,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/atom+xml"]
+            )!
+            return (resp, tinyAtom(title: "Live"))
+        }
+        let client = OPDSClient(session: mockSession())
+        let feed = try await client.fetchFeed(url: server.baseURL!, on: server)
+        #expect(feed.title == "Live")
+        #expect(feed.entries.count == 1)
+    }
+
+    @Test func fetchFeedSendsBasicAuthHeader() async throws {
+        let server = makeServer(user: "alice")
+        try KeychainStore.setPassword("rabbit", for: server.keychainTag)
+        defer { try? KeychainStore.deletePassword(for: server.keychainTag) }
+
+        nonisolated(unsafe) var capturedAuth: String?
+        MockURLProtocol.handler = { req in
+            capturedAuth = req.value(forHTTPHeaderField: "Authorization")
+            let resp = HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, tinyAtom())
+        }
+        let client = OPDSClient(session: mockSession())
+        _ = try await client.fetchFeed(url: server.baseURL!, on: server)
+
+        let expectedCombo = "alice:rabbit".data(using: .utf8)!.base64EncodedString()
+        #expect(capturedAuth == "Basic \(expectedCombo)")
+    }
+
+    @Test func fetchFeedOmitsAuthHeaderWhenNoUsername() async throws {
+        let server = makeServer(user: "")
+        nonisolated(unsafe) var capturedAuth: String?
+        MockURLProtocol.handler = { req in
+            capturedAuth = req.value(forHTTPHeaderField: "Authorization")
+            let resp = HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, tinyAtom())
+        }
+        let client = OPDSClient(session: mockSession())
+        _ = try await client.fetchFeed(url: server.baseURL!, on: server)
+        #expect(capturedAuth == nil)
+    }
+
+    @Test func fetchFeedThrowsOn401() async throws {
+        let server = makeServer()
+        MockURLProtocol.handler = { req in
+            let resp = HTTPURLResponse(url: req.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!
+            return (resp, Data())
+        }
+        let client = OPDSClient(session: mockSession())
+        await #expect(throws: OPDSError.httpError(status: 401)) {
+            _ = try await client.fetchFeed(url: server.baseURL!, on: server)
+        }
+    }
+
+    @Test func fetchFeedThrowsOn500() async throws {
+        let server = makeServer()
+        MockURLProtocol.handler = { req in
+            let resp = HTTPURLResponse(url: req.url!, statusCode: 503, httpVersion: nil, headerFields: nil)!
+            return (resp, Data())
+        }
+        let client = OPDSClient(session: mockSession())
+        await #expect(throws: OPDSError.httpError(status: 503)) {
+            _ = try await client.fetchFeed(url: server.baseURL!, on: server)
+        }
+    }
+
+    @Test func httpSchemeBlockedWhenInsecureDisabled() async throws {
+        let server = makeServer(base: "http://insecure.example.com", allowInsecure: false)
+        let client = OPDSClient(session: mockSession())
+        await #expect(throws: OPDSError.insecureSchemeBlocked) {
+            _ = try await client.fetchFeed(url: server.baseURL!, on: server)
+        }
+    }
+
+    @Test func httpSchemeAllowedWhenInsecureEnabled() async throws {
+        let server = makeServer(base: "http://insecure.example.com", allowInsecure: true)
+        MockURLProtocol.handler = { req in
+            let resp = HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, tinyAtom())
+        }
+        let client = OPDSClient(session: mockSession())
+        let feed = try await client.fetchFeed(url: server.baseURL!, on: server)
+        #expect(feed.title == "Mock Feed")
+    }
+
+    @Test func downloadReturnsDataAndFilenameFromContentDisposition() async throws {
+        let server = makeServer()
+        let bookData = Data(repeating: 0x42, count: 256)
+        MockURLProtocol.handler = { req in
+            let resp = HTTPURLResponse(
+                url: req.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: [
+                    "Content-Type": "application/epub+zip",
+                    "Content-Disposition": "attachment; filename=\"The Poppy War.epub\""
+                ]
+            )!
+            return (resp, bookData)
+        }
+        let client = OPDSClient(session: mockSession())
+        let url = URL(string: "https://books.example.com/opds/download/525/epub/")!
+        let download = try await client.download(from: url, on: server)
+        #expect(download.data == bookData)
+        #expect(download.filename == "The Poppy War.epub")
+    }
+
+    @Test func downloadFallsBackToURLLastComponentWhenNoDisposition() async throws {
+        let server = makeServer()
+        MockURLProtocol.handler = { req in
+            let resp = HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data("epub-bytes".utf8))
+        }
+        let client = OPDSClient(session: mockSession())
+        let url = URL(string: "https://books.example.com/files/sample.epub")!
+        let download = try await client.download(from: url, on: server)
+        #expect(download.filename == "sample.epub")
+    }
+
+    @Test func contentDispositionParsesFilenameStar() {
+        let resp = HTTPURLResponse(
+            url: URL(string: "https://x.test")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Disposition": "attachment; filename*=UTF-8''The%20Yellow%20Wallpaper.epub"]
+        )!
+        let name = OPDSClient.deriveFilename(response: resp, fallbackURL: URL(string: "https://x.test/")!)
+        #expect(name == "The Yellow Wallpaper.epub")
+    }
+}

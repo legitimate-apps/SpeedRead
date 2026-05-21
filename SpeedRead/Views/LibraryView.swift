@@ -11,6 +11,8 @@ struct LibraryView: View {
 
     @State private var showImporter = false
     @State private var showThemePicker = false
+    @State private var showBrowse = false
+    @State private var showSettings = false
     @State private var importError: String?
     @State private var showError = false
     @State private var didLoadSamples = false
@@ -69,9 +71,23 @@ struct LibraryView: View {
                         }
 
                         Button {
+                            showBrowse = true
+                        } label: {
+                            Image(systemName: "icloud.and.arrow.down")
+                                .foregroundStyle(Color.crimsonSoft)
+                        }
+
+                        Button {
                             showImporter = true
                         } label: {
                             Image(systemName: "plus")
+                                .foregroundStyle(Color.crimsonSoft)
+                        }
+
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
                                 .foregroundStyle(Color.crimsonSoft)
                         }
                     }
@@ -107,6 +123,12 @@ struct LibraryView: View {
             .animation(.easeInOut, value: syncService.sendState != .idle)
             .sheet(isPresented: $showThemePicker) {
                 ThemePickerView()
+            }
+            .sheet(isPresented: $showBrowse) {
+                BrowseServerView()
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
             }
         }
     }

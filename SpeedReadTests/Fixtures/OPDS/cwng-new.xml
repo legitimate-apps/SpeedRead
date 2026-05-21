@@ -1,0 +1,2180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/terms/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:calibre="http://calibre.kovidgoyal.net/2009/metadata">
+  <icon>/static/favicon.ico</icon>
+  <id>urn:uuid:2853dacf-ed79-42f5-8e8a-a7bb3d1ae6a2</id>
+  <updated>2026-05-21T14:04:17+00:00</updated>
+  <link rel="self"
+        href="/opds/new?"
+        type="application/atom+xml;profile=opds-catalog;type=feed;kind=navigation"/>
+  <link rel="start"
+        href="/opds"
+        type="application/atom+xml;profile=opds-catalog;type=feed;kind=navigation"/>
+  <link rel="up"
+        href="/opds"
+        type="application/atom+xml;profile=opds-catalog;type=feed;kind=navigation"/>
+
+  <link rel="next"
+        title="Next"
+        href="/opds/new?offset=60"
+        type="application/atom+xml;profile=opds-catalog;type=feed;kind=navigation"/>
+
+
+    <link rel="search"
+      href="/opds/osd"
+      type="application/opensearchdescription+xml"/>
+  <link type="application/atom+xml" rel="search" title="Search" href="/opds/search/{searchTerms}" />
+  <title>Calibre-Web NextGen</title>
+  <author>
+    <name>Calibre-Web NextGen</name>
+    <uri>https://github.com/new-usemame/Calibre-Web-NextGen</uri>
+  </author>
+
+  
+  
+  <entry>
+    <title>(ebook - german) Nietzsche, Friedrich - Der Antichrist</title>
+    <id>urn:uuid:f71f2c10-bafd-4478-950c-bf57548ac82f</id>
+    <updated>2026-05-19T23:57:02+00:00</updated>
+    
+      <author>
+        <name>Friedrich Nietzsche</name>
+      </author>
+    
+    
+    <published>2016-12-09T05:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/526" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/526" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/526/epub/"
+          length="204134" mtime="2026-05-19T23:57:02+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Poppy War</title>
+    <id>urn:uuid:22e446f3-3a3b-4388-a03e-d91e2e85381f</id>
+    <updated>2026-05-19T22:36:50+00:00</updated>
+    
+      <author>
+        <name>R. F. Kuang</name>
+      </author>
+    
+    
+    <published>2018-09-06T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/525" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/525" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/525/epub/"
+          length="4206318" mtime="2026-05-19T22:36:50+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Yellowface</title>
+    <id>urn:uuid:b962066d-7ce7-418f-8ae7-73cac976c3b4</id>
+    <updated>2026-05-19T22:36:38+00:00</updated>
+    
+      <author>
+        <name>R. F. Kuang</name>
+      </author>
+    
+    
+      <publisher>
+        <name>HarperCollins</name>
+      </publisher>
+    
+    <published>2023-03-16T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Downloaded from Z-Library.</summary>
+    <content type="text">Downloaded from Z-Library</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/524" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/524" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/524/epub/"
+          length="475849" mtime="2026-05-19T22:36:38+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Nineteen Eighty-Four. George Orwell</title>
+    <id>urn:uuid:70e7f999-9b71-4411-9b1e-24f718773089</id>
+    <updated>2026-05-19T22:27:50+00:00</updated>
+    
+      <author>
+        <name>George Orwell</name>
+      </author>
+    
+    
+      <publisher>
+        <name>CSA Word</name>
+      </publisher>
+    
+    <published>1949-06-08T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Adult"
+              label="Adult"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Classics"
+              label="Classics"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fantasy"
+              label="Fantasy"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Mobilism"
+              label="Mobilism"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Politics"
+              label="Politics"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Science fiction"
+              label="Science fiction"/>
+    
+    
+    <summary type="text">Newspeak, Doublethink, Big Brother, the Thought Police - the vocabulary of George Orwell&#39;s classic political satire, &#39;Nineteen Eighty-Four&#39;, has passed into the English language, symbolising the horrors of totalitarianism.</summary>
+    <content type="text">Newspeak, Doublethink, Big Brother, the Thought Police - the vocabulary of George Orwell&#39;s classic political satire, &#39;Nineteen Eighty-Four&#39;, has passed into the English language, symbolising the horrors of totalitarianism.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/523" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/523" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/523/epub/"
+          length="1044377" mtime="2026-05-19T22:27:50+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/523/kepub/"
+          length="1079930" mtime="2026-05-19T22:27:50+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Animal Farm</title>
+    <id>urn:uuid:4dec4590-738c-469c-991f-b6eb8b4970e5</id>
+    <updated>2026-05-19T22:27:43+00:00</updated>
+    
+      <author>
+        <name>George Orwell</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Amazon Classics</name>
+      </publisher>
+    
+    <published>2021-01-04T18:30:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/522" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/522" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/522/epub/"
+          length="491926" mtime="2026-05-19T22:27:43+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Nineteen Eighty-Four. George Orwell</title>
+    <id>urn:uuid:c739a54f-130e-429b-b5ab-c644bcfdec2d</id>
+    <updated>2026-05-19T22:17:37+00:00</updated>
+    
+      <author>
+        <name>George Orwell</name>
+      </author>
+    
+    
+      <publisher>
+        <name>CSA Word</name>
+      </publisher>
+    
+    <published>1949-06-08T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Adult"
+              label="Adult"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Classics"
+              label="Classics"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fantasy"
+              label="Fantasy"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Mobilism"
+              label="Mobilism"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Politics"
+              label="Politics"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Science fiction"
+              label="Science fiction"/>
+    
+    
+    <summary type="text">Newspeak, Doublethink, Big Brother, the Thought Police - the vocabulary of George Orwell&#39;s classic political satire, &#39;Nineteen Eighty-Four&#39;, has passed into the English language, symbolising the horrors of totalitarianism.</summary>
+    <content type="text">Newspeak, Doublethink, Big Brother, the Thought Police - the vocabulary of George Orwell&#39;s classic political satire, &#39;Nineteen Eighty-Four&#39;, has passed into the English language, symbolising the horrors of totalitarianism.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/521" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/521" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/521/epub/"
+          length="1044377" mtime="2026-05-19T22:17:37+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Homage to Catalonia</title>
+    <id>urn:uuid:adf74e49-a2c6-4f3c-bc2e-3e2295e8f0ac</id>
+    <updated>2026-05-19T22:17:28+00:00</updated>
+    
+      <author>
+        <name>George Orwell</name>
+      </author>
+    
+    
+    <published>2011-08-13T04:50:06+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/520" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/520" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/520/epub/"
+          length="234899" mtime="2026-05-19T22:17:28+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Hunters of Dune</title>
+    <id>urn:uuid:53cdeaf6-087d-48f6-b313-05be45727533</id>
+    <updated>2026-05-19T22:07:03+00:00</updated>
+    
+      <author>
+        <name>Brian Herbert</name>
+      </author>
+    
+      <author>
+        <name>Kevin J. Anderson</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Tor Books</name>
+      </publisher>
+    
+    <published>2008-06-12T05:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/519" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/519" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/519/epub/"
+          length="521089" mtime="2026-05-19T22:07:03+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Chapterhouse: Dune</title>
+    <id>urn:uuid:80d74679-faa2-438f-8b2c-c65d40bcdbab</id>
+    <updated>2026-05-19T22:06:51+00:00</updated>
+    
+      <author>
+        <name>Herbert| Frank</name>
+      </author>
+    
+    
+      <publisher>
+        <name>ACE</name>
+      </publisher>
+    
+    <published>1987-07-01T05:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/518" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/518" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/518/epub/"
+          length="704034" mtime="2026-05-19T22:06:51+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Frank Herbert - Dune Book 5 - Heretics of Dune</title>
+    <id>urn:uuid:6ad818f3-eeee-43a3-b2cc-e4cc427a5b83</id>
+    <updated>2026-05-19T22:06:41+00:00</updated>
+    
+      <author>
+        <name>Frank Herbert</name>
+      </author>
+    
+    
+    <published>101-01-01T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/517" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/517" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/517/epub/"
+          length="539622" mtime="2026-05-19T22:06:41+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>God Emperor of Dune</title>
+    <id>urn:uuid:d9f85ba1-a191-4170-9bb0-1c3cc3803edc</id>
+    <updated>2026-05-19T22:06:30+00:00</updated>
+    
+      <author>
+        <name>Frank Herbert</name>
+      </author>
+    
+    
+      <publisher>
+        <name>ACE</name>
+      </publisher>
+    
+    <published>1987-06-15T05:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/516" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/516" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/516/epub/"
+          length="462090" mtime="2026-05-19T22:06:30+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Dune</title>
+    <id>urn:uuid:674019e7-c871-451a-96db-a2b314f6cbb8</id>
+    <updated>2026-05-19T22:06:19+00:00</updated>
+    
+      <author>
+        <name>Frank Herbert</name>
+      </author>
+    
+    
+      <publisher>
+        <name>ePubLibre</name>
+      </publisher>
+    
+    <published>1964-12-31T23:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Ciencia Ficción"
+              label="Ciencia Ficción"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Novela"
+              label="Novela"/>
+    
+    
+    <summary type="text">Set in the far future amidst a sprawling feudal interstellar empire where planetary dynasties are controlled by noble houses that owe an allegiance to the imperial House Corrino, “Dune” tells the story of young Paul Atreides (the heir apparent to Duke Leto Atreides and heir of House Atreides) as he and his family accept control of the desert planet Arrakis, the only source of the “spice” melange, the most important and valuable substance in the universe.</summary>
+    <content type="text">Set in the far future amidst a sprawling feudal interstellar empire where planetary dynasties are controlled by noble houses that owe an allegiance to the imperial House Corrino, “Dune” tells the story of young Paul Atreides (the heir apparent to Duke Leto Atreides and heir of House Atreides) as he and his family accept control of the desert planet Arrakis, the only source of the “spice” melange, the most important and valuable substance in the universe. The story explores the complex and multi-layered interactions of politics, religion, ecology, technology, and human emotion, as the forces of the empire confront each other for control of Arrakis and its “spice”.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/515" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/515" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/515/epub/"
+          length="989116" mtime="2026-05-19T22:06:19+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Children Of Dune</title>
+    <id>urn:uuid:19504a07-2984-488e-b39f-684af4ca534b</id>
+    <updated>2026-05-19T22:06:09+00:00</updated>
+    
+      <author>
+        <name>Frank Herbert</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Gollancz</name>
+      </publisher>
+    
+    <published>101-01-01T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/514" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/514" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/514/epub/"
+          length="445569" mtime="2026-05-19T22:06:09+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Alice&#39;s Adventures in Wonderland</title>
+    <id>urn:uuid:541b953e-12f0-4469-bddb-78204d8a1b0d</id>
+    <updated>2026-05-18T14:56:42+00:00</updated>
+    
+      <author>
+        <name>Lewis Carroll</name>
+      </author>
+    
+    
+    <published>2008-06-27T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Alice (Fictitious character from Carroll) -- Juvenile fiction"
+              label="Alice (Fictitious character from Carroll) -- Juvenile fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Children&#39;s stories"
+              label="Children&#39;s stories"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fantasy fiction"
+              label="Fantasy fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Imaginary places -- Juvenile fiction"
+              label="Imaginary places -- Juvenile fiction"/>
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/513" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/513" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/513/epub/"
+          length="186392" mtime="2026-05-18T14:56:42+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>R.U.R. (Rossum&#39;s Universal Robots)</title>
+    <id>urn:uuid:097e2e9f-60c9-4199-860a-eba942e3689c</id>
+    <updated>2026-05-12T03:06:37+00:00</updated>
+    
+      <author>
+        <name>Karel Čapek</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Dead^Man, April 2011</name>
+      </publisher>
+    
+    <published>2011-04-09T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/511" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/511" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/511/epub/"
+          length="2428305" mtime="2026-05-12T03:06:37+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>2001: A Space Odyssey</title>
+    <id>urn:uuid:194c0969-7981-4417-a1f7-f08e2a0850a2</id>
+    <updated>2026-05-12T03:38:21+00:00</updated>
+    
+      <author>
+        <name>Arthur C. Clarke</name>
+      </author>
+    
+    
+      <publisher>
+        <name>ePubLibre</name>
+      </publisher>
+    
+    <published>1968-01-01T05:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fiction"
+              label="Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Science fiction"
+              label="Science fiction"/>
+    
+    <calibre:series>Space Odyssey</calibre:series>
+    <calibre:series_index>1</calibre:series_index>
+    <dcterms:isPartOf>Space Odyssey</dcterms:isPartOf>
+    
+    
+    <summary type="text">The year is 2001, and cosmonauts uncover a mysterious monolith that has been buried on the Moon for at least three million years.</summary>
+    <content type="text">The year is 2001, and cosmonauts uncover a mysterious monolith that has been buried on the Moon for at least three million years. To their astonishment, the monolith releases an equally mysterious pulse-a kind of signal-in the direction of Saturn after it is unearthed. Whether alarm or communication, the human race must know what the signal is-and who it was intended for. The Discovery and its crew, assisted by the highly advanced HAL 9000 computer system, sets out to investigate. But as the crew draws closer to their rendezvous with a mysterious and ancient alien civilization, they realize that the greatest dangers they face come from within the spacecraft itself. HAL proves a dangerous traveling companion, and the crew must outwit him to survive. This novel version of the famous Stanley Kubrick film 2001: A Space Odyssey was written by Clarke in conjunction with the movie&#39;s production. It is meant to stand as a companion piece, and it offers a complementary narrative that&#39;s loaded with compelling science fiction ideas.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/510" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/510" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/510/epub/"
+          length="269466" mtime="2026-05-12T03:38:21+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Player Piano</title>
+    <id>urn:uuid:4c5f8f46-ad9b-4f1c-bf7f-b760c6f422cd</id>
+    <updated>2026-05-12T02:26:45+00:00</updated>
+    
+      <author>
+        <name>Kurt Vonnegut</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Random House Publishing Group</name>
+      </publisher>
+    
+    <published>1980-05-15T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/509" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/509" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/509/epub/"
+          length="2018153" mtime="2026-05-12T02:26:45+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Moon Is a Harsh Mistress</title>
+    <id>urn:uuid:f250640f-422f-4836-a1d6-c2d6bc780206</id>
+    <updated>2026-05-12T02:29:27+00:00</updated>
+    
+      <author>
+        <name>Robert A. Heinlein</name>
+      </author>
+    
+    
+    <published>2011-04-06T01:22:12+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/508" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/508" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/508/epub/"
+          length="397006" mtime="2026-05-12T02:29:27+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Machine Stops</title>
+    <id>urn:uuid:a5d8054b-f838-46ea-b100-31afbc43a78b</id>
+    <updated>2026-05-12T02:26:02+00:00</updated>
+    
+      <author>
+        <name>E.M. Forster</name>
+      </author>
+    
+    
+      <publisher>
+        <name>manybooks.net</name>
+      </publisher>
+    
+    <published>101-01-01T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/507" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/507" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/507/epub/"
+          length="209032" mtime="2026-05-12T02:26:02+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Cyberiad</title>
+    <id>urn:uuid:34ed6dcf-5edb-4ff7-a8bd-82eb2615f46b</id>
+    <updated>2026-05-12T03:04:13+00:00</updated>
+    
+      <author>
+        <name>Stanisław Lem</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Houghton Mifflin Harcourt</name>
+      </publisher>
+    
+    <published>101-01-01T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Trurl and Klaupacius are constructor robots who try to out-invent each other.</summary>
+    <content type="text">Trurl and Klaupacius are constructor robots who try to out-invent each other. They travel to the far corners of the cosmos to take on freelance problem-solving jobs, with dire consequences for their employers. &#34;The most completely successful of his books... here Lem comes closest to inventing a real universe&#34; (Boston Globe). Illustrations by Daniel Mr—z. Translated by Michael Kandel.</content>
+    
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/505/epub/"
+          length="270556" mtime="2026-05-12T03:04:13+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Neuromancer</title>
+    <id>urn:uuid:f6ce7719-12aa-4f99-a003-9cd803c8614f</id>
+    <updated>2026-05-12T02:25:01+00:00</updated>
+    
+      <author>
+        <name>William Gibson</name>
+      </author>
+    
+    
+    <published>101-01-01T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="sf_cyberpunk"
+              label="sf_cyberpunk"/>
+    
+    <calibre:series>Neuromancer</calibre:series>
+    <calibre:series_index>1</calibre:series_index>
+    <dcterms:isPartOf>Neuromancer</dcterms:isPartOf>
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/504" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/504" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/504/epub/"
+          length="237369" mtime="2026-05-12T02:25:01+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Do Androids Dream of Electric Sheep?</title>
+    <id>urn:uuid:835a1d08-169b-469e-a1ff-78d371d807f9</id>
+    <updated>2026-05-12T03:38:20+00:00</updated>
+    
+      <author>
+        <name>Philip K. Dick</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Del Rey</name>
+      </publisher>
+    
+    <published>101-01-01T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fiction"
+              label="Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Science fiction"
+              label="Science fiction"/>
+    
+    
+    <summary type="text">SUMMARY:&#34;The most consistently brilliant science fiction writer in the world.</summary>
+    <content type="text">SUMMARY:&#34;The most consistently brilliant science fiction writer in the world.&#34;--John BrunnerTHE INSPIRATION FOR BLADERUNNER. . . Do Androids Dream of Electric Sheep? was published in 1968. Grim and foreboding, even today it is a masterpiece ahead of its time.By 2021, the World War had killed millions, driving entire species into extinction and sending mankind off-planet. Those who remained coveted any living creature, and for people who couldn&#39;t afford one, companies built incredibly realistic simulacrae: horses, birds, cats, sheep. . . They even built humans.Emigrees to Mars received androids so sophisticated it was impossible to tell them from true men or women. Fearful of the havoc these artificial humans could wreak, the government banned them from Earth. But when androids didn&#39;t want to be identified, they just blended in. Rick Deckard was an officially sanctioned bounty hunter whose job was to find rogue androids, and to retire them. But cornered, androids tended to fight back, with deadly results.&#34;[Dick] sees all the sparkling and terrifying possibilities. . . that other authors shy away from.&#34;--Paul Williams Rolling Stone</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/503" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/503" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/503/epub/"
+          length="312817" mtime="2026-05-12T03:38:20+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Complete Robot</title>
+    <id>urn:uuid:71dac777-86a1-4898-987f-e1e122ac9229</id>
+    <updated>2026-05-12T02:24:12+00:00</updated>
+    
+      <author>
+        <name>Isaac Asimov</name>
+      </author>
+    
+    
+    <published>101-01-01T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/502" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/502" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/502/epub/"
+          length="522323" mtime="2026-05-12T02:24:12+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>I Have No Mouth, and I Must Scream</title>
+    <id>urn:uuid:f5f875e5-22cc-4648-8581-266d899349b7</id>
+    <updated>2026-05-12T02:23:46+00:00</updated>
+    
+      <author>
+        <name>Harlan Ellison</name>
+      </author>
+    
+    
+    <published>2011-02-16T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/501" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/501" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/501/epub/"
+          length="94095" mtime="2026-05-12T02:23:46+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Lifecycle of Software Objects</title>
+    <id>urn:uuid:9474a8ff-5c34-484f-93d9-ff1a15099af6</id>
+    <updated>2026-05-12T02:22:42+00:00</updated>
+    
+      <author>
+        <name>Ted Chiang</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Subterranean</name>
+      </publisher>
+    
+    <published>2010-01-01T13:30:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Artificial Intelligence"
+              label="Artificial Intelligence"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Artificial Life"
+              label="Artificial Life"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fiction"
+              label="Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="General"
+              label="General"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Science fiction"
+              label="Science fiction"/>
+    
+    
+    <summary type="text">From Publishers WeeklyIs science fiction a literature of ideas, or of characters? Works that focus on the former often neglect the latter, and vice versa.</summary>
+    <content type="text">From Publishers WeeklyIs science fiction a literature of ideas, or of characters? Works that focus on the former often neglect the latter, and vice versa. It&#39;s very difficult to examine complex abstractions and simultaneously articulate the mechanisms of fiction: most writers who attempt this balancing act end up throttling back on the ideas, or fail sideways into technical writing. So Chiang&#39;s novella--the second piece he&#39;s ever published that&#39;s long enough to stand on its own, following the 2007 Hugo- and Nebula-winning The Merchant and the Alchemist&#39;s Gate--is a welcome surprise: a triumphant combination of the rigorous extrapolation of artificial intelligence and artificial life, two of the high concepts of contemporary SF, with an exploration of its consequences for the ordinary people whose lives it derails. Ana Alvarado is a former zookeeper turned software tester. When Blue Gamma offers her a job as animal trainer for their digients--digital entities, spawned by genetic algorithms to provide pets for players in the future virtual reality of Data Earth--she discovers an unexpected affinity for her charges. So does Derek Brooks, an animator who designs digient body parts. The market for digients develops and expands, cools and declines after the pattern of the software industry. Meanwhile Ana, Derek, and their friends become increasingly attached to their cute and talkative charges, who are neither pets nor children but something wholly new. But as Blue Gamma goes bust and Data Earth itself fades into obsolescence, Ana and the remaining digient keepers face a series of increasingly unpleasant dilemmas, their worries sharpened by their charges&#39; growing awareness of the world beyond their pocket universe, and the steady unwinding of their own lives and relationships into middle-aged regrets for lost opportunities. Keeping to the constraints of a novella while working on a scale of years is a harsh challenge. Chiang&#39;s prose is sparse and austere throughout, relying on hints and nudges to provide context. At times, the narrative teeters on the edge of arid didacticism; there are enough ideas to fill a lesser author&#39;s trilogy, but much of the background is present only by implication, forcing the reader to work to fill in the blanks. (Indeed, this story may be impenetrable to readers who aren&#39;t at least passingly familiar with computers, the Internet, and virtual worlds such as Second Life.) Fortunately, sheer conceptual density keeps the story solidly real. The life cycle of the software objects in question is viewed through the prism of the human protagonists&#39; own life cycle, and this skeleton is the armature on which hangs that very rare thing: a science fictional novel of ideas that delivers a real human impact. Reviewed by Charles Stross. Charles Stross&#39;s novel The Fuller Memorandum is due out from Ace in July. Copyright © Reed Business Information, a division of Reed Elsevier Inc. All rights reserved. From Bookmarks MagazineTed Chiang has made his bones in SF as a master of the short story, so a much longer work than is customary comes as a surprise. &#34;The typical science-fiction depiction of AI is this loyal, obedient butler; you simply flip a switch, turn it on and it&#39;s ready to do your bidding. I feel like there&#39;s a huge story being glossed over,&#34; Chiang tells Boing Boing about the genesis of The Lifecycle of Software Objects. To be sure, the ethical issues that he raises and the depth of the technology (even for a novella) overshadow character development and some hasty plotting. Chiang&#39;s distinctive voice is evident here--a tech-industry insider, he&#39;s always been fluent in geek-speak and has a knack for translating heavy ideas into workable plots--and his first foray into the long form is a success. It would be his readers&#39; good fortune if the author decided to take up novel-writing full time.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/499" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/499" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/499/epub/"
+          length="87396" mtime="2026-05-12T02:22:42+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Pride and Prejudice</title>
+    <id>urn:uuid:8483442a-2f9b-4a0c-a7b7-cc8f5acdbbe0</id>
+    <updated>2026-05-09T17:21:11+00:00</updated>
+    
+      <author>
+        <name>Jane Austen</name>
+      </author>
+    
+    
+    <published>1998-06-02T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Courtship -- Fiction"
+              label="Courtship -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Domestic fiction"
+              label="Domestic fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="England -- Fiction"
+              label="England -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Love stories"
+              label="Love stories"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Sisters -- Fiction"
+              label="Sisters -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Social classes -- Fiction"
+              label="Social classes -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Young women -- Fiction"
+              label="Young women -- Fiction"/>
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/498" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/498" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/498/epub/"
+          length="24421720" mtime="2026-05-09T17:21:11+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Origin of Others</title>
+    <id>urn:uuid:0085c97e-6ca6-4472-9a5d-96f8b40d4eb9</id>
+    <updated>2026-05-06T13:15:57+00:00</updated>
+    
+      <author>
+        <name>Toni Morrison</name>
+      </author>
+    
+    
+    <published>2017-06-17T12:53:30+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/495" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/495" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/495/epub/"
+          length="998565" mtime="2026-05-06T13:15:57+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>In This Our Life</title>
+    <id>urn:uuid:3ae9cf5b-c08a-4ab6-90de-983e9b146508</id>
+    <updated>2026-05-06T05:00:01+00:00</updated>
+    
+      <author>
+        <name>Ellen Glasgow</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Unknown</name>
+      </publisher>
+    
+    <published>1941-01-01T16:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Literature"
+              label="Literature"/>
+    
+    
+    <summary type="text">Paperback, 588 pages Published 1941 Pulitzer Prize for Fiction (1942) This early work by Ellen Glasgow is both expensive and hard to find in its first edition.</summary>
+    <content type="text">Paperback, 588 pages Published 1941 Pulitzer Prize for Fiction (1942) This early work by Ellen Glasgow is both expensive and hard to find in its first edition. It is a fictional story of two sisters and their trials and tribulations in love and life. This novel is an analytical study of the feeling of kinship as it is manifested in the Timberlake family, decayed aristocrats living in a southern city. The story of how two marriages are wrecked and a great wrong done to an innocent Negro boy, is told largely as it is viewed by Asa Timberlake, sixty years of age, husband of a hypochondriac wife, father of two daughters, one utterly selfish and feminine, the other courageous and gailant but confused and unhappy.&#34; Book Rev. Digest</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/421" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/421" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/421/epub/"
+          length="1367998" mtime="2026-05-06T05:00:01+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Honey in the horn</title>
+    <id>urn:uuid:33fcf4a8-e9d7-4ed8-ac55-7b2c52e2bb66</id>
+    <updated>2026-05-07T00:33:32+00:00</updated>
+    
+      <author>
+        <name>Davis| H. L. (Harold Lenoir)| 1896-1960</name>
+      </author>
+    
+    
+      <publisher>
+        <name>New York, London, Harper &amp; Brothers</name>
+      </publisher>
+    
+    <published>1935-05-15T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">&#34;First edition.</summary>
+    <content type="text">&#34;First edition.&#34;</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/494" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/494" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/494/epub/"
+          length="500153" mtime="2026-05-07T00:33:32+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Now in November: A Novel</title>
+    <id>urn:uuid:f19ac704-f5db-4b00-b8f0-46d852bc3a9d</id>
+    <updated>2026-05-06T05:29:55+00:00</updated>
+    
+      <author>
+        <name>Josephine Johnson</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Scribner</name>
+      </publisher>
+    
+    <published>2022-07-19T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">A lost gem of twentieth-century literature, Josephine Johnson&#39;s 1934 Pulitzer Prize–winning &#34;exquisite.</summary>
+    <content type="text">A lost gem of twentieth-century literature, Josephine Johnson&#39;s 1934 Pulitzer Prize–winning &#34;exquisite...heartbreakingly real&#34; (The New York Times Book Review) novel follows a year in the life of a family struggling to survive the Dust Bowl.Published when Josephine Johnson was only twenty-four years old, Now in November made Johnson the youngest ever winner of the Pulitzer Prize in 1935. It is a beautifully told account of one farming family&#39;s challenges to scrape by and earn a living from mortgaged land over the course of a single year, narrated by one of three sisters—the introspective and thoughtful Margaret. As the household is ravaged by Depression-era hardship and the environmental blights of the Dust Bowl, the family&#39;s unique vulnerabilities are pushed to a breaking point. In a style typical of Johnson&#39;s body of work, Now in November is strikingly ahead of its time, grappling with questions of mental health,...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/493" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/493" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/493/epub/"
+          length="6792369" mtime="2026-05-06T05:29:55+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The store</title>
+    <id>urn:uuid:1f0fb2b9-cf00-4c51-ba88-a4a826508f29</id>
+    <updated>2026-05-06T05:29:39+00:00</updated>
+    
+      <author>
+        <name>Stribling| T. S. (Thomas Sigismund)| 1881-1965</name>
+      </author>
+    
+    
+      <publisher>
+        <name>New York, Literary Guild</name>
+      </publisher>
+    
+    <published>1932-05-15T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/492" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/492" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/492/epub/"
+          length="578940" mtime="2026-05-06T05:29:39+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>A Visit From the Goon Squad</title>
+    <id>urn:uuid:31c5eaa3-6890-437a-8ee7-ceadcef7ad19</id>
+    <updated>2026-05-06T05:27:44+00:00</updated>
+    
+      <author>
+        <name>Jennifer Egan</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Borzoi Book; Alfred A. Knopf</name>
+      </publisher>
+    
+    <published>2010-06-08T07:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Literature"
+              label="Literature"/>
+    
+    
+    <summary type="text">Paperback, 341 pages Published: 2010 Pulitzer Prize for Fiction (2011) National Book Critics Circle Award Fiction (2010) Greatest Books (amalgamated list of best books) The Guardian&#39;s Best Books Since 2000 Bennie is an aging former punk rocker and record executive.</summary>
+    <content type="text">Paperback, 341 pages Published: 2010 Pulitzer Prize for Fiction (2011) National Book Critics Circle Award Fiction (2010) Greatest Books (amalgamated list of best books) The Guardian&#39;s Best Books Since 2000 Bennie is an aging former punk rocker and record executive. Sasha is the passionate, troubled young woman he employs. Here Jennifer Egan brilliantly reveals their pasts, along with the inner lives of a host of other characters whose paths intersect with theirs. With music pulsing on every page, A Visit from the Goon Squad is a startling, exhilarating novel of self-destruction and redemption. One of the Best Books of the Year: Boston Globe, Chicago Tribune, The Daily Beast, The Miami Herald, The Minneapolis Star-Tribune, Newsday, NPR&#39;s On Point, O, the Oprah Magazine, People, Publishers Weekly, Salon, San Francisco Chronicle, Seattle Times, Slate, Time, The Washington Post, and Village Voice. A New York Times Book Review Best Book Orange Prize Nominee for Fiction Longlist (2011), PEN/Faulkner Award for Fiction Nominee (2011), Los Angeles Times Book Prize for Fiction (2010), Goodreads Choice Award Nominee for Fiction (2010),</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/491" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/491" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/491/epub/"
+          length="1533252" mtime="2026-05-06T05:27:44+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Empire Falls</title>
+    <id>urn:uuid:9f72eeb0-cc7f-43a4-87fc-b6d063aa5e16</id>
+    <updated>2026-05-06T05:27:38+00:00</updated>
+    
+      <author>
+        <name>Richard Russo</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Knopf Doubleday Publishing Group</name>
+      </publisher>
+    
+    <published>2011-11-15T23:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Richard Russo--from his first novel, Mohawk, to his most recent, Straight Man--has demonstrated a peerless affinity for the human tragicomedy, and with this stunning new novel he extends even further his claims on the small-town, blue-collar heart of the country.</summary>
+    <content type="text">Richard Russo--from his first novel, Mohawk, to his most recent, Straight Man--has demonstrated a peerless affinity for the human tragicomedy, and with this stunning new novel he extends even further his claims on the small-town, blue-collar heart of the country.Dexter County, Maine, and specifically the town of Empire Falls, has seen better days, and for decades, in fact, only a succession from bad to worse. One by one, its logging and textile enterprises have gone belly-up, and the once vast holdings of the Whiting clan (presided over by the last scion&#39;s widow) now mostly amount to decrepit real estate. The working classes, meanwhile, continue to eke out whatever meager promise isn&#39;t already boarded up.Miles Roby gazes over this ruined kingdom from the Empire Grill, an opportunity of his youth that has become the albatross of his daily and future life. Called back from college and set to work by family obligations--his mother ailing, his father a...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/490" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/490" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/490/epub/"
+          length="574505" mtime="2026-05-06T05:27:38+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Amazing Adventures of Kavalier &amp; Clay (with bonus content)</title>
+    <id>urn:uuid:44cfdc93-89f5-45c4-9379-4d73fa29c196</id>
+    <updated>2026-05-06T05:27:28+00:00</updated>
+    
+      <author>
+        <name>Michael Chabon</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Random House Publishing Group</name>
+      </publisher>
+    
+    <published>2012-06-12T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">With this brilliant novel, the bestselling author of The Mysteries of Pittsburgh and Wonder Boys gives us an exhilarating triumph of language and invention, a stunning novel in which the tragicomic adventures of a couple of boy geniuses reveal much about what happened to America in the middle of the twentieth century.</summary>
+    <content type="text">With this brilliant novel, the bestselling author of The Mysteries of Pittsburgh and Wonder Boys gives us an exhilarating triumph of language and invention, a stunning novel in which the tragicomic adventures of a couple of boy geniuses reveal much about what happened to America in the middle of the twentieth century. Like Phillip Roth&#39;s American Pastoral or Don DeLillo&#39;s Underworld, Michael Chabon&#39;s The Amazing Adventures of Kavalier &amp; Clay is a superb novel with epic sweep, spanning continents and eras, a masterwork by one of America&#39;s finest writers. It is New York City in 1939. Joe Kavalier, a young artist who has also been trained in the art of Houdini-esque escape, has just pulled off his greatest feat to date: smuggling himself out of Nazi-occupied Prague. He is looking to make big money, fast, so that he can bring his family to freedom. His cousin, Brooklyn&#39;s own Sammy Clay, is looking for a collaborator to create the heroes, stories, and art for the latest...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/489" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/489" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/489/epub/"
+          length="3131742" mtime="2026-05-06T05:27:28+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>James: A Novel</title>
+    <id>urn:uuid:5cd5e8b6-0a55-4dbf-96df-b8f61099978e</id>
+    <updated>2026-05-06T05:26:57+00:00</updated>
+    
+      <author>
+        <name>Percival Everett</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Knopf Doubleday Publishing Group</name>
+      </publisher>
+    
+    <published>2024-03-19T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">NAMED A MOST ANTICIPATED BOOK OF THE YEAR BY TIME, NPR, THE SEATTLE TIMES, ELLE, THE ATLANTA JOURNAL-CONSTITUTION, AND OPRAH DAILY A brilliant, action-packed reimagining of Adventures of Huckleberry Finn, both harrowing and ferociously funny, told from the enslaved Jim&#39;s point of view • From the “literary icon” (Oprah Daily) and Pulitzer Prize Finalist whose novel Erasure is the basis for Cord Jefferson’s critically acclaimed film American Fiction&#34;If you liked Demon Copperhead, by Barbara Kingsolver, read James, by Percival Everett&#34; —The Washington PostWhen the enslaved Jim overhears that he is about to be sold to a man in New Orleans, separated from his wife and daughter forever, he decides to hide on nearby Jackson Island until he can formulate a plan.</summary>
+    <content type="text">NAMED A MOST ANTICIPATED BOOK OF THE YEAR BY TIME, NPR, THE SEATTLE TIMES, ELLE, THE ATLANTA JOURNAL-CONSTITUTION, AND OPRAH DAILY A brilliant, action-packed reimagining of Adventures of Huckleberry Finn, both harrowing and ferociously funny, told from the enslaved Jim&#39;s point of view • From the “literary icon” (Oprah Daily) and Pulitzer Prize Finalist whose novel Erasure is the basis for Cord Jefferson’s critically acclaimed film American Fiction&#34;If you liked Demon Copperhead, by Barbara Kingsolver, read James, by Percival Everett&#34; —The Washington PostWhen the enslaved Jim overhears that he is about to be sold to a man in New Orleans, separated from his wife and daughter forever, he decides to hide on nearby Jackson Island until he can formulate a plan. Meanwhile, Huck Finn has faked his own death to escape his violent father, recently returned to town. As all readers of...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/488" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/488" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/488/epub/"
+          length="1016599" mtime="2026-05-06T05:26:57+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Night Watch: A novel</title>
+    <id>urn:uuid:0149c42f-15d7-4f57-bacb-8d009c5d4021</id>
+    <updated>2026-05-06T05:26:51+00:00</updated>
+    
+      <author>
+        <name>Jayne Anne Phillips</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Knopf Doubleday Publishing Group</name>
+      </publisher>
+    
+    <published>2023-09-19T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">LONGLISTED FOR THE NATIONAL BOOK AWARD IN FICTION • From one of our most accomplished novelists, a mesmerizing story about a mother and daughter seeking refuge in the chaotic aftermath of the Civil War—and a brilliant portrait of family endurance against all odds&#34;A tour de force.</summary>
+    <content type="text">LONGLISTED FOR THE NATIONAL BOOK AWARD IN FICTION • From one of our most accomplished novelists, a mesmerizing story about a mother and daughter seeking refuge in the chaotic aftermath of the Civil War—and a brilliant portrait of family endurance against all odds&#34;A tour de force.&#34; —Tayari Jones, author of An American MarriageIn 1874, in the wake of the War, erasure, trauma, and namelessness haunt civilians and veterans, renegades and wanderers, freedmen and runaways. Twelve-year-old ConaLee, the adult in her family for as long as she can remember, finds herself on a buckboard journey with her mother, Eliza, who hasn’t spoken in more than a year. They arrive at the Trans-Allegheny Lunatic Asylum in West Virginia, delivered to the hospital’s entrance by a war veteran who has forced himself into their world. There, far from family, a beloved neighbor, and the mountain home they knew, they try to reclaim their lives.The...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/487" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/487" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/487/epub/"
+          length="16547077" mtime="2026-05-06T05:26:51+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Demon Copperhead: a Novel</title>
+    <id>urn:uuid:be8b2c8e-9a25-4db5-9a34-62e9ac14ce7d</id>
+    <updated>2026-05-06T05:26:45+00:00</updated>
+    
+      <author>
+        <name>Barbara Kingsolver</name>
+      </author>
+    
+    
+      <publisher>
+        <name>HarperCollins</name>
+      </publisher>
+    
+    <published>2022-10-18T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">&#34;Kingsolver is a writer who can help us understand and navigate the chaos of these times.</summary>
+    <content type="text">&#34;Kingsolver is a writer who can help us understand and navigate the chaos of these times.&#34; —Minneapolis Star TribuneFrom the New York Times bestselling author of Unsheltered and Flight Behavior, a brilliant novel which enthralls, compels, and captures the heart as it evokes a young hero&#39;s unforgettable journey to maturity.&#34;Anyone will tell you the born of this world are marked from the get-out, win or lose.&#34;Demon Copperhead is set in the mountains of southern Appalachia. It&#39;s the story of a boy born to a teenaged single mother in a single-wide trailer, with no assets beyond his dead father&#39;s good looks and copper-colored hair, a caustic wit, and a fierce talent for survival. In a plot that never pauses for breath, relayed in his own unsparing voice, he braves the modern perils of foster care, child labor, derelict schools, athletic success, addiction, disastrous loves, and crushing losses. Through all of it, he...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/486" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/486" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/486/epub/"
+          length="1431995" mtime="2026-05-06T05:26:45+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Trust</title>
+    <id>urn:uuid:7192a47d-d241-400b-a8c4-6e977c05c093</id>
+    <updated>2026-05-06T05:26:34+00:00</updated>
+    
+      <author>
+        <name>Hernan Diaz</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Penguin Publishing Group</name>
+      </publisher>
+    
+    <published>2022-05-03T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Named a Most Anticipated Book by The New York Times, Vogue, Vulture, Oprah Daily, Esquire, AV Club, LitHub, Goodreads, The Today Show, and more&#34;Exhilarating.</summary>
+    <content type="text">Named a Most Anticipated Book by The New York Times, Vogue, Vulture, Oprah Daily, Esquire, AV Club, LitHub, Goodreads, The Today Show, and more&#34;Exhilarating.” — New York Times&#34;Mesmerizing.&#34; — Esquire&#34;Dazzling...important and timely.&#34; — VogueAn unparalleled novel about money, power, intimacy, and perceptionEven through the roar and effervescence of the 1920s, everyone in New York has heard of Benjamin and Helen Rask. He is a legendary Wall Street tycoon; she is the daughter of eccentric aristocrats. Together, they have risen to the very top of a world of seemingly endless wealth—all as a decade of excess and speculation draws to an end. But at what cost have they acquired their immense fortune? This is the mystery at the center of Bonds, a successful 1937 novel that all of New York seems to have read. Yet there are other versions of this tale of privilege and...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/485" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/485" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/485/epub/"
+          length="3375422" mtime="2026-05-06T05:26:34+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Netanyahus: An Account of a Minor and Ultimately Even Negligible Episode in the History of a Very Famous Family</title>
+    <id>urn:uuid:69c106c6-05ea-4c62-8a3e-24b23c9f05e7</id>
+    <updated>2026-05-06T05:25:10+00:00</updated>
+    
+      <author>
+        <name>Joshua Cohen</name>
+      </author>
+    
+    
+      <publisher>
+        <name>New York Review Books</name>
+      </publisher>
+    
+    <published>2021-06-22T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">A job interview goes awry for the exiled patriarch of Israel&#39;s First Family in this riotous novel from one of contemporary fiction&#39;s most brilliant and audacious writers.</summary>
+    <content type="text">A job interview goes awry for the exiled patriarch of Israel&#39;s First Family in this riotous novel from one of contemporary fiction&#39;s most brilliant and audacious writers.Corbin College, not quite upstate New York, winter 1959–1960: Ruben Blum, a Jewish historian—but not an historian of the Jews—is co-opted onto a hiring committee to review the application of an exiled Israeli scholar specializing in the Spanish Inquisition. When Benzion Netanyahu shows up for an interview, family unexpectedly in tow, Blum plays the reluctant host to guests who proceed to lay waste to his American complacencies. Mixing fiction with nonfiction, the campus novel with the lecture, The Netanyahus is a wildly inventive, genre-bending comedy of blending, identity, and politics that finds Joshua Cohen at the height of his powers.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/484" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/484" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/484/epub/"
+          length="662782" mtime="2026-05-06T05:25:10+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Night Watchman</title>
+    <id>urn:uuid:aec6b457-6c2e-400e-b829-bcbd7804e68b</id>
+    <updated>2026-05-06T05:25:01+00:00</updated>
+    
+      <author>
+        <name>Louise Erdrich</name>
+      </author>
+    
+    
+      <publisher>
+        <name>HarperCollins</name>
+      </publisher>
+    
+    <published>2020-03-03T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Based on the extraordinary life of National Book Award-winning author Louise Erdrich&#39;s grandfather who worked as a night watchman and carried the fight against Native dispossession from rural North Dakota all the way to Washington, D.</summary>
+    <content type="text">Based on the extraordinary life of National Book Award-winning author Louise Erdrich&#39;s grandfather who worked as a night watchman and carried the fight against Native dispossession from rural North Dakota all the way to Washington, D.C., this powerful novel explores themes of love and death with lightness and gravity and unfolds with the elegant prose, sly humor, and depth of feeling of a master craftsman.Thomas Wazhushk is the night watchman at the jewel bearing plant, the first factory located near the Turtle Mountain Reservation in rural North Dakota. He is also a Chippewa Council member who is trying to understand the consequences of a new &#34;emancipation&#34; bill on its way to the floor of the United States Congress. It is 1953 and he and the other council members know the bill isn&#39;t about freedom; Congress is fed up with Indians. The bill is a &#34;termination&#34; that threatens the rights of Native Americans to their land and their very identity. How can the...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/483" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/483" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/483/epub/"
+          length="3022189" mtime="2026-05-06T05:25:01+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Nickel Boys: A Novel</title>
+    <id>urn:uuid:031069ca-d69b-494a-8871-10966d802ce3</id>
+    <updated>2026-05-06T05:24:49+00:00</updated>
+    
+      <author>
+        <name>Colson Whitehead</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Knopf Doubleday Publishing Group</name>
+      </publisher>
+    
+    <published>2019-07-16T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">In this bravura follow-up to the Pulitzer Prize and National Book Award-winning #1 New York Times bestseller The Underground Railroad, Colson Whitehead brilliantly dramatizes another strand of American history through the story of two boys sentenced to a hellish reform school in Jim Crow-era Florida.</summary>
+    <content type="text">In this bravura follow-up to the Pulitzer Prize and National Book Award-winning #1 New York Times bestseller The Underground Railroad, Colson Whitehead brilliantly dramatizes another strand of American history through the story of two boys sentenced to a hellish reform school in Jim Crow-era Florida.As the Civil Rights movement begins to reach the black enclave of Frenchtown in segregated Tallahassee, Elwood Curtis takes the words of Dr. Martin Luther King to heart: He is &#34;as good as anyone.&#34; Abandoned by his parents, but kept on the straight and narrow by his grandmother, Elwood is about to enroll in the local black college. But for a black boy in the Jim Crow South in the early 1960s, one innocent mistake is enough to destroy the future. Elwood is sentenced to a juvenile reformatory called The Nickel Academy, whose mission statement says it provides &#34;physical, intellectual and moral training&#34; so the delinquent boys in...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/482" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/482" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/482/epub/"
+          length="466308" mtime="2026-05-06T05:24:49+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Overstory</title>
+    <id>urn:uuid:ae7f451f-42ae-4785-ae67-023470e4df86</id>
+    <updated>2026-05-06T05:24:39+00:00</updated>
+    
+      <author>
+        <name>Richard Powers</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Penguin Random House UK</name>
+      </publisher>
+    
+    <published>2018-04-11T21:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/481" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/481" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/481/epub/"
+          length="1306647" mtime="2026-05-06T05:24:39+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Less : A Novel</title>
+    <id>urn:uuid:0823b1d7-07d7-4319-b6cc-a4d20826b2c5</id>
+    <updated>2026-05-06T05:24:33+00:00</updated>
+    
+      <author>
+        <name>Andrew Sean Greer</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Back Bay Books</name>
+      </publisher>
+    
+    <published>2018-05-22T05:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <calibre:series>Less</calibre:series>
+    <calibre:series_index>1</calibre:series_index>
+    <dcterms:isPartOf>Less</dcterms:isPartOf>
+    
+    
+    <summary type="text">A struggling novelist travels the world to avoid an awkward wedding in this hilarious Pulitzer Prize-winning novel full of &#34;arresting lyricism and beauty&#34; (New York Times Book Review).</summary>
+    <content type="text">A struggling novelist travels the world to avoid an awkward wedding in this hilarious Pulitzer Prize-winning novel full of &#34;arresting lyricism and beauty&#34; (New York Times Book Review). WINNER OF THE PULITZER PRIZENational BestsellerA New York Times Notable Book of 2017A Washington Post Top Ten Book of 2017A San Francisco Chronicle Top Ten Book of 2017Longlisted for the Andrew Carnegie Medal for Excellence, the Lambda Award and the California Book Award &#34;I could not love LESS more.&#34;--Ron Charles, Washington Post &#34;Andrew Sean Greer&#39;s Less is excellent company. It&#39;s no less than bedazzling, bewitching and be-wonderful.&#34;--Christopher Buckley, New York Times Book Review Who says you can&#39;t run away from your problems? You are a failed novelist about to turn fifty. A wedding invitation arrives in the mail: your boyfriend of the past nine years is engaged to someone else. You can&#39;t say yes--it would be too awkward--and you can&#39;t say no--it would look like defeat. On your desk are a series of invitations to half-baked literary events around the world. QUESTION: How do you arrange to skip town? ANSWER: You accept them all. What would possibly go wrong? Arthur Less will almost fall in love in Paris, almost fall to his death in Berlin, barely escape to a Moroccan ski chalet from a Saharan sandstorm, accidentally book himself as the (only) writer-in-residence at a Christian Retreat Center in Southern India, and encounter, on a desert island in the Arabian Sea, the last person on Earth he wants to face. Somewhere in there: he will turn fifty. Through it all, there is his first love. And there is his last. Because, despite all these mishaps, missteps, misunderstandings and mistakes, Less is, above all, a love story. A scintillating satire of the American abroad, a rumination on time and the human heart, a bittersweet romance of chances lost, by an author The New York Times has hailed as &#34;inspired, lyrical,&#34; &#34;elegiac,&#34; &#34;ingenious,&#34; as well as &#34;too sappy by half,&#34; Less shows a writer at the peak of his talents raising the curtain on our shared human comedy.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/480" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/480" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/480/epub/"
+          length="1224021" mtime="2026-05-06T05:24:33+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Underground Railroad</title>
+    <id>urn:uuid:cf7773fb-8c67-4d8b-8093-caad32300dde</id>
+    <updated>2026-05-06T05:24:23+00:00</updated>
+    
+      <author>
+        <name>Colson Whitehead</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Doubleday</name>
+      </publisher>
+    
+    <published>2016-09-13T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/479" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/479" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/479/epub/"
+          length="870908" mtime="2026-05-06T05:24:23+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Sympathizer</title>
+    <id>urn:uuid:34411c12-fc6a-46ec-8dba-78635a130040</id>
+    <updated>2026-05-06T05:24:13+00:00</updated>
+    
+      <author>
+        <name>Viet Thanh Nguyen</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Grove Press; Grove/Atlantic</name>
+      </publisher>
+    
+    <published>2015-04-01T18:30:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Literature"
+              label="Literature"/>
+    
+    
+    <summary type="text">May 2023 - epub format revised and verified by zardox (no changes to book content).</summary>
+    <content type="text">May 2023 - epub format revised and verified by zardox (no changes to book content).Genre: Literatureebook, 357 pages Kindle Edition, 384 pages Published: 2015 Pulitzer Prize for Fiction (2016) Andrew Carnegie Medal for Fiction (2016) The Sympathizer is the breakthrough novel of the year. With the pace and suspense of a thriller and prose that has been compared to Graham Greene and Saul Bellow, The Sympathizer is a sweeping epic of love and betrayal. The narrator, a communist double agent, is a “man of two minds,” a half-French, half-Vietnamese army captain who arranges to come to America after the Fall of Saigon, and while building a new life with other Vietnamese refugees in Los Angeles is secretly reporting back to his communist superiors in Vietnam. The Sympathizer is a blistering exploration of identity and America, a gripping espionage novel, and a powerful story of love and friendship. Award- Andrew Carnegie Medal for Fiction (), Award- Pulitzer Prize for Fiction () Award- Andrew Carnegie Medal for Fiction (), Award- Pulitzer Prize for Fiction ()Award- Andrew Carnegie Medal for Fiction (), Award- Pulitzer Prize for Fiction ()</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/478" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/478" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/478/epub/"
+          length="509957" mtime="2026-05-06T05:24:13+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>All the Light We Cannot See(elib.cc)</title>
+    <id>urn:uuid:9108b8b1-4d8e-46c2-9cc1-d764d20ff194</id>
+    <updated>2026-05-06T05:24:04+00:00</updated>
+    
+      <author>
+        <name>Doerr| Anthony elib.cc</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Scribner ,elib.cc</name>
+      </publisher>
+    
+    <published>2014-05-06T07:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fiction"
+              label="Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="General"
+              label="General"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Historical"
+              label="Historical"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Literary"
+              label="Literary"/>
+    
+    <calibre:series>Pulitzer Prize Winner</calibre:series>
+    <calibre:series_index>2015</calibre:series_index>
+    <dcterms:isPartOf>Pulitzer Prize Winner</dcterms:isPartOf>
+    
+    
+    <summary type="text">From the highly acclaimed, multiple award-winning Anthony Doerr, the beautiful, stunningly ambitious instant New York Times bestseller about a blind French girl and a German boy whose paths collide in occupied France as both try to survive the devastation of World War II.</summary>
+    <content type="text">From the highly acclaimed, multiple award-winning Anthony Doerr, the beautiful, stunningly ambitious instant New York Times bestseller about a blind French girl and a German boy whose paths collide in occupied France as both try to survive the devastation of World War II. Marie-Laure lives with her father in Paris near the Museum of Natural History, where he works as the master of its thousands of locks. When she is six, Marie-Laure goes blind and her father builds a perfect miniature of their neighborhood so she can memorize it by touch and navigate her way home. When she is twelve, the Nazis occupy Paris and father and daughter flee to the walled citadel of Saint-Malo, where Marie-Laure’s reclusive great-uncle lives in a tall house by the sea. With them they carry what might be the museum’s most valuable and dangerous jewel. In a mining town in Germany, the orphan Werner grows up with his younger sister, enchanted by a crude radio they find. Werner becomes an expert at building and fixing these crucial new instruments, a talent that wins him a place at a brutal academy for Hitler Youth, then a special assignment to track the resistance. More and more aware of the human cost of his intelligence, Werner travels through the heart of the war and, finally, into Saint-Malo, where his story and Marie-Laure’s converge. Doerr’s “stunning sense of physical detail and gorgeous metaphors” (San Francisco Chronicle) are dazzling. Deftly interweaving the lives of Marie-Laure and Werner, he illuminates the ways, against all odds, people try to be good to one another. Ten years in the writing, All the Light We Cannot See is a magnificent, deeply moving novel from a writer “whose sentences never fail to thrill” (Los Angeles Times).**Amazon.com ReviewAn Amazon Best Book of the Month, May 2014: Does the world need yet another novel about WWII? It does when the novel is as inventive and beautiful as this one by Anthony Doerr. In fact, All the Light We Cannot See--while set mostly in Germany and France before and during the war--is not really a “war novel”. Yes, there is fear and fighting and disappearance and death, but the author’s focus is on the interior lives of his two characters. Marie Laure is a blind 14-year-old French girl who flees to the countryside when her father disappears from Nazi-occupied Paris. Werner is a gadget-obsessed German orphan whose skills admit him to a brutal branch of Hitler Youth. Never mind that their paths don’t cross until very late in the novel, this is not a book you read for plot (although there is a wonderful, mysterious subplot about a stolen gem). This is a book you read for the beauty of Doerr’s writing-- “Abyss in her gut, desert in her throat, Marie-Laure takes one of the cans of food…”--and for the way he understands and cherishes the magical obsessions of childhood. Marie Laure and Werner are never quaint or twee. Instead they are powerful examples of the way average people in trying times must decide daily between morality and survival. --Sara NelsonFrom BooklistStarred Review A novel to live in, learn from, and feel bereft over when the last page is turned, Doerr’s magnificently drawn story seems at once spacious and tightly composed. It rests, historically, during the occupation of France during WWII, but brief chapters told in alternating voices give the overall—and long—­narrative a swift movement through time and events. We have two main characters, each one on opposite sides in the conflagration that is destroying Europe. Marie-Louise is a sightless girl who lived with her father in Paris before the occupation; he was a master locksmith for the Museum of Natural History. When German forces necessitate abandonment of the city, Marie-Louise’s father, taking with him the museum’s greatest treasure, removes himself and his daughter and eventually arrives at his uncle’s house in the coastal city of Saint-Malo. Young German soldier Werner is sent to Saint-Malo to track Resistance activity there, and eventually, and inevitably, Marie-Louise’s and Werner’s paths cross. It is through their individual and intertwined tales that Doerr masterfully and knowledgeably re-creates the deprived civilian conditions of war-torn France and the strictly controlled lives of the military occupiers.High-Demand Backstory: A multipronged marketing campaign will make the author’s many fans aware of his newest book, and extensive review coverage is bound to enlist many new fans. --Brad Hooper https://elib.cc 百万电子书免费下载</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/477" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/477" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/477/epub/"
+          length="628897" mtime="2026-05-06T05:24:04+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Goldfinch</title>
+    <id>urn:uuid:39eb00a9-c78a-400c-87b6-0f9f2356f34a</id>
+    <updated>2026-05-06T05:23:48+00:00</updated>
+    
+      <author>
+        <name>Donna Tartt</name>
+      </author>
+    
+    
+    <published>2013-10-22T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/476" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/476" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/476/epub/"
+          length="857203" mtime="2026-05-06T05:23:48+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Orphan Master&#39;s Son</title>
+    <id>urn:uuid:b863ac8e-3135-41b0-9aa2-ea6511b394c0</id>
+    <updated>2026-05-06T05:23:29+00:00</updated>
+    
+      <author>
+        <name>Adam Johnson</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Random House Publishing Group</name>
+      </publisher>
+    
+    <published>2012-08-07T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">WINNER OF THE PULITZER PRIZEIn this epic, critically acclaimed tour de force, Adam Johnson provides a riveting portrait of a world rife with hunger, corruption, and casual cruelty but also camaraderie, stolen moments of beauty, and love.</summary>
+    <content type="text">WINNER OF THE PULITZER PRIZEIn this epic, critically acclaimed tour de force, Adam Johnson provides a riveting portrait of a world rife with hunger, corruption, and casual cruelty but also camaraderie, stolen moments of beauty, and love.NATIONAL BOOK CRITICS CIRCLE AWARD FINALISTLONGLISTED FOR THE AMERICAN LIBRARY ASSOCIATION&#39;S ANDREW CARNEGIE MEDALWINNER OF THE CALIFORNIA BOOK AWARD FOR FICTION • NEW YORK TIMES BESTSELLERNAMED ONE OF THE BEST BOOKS OF THE YEAR BY The New YorkerThe Washington PostStephen King, Entertainment WeeklyThe Wall Street JournalLos Angeles TimesSan Francisco ChronicleFinancial TimesNewsweek/The Daily BeastThe Plain DealerSt. Louis Post-DispatchMilwaukee Journal Sentinel • Scott Turow, The MillionsSlateSalonBookPageShelf Awareness &#34;The single best work of fiction published [this...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/475" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/475" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/475/epub/"
+          length="2557445" mtime="2026-05-06T05:23:29+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Tinkers</title>
+    <id>urn:uuid:df27b87c-f057-4926-b7e7-8d41f5bb09f4</id>
+    <updated>2026-05-06T05:22:40+00:00</updated>
+    
+      <author>
+        <name>Paul Harding</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Random House</name>
+      </publisher>
+    
+    <published>2009-01-01T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Contemporary"
+              label="Contemporary"/>
+    
+    
+    <summary type="text">**Pulitzer Prize Winner and *New York Times* Bestseller** “There are few perfect debut American novels.</summary>
+    <content type="text">**Pulitzer Prize Winner and *New York Times* Bestseller** “There are few perfect debut American novels. . . . To this list ought to be added Paul Harding’s devastating first book, *Tinkers.* . . . Harding has written a masterpiece.” —**NPR** “In Paul Harding’s stunning first novel, we find what readers, writers and reviewers live for.” —***San Francisco Chronicle*** “*Tinkers* is truly remarkable.” —**Marilynne Robinson**, Pulitzer Prize-winning author of *Home, Gilead,* and *Housekeeping* An old man lies dying. Propped up in his living room and surrounded by his children and grandchildren, George Washington Crosby drifts in and out of consciousness, back to the wonder and pain of his impoverished childhood in Maine. As the clock repairer’s time winds down, his memories intertwine with those of his father, an epileptic, itinerant peddler and his grandfather, a Methodist preacher beset by madness. At once heartbreaking and life affirming, *Tinkers* is an elegiac meditation on love, loss, illness, faith, and the fierce beauty of nature. **Paul Harding** is the author of two novels about multiple generations of a New England family: the Pulitzer Prize-winning *Tinkers* and *Enon.* He has taught at the Iowa Writers’ Workshop, Harvard University, and Grinnell College. He now lives in Massachusetts with his wife and two sons. **2010 Pulitzer Prize Winner for Fiction**</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/474" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/474" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/474/epub/"
+          length="156123" mtime="2026-05-06T05:22:40+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Olive Kitteridge</title>
+    <id>urn:uuid:98d61978-62ad-4922-8dda-27b28c625be6</id>
+    <updated>2026-05-06T05:22:34+00:00</updated>
+    
+      <author>
+        <name>Elizabeth Strout</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Random House Publishing Group</name>
+      </publisher>
+    
+    <published>2008-03-25T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">WINNER OF THE PULITZER PRIZETHE EMMY AWARD–WINNING HBO MINISERIES STARRING FRANCES MCDORMAND, RICHARD JENKINS, AND BILL MURRAYIn a voice more powerful and compassionate than ever before, New York Times bestselling author Elizabeth Strout binds together thirteen rich, luminous narratives into a book with the heft of a novel, through the presence of one larger-than-life, unforgettable character: Olive Kitteridge.</summary>
+    <content type="text">WINNER OF THE PULITZER PRIZETHE EMMY AWARD–WINNING HBO MINISERIES STARRING FRANCES MCDORMAND, RICHARD JENKINS, AND BILL MURRAYIn a voice more powerful and compassionate than ever before, New York Times bestselling author Elizabeth Strout binds together thirteen rich, luminous narratives into a book with the heft of a novel, through the presence of one larger-than-life, unforgettable character: Olive Kitteridge. At the edge of the continent, Crosby, Maine, may seem like nowhere, but seen through this brilliant writer&#39;s eyes, it&#39;s in essence the whole world, and the lives that are lived there are filled with all of the grand human drama–desire, despair, jealousy, hope, and love. At times stern, at other times patient, at times perceptive, at other times in sad denial, Olive Kitteridge, a retired schoolteacher, deplores the changes in her little town and in the world at large, but she doesn&#39;t always recognize the changes in those around her:...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/473" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/473" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/473/epub/"
+          length="3371781" mtime="2026-05-06T05:22:34+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Brief Wondrous Life of Oscar Wao</title>
+    <id>urn:uuid:6e87be15-d364-42ec-8369-ef887601e58b</id>
+    <updated>2026-05-06T05:22:19+00:00</updated>
+    
+      <author>
+        <name>Junot Díaz</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Penguin Publishing Group</name>
+      </publisher>
+    
+    <published>2007-09-06T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Winner of: The Pulitzer Prize The National Book Critics Circle Award The Anisfield-Wolf Book Award The Jon Sargent, Sr.</summary>
+    <content type="text">Winner of: The Pulitzer Prize The National Book Critics Circle Award The Anisfield-Wolf Book Award The Jon Sargent, Sr. First Novel Prize A Time Magazine #1 Fiction Book of the YearOne of The New York Times’s 100 Best Books of the 21st Century One of the best books of 2007 according to: The New York Times, San Francisco Chronicle, New York Magazine, Entertainment Weekly, The Boston Globe, Los Angeles Times, The Washington Post, People, The Village Voice, Time Out New York, Salon, Baltimore City Paper, The Christian Science Monitor, Booklist, Library Journal, Publishers Weekly, New York Public Library, and many more... Nominated as one of America’s best-loved novels by PBS’s The Great American Read and named one of The Atlantic’s Great American Novels of the Past 100 YearsOscar is a sweet but disastrously overweight ghetto nerd who—from the New...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/472" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/472" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/472/epub/"
+          length="1238392" mtime="2026-05-06T05:22:19+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Road</title>
+    <id>urn:uuid:a05ecfd9-b377-4373-aa6a-fba6eed99612</id>
+    <updated>2026-05-06T05:22:04+00:00</updated>
+    
+      <author>
+        <name>Cormac McCarthy</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Alfred A. Knopf</name>
+      </publisher>
+    
+    <published>2011-01-17T21:24:08+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/471" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/471" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/471/epub/"
+          length="195441" mtime="2026-05-06T05:22:04+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>March</title>
+    <id>urn:uuid:67dcbd54-8c3d-476a-ac39-824b35cb6132</id>
+    <updated>2026-05-06T05:21:43+00:00</updated>
+    
+      <author>
+        <name>Geraldine Brooks</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Penguin Books</name>
+      </publisher>
+    
+    <published>2006-09-15T01:33:12+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="1861-1865"
+              label="1861-1865"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="American Historical Fiction"
+              label="American Historical Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Civil War"
+              label="Civil War"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Domestic fiction"
+              label="Domestic fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Family"
+              label="Family"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fathers and daughters"
+              label="Fathers and daughters"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fiction"
+              label="Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fiction - Historical"
+              label="Fiction - Historical"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="General"
+              label="General"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Historical"
+              label="Historical"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Historical - General"
+              label="Historical - General"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Historical fiction"
+              label="Historical fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="History"
+              label="History"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="March family (Fictitious characters)"
+              label="March family (Fictitious characters)"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Romance"
+              label="Romance"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Soldiers"
+              label="Soldiers"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="United States"
+              label="United States"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="United States - History - Civil War"
+              label="United States - History - Civil War"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="War &amp; Military"
+              label="War &amp; Military"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="War stories"
+              label="War stories"/>
+    
+    
+    <summary type="text">From Louisa May Alcotts beloved classic Little Women, Geraldine Brooks has animated the character of the absent father, March, and crafted a story filled with the ache of love and marriage and with the power of war upon the mind and heart of one unforgettable man (Sue Monk Kidd).</summary>
+    <content type="text">From Louisa May Alcotts beloved classic Little Women, Geraldine Brooks has animated the character of the absent father, March, and crafted a story filled with the ache of love and marriage and with the power of war upon the mind and heart of one unforgettable man (Sue Monk Kidd). With pitch-perfect writing (USA Today), Brooks follows March as he leaves behind his family to aid the Union cause in the Civil War. His experiences will utterly change his marriage and challenge his most ardently held beliefs. A lushly written, wholly original tale steeped in the details of another time, March secures Geraldine Brookss place as a renowned author of historical fiction. A very great book... It breathes new life into the historical fiction genre [and] honors the best of the imagination. Chicago Tribune A beautifully wrought story about how war dashes ideals, unhinges moral certainties and drives a wedge of bitter experience and unspeakable memories between husband and wife. Los Angeles Times Book Review Inspired... A disturbing, supple, and deeply satisfying story, put together with craft and care and imagery worthy of a poet. The Cleveland Plain Dealer Louisa May Alcott would be well pleased. The Economist</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/470" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/470" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/470/epub/"
+          length="372213" mtime="2026-05-06T05:21:43+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Gilead (2005 Pulitzer Prize)</title>
+    <id>urn:uuid:7a0dadf2-e899-4025-b0fb-565c03f843b6</id>
+    <updated>2026-05-06T05:21:13+00:00</updated>
+    
+      <author>
+        <name>Marilynne Robinson</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Virago Press Ltd</name>
+      </publisher>
+    
+    <published>2005-10-14T13:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">SUMMARY:In 1981, Marilynne Robinson wrote Housekeeping, which won the PEN/Hemingway Award and became a modern classic.</summary>
+    <content type="text">SUMMARY:In 1981, Marilynne Robinson wrote Housekeeping, which won the PEN/Hemingway Award and became a modern classic. Since then, she has written two pieces of nonfiction: Mother Country and The Death of Adam. With Gilead, we have, at last, another work of fiction. As with The Great Fire, Shirley Hazzards&#39;s return, 22 years after The Transit of Venus, it was worth the long wait. Books such as these take time, and thought, and a certain kind of genius. There are no invidious comparisons to be made. Robinson&#39;s books are unalike in every way but one: the same incisive thought and careful prose illuminate both. The narrator, John Ames, is 76, a preacher who has lived almost all of his life in Gilead, Iowa. He is writing a letter to his almost seven-year-old son, the blessing of his second marriage. It is a summing-up, an apologia, a consideration of his life. Robinson takes the story away from being simply the reminiscences of one man and moves it into the realm of a meditation on fathers and children, particularly sons, on faith, and on the imperfectability of man. The reason for the letter is Ames&#39;s failing health. He wants to leave an account of himself for this son who will never really know him. His greatest regret is that he hasn&#39;t much to leave them, in worldly terms. &#34;Your mother told you I&#39;m writing your begats, and you seemed very pleased with the idea. Well, then. What should I record for you?&#34; In the course of the narrative, John Ames records himself, inside and out, in a meditative style. Robinson&#39;s prose asks the reader to slow down to the pace of an old man in Gilead, Iowa, in 1956. Ames writes of his father and grandfather, estranged over his grandfather&#39;s departure for Kansas to march for abolition and his father&#39;s lifelong pacifism. The tension between them, their love for each other and their inability to bridge the chasm of their beliefs is a constant source of rumination for John Ames. Fathers and sons. The other constant in the book is Ames&#39;s friendship since childhood with &#34;old Boughton,&#34; a Presbyterian minister. Boughton, father of many children, favors his son, named John Ames Boughton, above all others. Ames must constantly monitor his tendency to be envious of Boughton&#39;s bounteous family; his first wife died in childbirth and the baby died almost immediately after her. Jack Boughton is a ne&#39;er-do-well, Ames knows it and strives to love him as he knows he should. Jack arrives in Gilead after a long absence, full of charm and mischief, causing Ames to wonder what influence he might have on Ames&#39;s young wife and son when Ames dies. These are the things that Ames tells his son about: his ancestors, the nature of love and friendship, the part that faith and prayer play in every life and an awareness of one&#39;s own culpability. There is also reconciliation without resignation, self-awareness without deprecation, abundant good humor, philosophical queries--Jack asks, &#34;&#39;Do you ever wonder why American Christianity seems to wait for the real thinking to be done elsewhere?&#39;&#34;--and an ongoing sense of childlike wonder at the beauty and variety of God&#39;s world. In Marilynne Robinson&#39;s hands, there is a balm in Gilead, as the old spiritual tells us. --Valerie Ryan</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/469" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/469" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/469/epub/"
+          length="213602" mtime="2026-05-06T05:21:13+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Known World</title>
+    <id>urn:uuid:40695df3-350a-46c4-bd7c-9d6e05dad8d0</id>
+    <updated>2026-05-06T05:20:43+00:00</updated>
+    
+      <author>
+        <name>Edward P. Jones</name>
+      </author>
+    
+    
+      <publisher>
+        <name>HarperCollins</name>
+      </publisher>
+    
+    <published>2009-05-15T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/468" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/468" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/468/epub/"
+          length="564781" mtime="2026-05-06T05:20:43+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Middlesex</title>
+    <id>urn:uuid:86d99553-41e6-4f92-b32d-cb3424ffbc5a</id>
+    <updated>2026-05-06T05:20:23+00:00</updated>
+    
+      <author>
+        <name>Jeffrey Eugenides</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Picador (September 16, 2003)</name>
+      </publisher>
+    
+    <published>2003-10-15T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="prose_contemporary"
+              label="prose_contemporary"/>
+    
+    
+    <summary type="text">Winner of the Pulitzer Prize for Fiction–2003 “I was born twice: first, as a baby girl, on a remarkably smogless Detroit day of January 1960; and then again, as a teenage boy, in an emergency room near Petoskey, Michigan, in August of l974… My birth certificate lists my name as Calliope Helen Stephanides.</summary>
+    <content type="text">Winner of the Pulitzer Prize for Fiction–2003 “I was born twice: first, as a baby girl, on a remarkably smogless Detroit day of January 1960; and then again, as a teenage boy, in an emergency room near Petoskey, Michigan, in August of l974… My birth certificate lists my name as Calliope Helen Stephanides. My most recent driver’s license… records my first name simply as Cal.” So begins the breathtaking story of Calliope Stephanides and three generations of the Greek-American Stephanides family who travel from a tiny village overlooking Mount Olympus in Asia Minor to Prohibition-era Detroit, witnessing its glory days as the Motor City, and the race riots of l967, before they move out to the tree-lined streets of suburban Grosse Pointe, Michigan. To understand why Calliope is not like other girls, she has to uncover a guilty family secret and the astonishing genetic history that turns Callie into Cal, one of the most audacious and wondrous narrators in contemporary fiction. Lyrical and thrilling, Middlesex is an exhilarating reinvention of the American epic.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/467" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/467" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/467/epub/"
+          length="584355" mtime="2026-05-06T05:20:23+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Interpreter of Maladies</title>
+    <id>urn:uuid:9a8b6d7f-fe8b-48e0-a617-21b744c0aa7e</id>
+    <updated>2026-05-06T05:19:04+00:00</updated>
+    
+      <author>
+        <name>Jhumpa Lahiri</name>
+      </author>
+    
+    
+      <publisher>
+        <name>HarperCollins Publishers</name>
+      </publisher>
+    
+    <published>1999-05-15T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Pulitzer-winning, scintillating studies in yearning and exile from a Bengali Bostonian woman of immense promise.</summary>
+    <content type="text">Pulitzer-winning, scintillating studies in yearning and exile from a Bengali Bostonian woman of immense promise. A couple exchange unprecedented confessions during nightly blackouts in their Boston apartment as they struggle to cope with a heartbreaking loss; a student arrives in new lodgings in a mystifying new land and, while he awaits the arrival of his arranged-marriage wife from Bengal, he finds his first bearings with the aid of the curious evening rituals that his centenarian landlady orchestrates; a schoolboy looks on while his childminder finds that the smallest dislocation can unbalance her new American life all too easily and send her spiralling into nostalgia for her homeland... Jhumpa Lahiri&#39;s prose is beautifully measured, subtle and sober, and she is a writer who leaves a lot unsaid, but this work is rich in observational detail, evocative of the yearnings of the exile (mostly Indians in Boston here), and full of emotional pull and reverberation.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/466" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/466" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/466/epub/"
+          length="277294" mtime="2026-05-06T05:19:04+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Hours</title>
+    <id>urn:uuid:217ffab9-b10e-4911-95b6-1c3d8b9e9291</id>
+    <updated>2026-05-06T05:18:45+00:00</updated>
+    
+      <author>
+        <name>Michael Cunningham</name>
+      </author>
+    
+    
+      <publisher>
+        <name>HarperCollins Publishers</name>
+      </publisher>
+    
+    <published>1998-05-15T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Winner of the 1999 Pulitzer and Pen/Faulkner prizes, The Hours is a daring and deeply affecting novel inspired by the life and work of Virginia Woolf.</summary>
+    <content type="text">Winner of the 1999 Pulitzer and Pen/Faulkner prizes, The Hours is a daring and deeply affecting novel inspired by the life and work of Virginia Woolf. A passionate, profound and haunting story of love and inheritance, hope and despair. Exiled in Richmond in the 1920s, taken from her beloved Bloomsbury and lovingly watched over by her husband Leonard, Virginia Woolf struggles to tame her rebellious mind and make a start on her new novel. In the brooding heat of 1940s Los Angeles, a young wife and mother yearns to escape the claustrophobia of suburban domesticity and read her precious copy of Mrs Dalloway. And in New York in the 1990s, Clarissa Vaughan steps out of her smart Greenwich Village apartment and goes shopping for flowers for the party she is giving in honour of her life-long friend Richard, an award-winning poet whose mind and body are being ravaged by AIDS. These are the characters in Michael Cunningham&#39;s exquisite and deeply moving new novel, which takes Woolf&#39;s life...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/465" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/465" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/465/epub/"
+          length="293476" mtime="2026-05-06T05:18:45+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>American pastoral</title>
+    <id>urn:uuid:0beee4d6-9846-4c0e-8efd-89671e38c095</id>
+    <updated>2026-05-06T05:18:23+00:00</updated>
+    
+      <author>
+        <name>Philip Roth</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Vintage Books</name>
+      </publisher>
+    
+    <published>1998-04-14T23:00:00+00:00</published>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fiction"
+              label="Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="History"
+              label="History"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Unread"
+              label="Unread"/>
+    
+    
+    <summary type="text">EDITORIAL REVIEW: As the American century draws to an uneasy close, Philip Roth gives us a novel of unqualified greatness that is an elegy for all our century&#39;s promises of prosperity, civic order, and domestic bliss.</summary>
+    <content type="text">EDITORIAL REVIEW: As the American century draws to an uneasy close, Philip Roth gives us a novel of unqualified greatness that is an elegy for all our century&#39;s promises of prosperity, civic order, and domestic bliss. Roth&#39;s protagonist is Swede Levov, a legendary athlete at his Newark high school, who grows up in the booming postwar years to marry a former Miss New Jersey, inherit his father&#39;s glove factory, and move into a stone house in the idyllic hamlet of Old Rimrock. And then one day in 1968, Swede&#39;s beautiful American luck deserts him.For Swede&#39;s adored daughter, Merry, has grown from a loving, quick-witted girl into a sullen, fanatical teenager—a teenager capable of an outlandishly savage act of political terrorism. And overnight Swede is wrenched out of the longer-for American pastoral and into the indigenous American berserk. Compulsively readable, propelled by sorrow, rage, and a deep compassion for its characters, this is Roth&#39;s masterpiece.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/464" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/464" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/464/epub/"
+          length="452604" mtime="2026-05-06T05:18:23+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Martin Dressler: The Tale of an American Dreamer</title>
+    <id>urn:uuid:fe05ac58-a501-4101-ac27-e560884ac2b3</id>
+    <updated>2026-05-06T05:17:49+00:00</updated>
+    
+      <author>
+        <name>Steven Millhauser</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Vintage</name>
+      </publisher>
+    
+    <published>2010-09-01T07:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Young Martin Dressler begins his career as an industrious helper in his father&#39;s cigar store.</summary>
+    <content type="text">Young Martin Dressler begins his career as an industrious helper in his father&#39;s cigar store. In the course of his restless young manhood, he makes a swift and eventful rise to the top, accompanied by two sisters--one a dreamlike shadow, the other a worldly business partner. As the eponymous Martin&#39;s vision becomes bolder and bolder he walks a haunted line between fantasy and reality, madness and ambition, art and industry, a sense of doom builds piece-by-hypnotic piece until this mesmerizing journey into the heart of an American dreamer reaches its bitter-sweet conclusion.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/463" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/463" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/463/epub/"
+          length="564124" mtime="2026-05-06T05:17:49+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  
+  
+  
+</feed>
