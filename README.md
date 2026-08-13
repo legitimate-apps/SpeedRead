@@ -5,8 +5,8 @@ paragraph reading and **RSVP** (Rapid Serial Visual Presentation) speed-reading
 modes. Tap any word in the reader to flick into RSVP starting from that word;
 close RSVP and the reader resumes at the last word you saw, highlighted in red.
 
-> Status: 1.0 — local development build. Universal iOS app + watchOS companion.
-> 117 tests across unit + UI suites.
+> Status: shipping. Live on the App Store as 1.1; 1.2 staged. Universal iOS app +
+> watchOS companion. 117 tests across unit + UI suites.
 
 ## Features
 

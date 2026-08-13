@@ -28,7 +28,22 @@ syncs phone ↔ watch over WatchConnectivity.
 
 - Swift 5, Xcode 16+ (uses `PBXFileSystemSynchronizedRootGroup` — files dropped into
   source dirs auto-include).
-- `MARKETING_VERSION` = 1.0, `CURRENT_PROJECT_VERSION` = 1.
+- `MARKETING_VERSION` = 1.2, `CURRENT_PROJECT_VERSION` = 3.
+
+## Release state
+
+Live on the App Store as **1.1 (build 2)** since 2026-05-21, under Legitimate LLC
+(team `3LTL47SJ8C`, ASC app `6771221242`, listed as "SpeedRead RSVP: books in a day",
+seller "Legitimate Apps LLC").
+
+**1.2 (build 3) is uploaded and staged but deliberately NOT submitted.** Build 3 is
+user-facing-identical to the live 1.1 — its only delta is debug-only screenshot launch
+args — so submitting it would burn an App Review cycle on a no-op. It stays held until
+real user-facing change lands. There is an open, empty review submission
+(`60c34951-49dd-4b7b-88e4-d56bf6e9bce5`, `READY_FOR_REVIEW`, 0 items) to reuse when it does.
+
+> Before any future submission, diff the candidate build's **source** against the live
+> build's source — not just the version number.
 
 > **Logger subsystem note:** `WatchSyncService` uses `com.legitimateapps.SpeedRead` as
 > its logger subsystem. Matches the bundle ID. Just a logger category name, not load-bearing.
