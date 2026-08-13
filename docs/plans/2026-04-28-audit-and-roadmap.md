@@ -40,7 +40,7 @@ This document is the source of truth for known issues, planned improvements, and
 | B14 | Low | A11y | `SpeedRead/Views/ReaderView.swift:156-184` | `onTapGesture` instead of `Button` breaks Voice Control / focus / keyboard | fixed |
 | B15 | Low | Gesture | `RSVPView.swift:50-54` | Tap and scrub on same view conflict; quick swipes register as taps | pending |
 | B16 | Low | UI dup | `ReaderView.swift:418-495` vs `BookmarkListView`/`HighlightListView` | Two divergent list implementations for the same model | pending |
-| B17 | High | iPad layout | `SpeedRead/Views/LibraryView.swift:21-27,172-203`; `SpeedRead/Views/BookshelfRowView.swift:13-20,26-50`; `SpeedRead/Views/BookSpineView.swift:12-15,44-56,74` | iPad library is phone-scale and top-heavy: fixed four-book chunks, model-only rows with no viewport fill, fixed 60×120-180 pt spines, fixed 9/7 pt type, leading-edge packing plus one trailing `Spacer`, a full-width plank masking narrow content, no adaptive grid/size-class branch, and no vertical-fill policy. Estimated fix: ~25-50 lines across `LibraryView` / `BookshelfRowView` / `BookSpineView`. | pending |
+| B17 | High | iPad layout | `SpeedRead/Views/LibraryView.swift:21-27,172-203`; `SpeedRead/Views/BookshelfRowView.swift:13-20,26-50`; `SpeedRead/Views/BookSpineView.swift:12-15,44-56,74` | iPad library is phone-scale and top-heavy: fixed four-book chunks, model-only rows with no viewport fill, fixed 60×120-180 pt spines, fixed 9/7 pt type, leading-edge packing plus one trailing `Spacer`, a full-width plank masking narrow content, no adaptive grid/size-class branch, and no vertical-fill policy. Estimated fix: ~25-50 lines across `LibraryView` / `BookshelfRowView` / `BookSpineView`. | fixed |
 | B18 | Med | Swift 6 / SwiftData | `SpeedReadTests/OPDSLiveIntegrationTests.swift:112-113` | Three warning groups become errors in Swift 6 mode: unavailable `Book: Sendable`, non-Sendable `ModelContext` captured by an `@Sendable` closure, and non-Sendable `Book` captured by the generated `#expect` closure. | pending |
 | B19 | Low | watchOS assets | `SpeedRead/Assets.xcassets` (Xcode 26.6 watch build diagnostic; no source line) | Asset catalog warns: `Could not get trait set for device Watch7,18 with version 26.5`. | pending |
 
@@ -62,7 +62,7 @@ This document is the source of truth for known issues, planned improvements, and
 | I12 | UX | Edit book title/author after import | pending |
 | I13 | UX | "Couldn't extract text" empty-state with re-import affordance | pending |
 | I14 | UX | Haptics on word tap, theme cycle, RSVP play/pause (`SpeedRead/Views/ReaderView.swift:293-301,322-328`; `SpeedRead/Views/RSVPView.swift:53-56`) | fixed |
-| I15 | UX | Library shelf adapts to landscape (wider rows) | pending |
+| I15 | UX | Library shelf adapts to landscape (wider rows) — subsumed by the B17 adaptive layout (`LibraryLayoutMetrics` derives capacity from container width, so landscape widens rows); UI-tested in `SpeedReadUITests/LibraryAdaptiveLayoutUITests.swift` | fixed |
 | I16 | A11y | Group word-level a11y per paragraph; expose words as custom actions | pending |
 | I17 | A11y | Honor Dynamic Type with scaled fonts | pending |
 | I18 | A11y | Brighter accent for night-theme red highlight (contrast) | pending |
@@ -78,7 +78,7 @@ This document is the source of truth for known issues, planned improvements, and
 | I28 | Code | Unify reader theme + shelf theme into one system | pending |
 | I29 | Code | Constants → `ReaderConfig` namespace | pending |
 | I30 | DX | SwiftUI `#Preview` for `ReaderView` | pending |
-| I31 | Test | **STANDING GOAL (operator):** automated Apple Watch and phone↔watch sync coverage, including transfer, persistence, update, failure, and recovery paths | pending |
+| I31 | Test | **STANDING GOAL (operator):** automated Apple Watch and phone↔watch sync coverage, PARTIALLY LANDED 2026-08-13 (15 tests: codec, reconciliation, fallback routing, watchlibrary.json recovery). Real paired-simulator WatchConnectivity delivery still UNVERIFIED. Covers transfer, persistence, update, failure, and recovery paths | pending |
 | I32 | Integration | **STANDING GOAL (operator):** “see my Calibre library in SpeedRead” remote-library integration; remain generic-OPDS-first, with Calibre-Web-NextGen as the recommended path | pending |
 | I33 | Docs | **OPERATOR-GATED — DO NOT START:** full general Calibre-Web-NextGen setup tutorial. SpeedRead ships only a brief local-instance tutorial; the operator will write the fuller walkthrough. | pending |
 
@@ -159,3 +159,4 @@ Each round is its own session/PR. This doc gets the Changelog updated.
 - **2026-04-28** — Round 1 started.
 - **2026-04-28** — Round 1 landed: B1 / I2 / I20 (Book stores `tokenizedWords`, RSVPView uses cached array, added `Book.ensureTokensCached`); I26 / B6 (`RSVPEngine.isLoaded`, `snapshotIndexAndPause()` for atomic dismiss capture); B5 (`didFinish` flag → progress reaches 1.0 at end of book); B7 (replaced `asyncAfter` scroll race with `.task(id: cachedWords.count)`); B11 (TXT title heuristic rejects ALL CAPS / "CHAPTER N" / "PROLOGUE" / pure-punctuation lines); B13 (sample loader gated by `didLoadSamples` flag, runs once per launch). 112/112 tests passing (4 new).
 - **2026-08-13** — Round 6 health and backlog truth sweep: Xcode 26.6, 134/134 unit tests passing, watch target building clean. Reclassified B1-B16 and I1-I19 from current source; added B17-B19 plus standing/gated improvements I31-I33. Project thesis and standing-goal authority moved to root `CORPUS.md`.
+- **2026-08-13** — Round 7 landed: B17 (iPad adaptive bookcase layout — width-derived shelf capacity, equal centered slots, vertical fill, regular-width furniture and 112x224-300pt spines; compact width unchanged) and I15 (landscape, subsumed). Watch position sync fixed in both directions — it worked in neither — with a WCSession-free seam and 15 new tests (I31 partial). Security: server credentials removed from source and from Release binaries, verified by before/after binary inspection. 150 unit tests in 22 suites + 15 UI tests passing.
