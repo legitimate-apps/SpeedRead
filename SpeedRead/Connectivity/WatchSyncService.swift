@@ -124,6 +124,9 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
 
     @Published var isReceiving = false
     @Published var receivingTitle: String?
+    #if DEBUG
+    private var debugPositionSyncTask: Task<Void, Never>?
+    #endif
     #endif
 
     #if os(iOS)
@@ -154,7 +157,39 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         Self.logger.info("Activating WCSession")
         WCSession.default.delegate = self
         WCSession.default.activate()
+        #if os(watchOS) && DEBUG
+        scheduleDebugPositionSyncIfRequested()
+        #endif
     }
+
+    #if os(watchOS) && DEBUG
+    private func scheduleDebugPositionSyncIfRequested() {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let indexFlag = arguments.firstIndex(of: "--debug-sync-position-index"),
+              arguments.indices.contains(indexFlag + 1),
+              let wordIndex = Int(arguments[indexFlag + 1]),
+              let timestampFlag = arguments.firstIndex(of: "--debug-sync-position-timestamp"),
+              arguments.indices.contains(timestampFlag + 1),
+              let interval = TimeInterval(arguments[timestampFlag + 1]) else { return }
+
+        debugPositionSyncTask?.cancel()
+        debugPositionSyncTask = Task { @MainActor [weak self] in
+            for _ in 0..<100 {
+                guard !Task.isCancelled else { return }
+                if let book = self?.library.currentBook ?? self?.library.books.first {
+                    self?.syncReadingPosition(
+                        bookId: book.id,
+                        bookTitle: book.title,
+                        wordIndex: wordIndex,
+                        timestamp: Date(timeIntervalSince1970: interval)
+                    )
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+        }
+    }
+    #endif
 
     // MARK: - Payload
 
