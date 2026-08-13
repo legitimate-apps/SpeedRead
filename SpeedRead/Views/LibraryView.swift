@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(ThemeManager.self) private var themeManager
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject var syncService: WatchSyncService
     @Query(sort: \Book.dateAdded, order: .reverse) private var books: [Book]
 
@@ -17,14 +18,6 @@ struct LibraryView: View {
     @State private var showError = false
     @State private var didLoadSamples = false
     @State private var autoOpenedBook: Book?
-
-    private let booksPerShelf = 4
-
-    private var shelves: [[Book]] {
-        stride(from: 0, to: books.count, by: booksPerShelf).map {
-            Array(books[$0..<min($0 + booksPerShelf, books.count)])
-        }
-    }
 
     var body: some View {
         NavigationStack {
@@ -172,36 +165,50 @@ struct LibraryView: View {
     }
 
     private var bookshelfView: some View {
-        ScrollView {
-            LazyVStack(spacing: 24) {
-                ForEach(Array(shelves.enumerated()), id: \.offset) { _, shelfBooks in
-                    BookshelfRowView {
-                        ForEach(shelfBooks) { book in
-                            NavigationLink(value: book) {
-                                BookSpineView(
-                                    title: book.title,
-                                    author: book.author,
-                                    progress: book.progress,
-                                    wordCount: book.wordCount
-                                )
-                            }
-                            .contextMenu {
-                                Button {
-                                    syncService.sendBook(id: book.id, title: book.title, author: book.author, text: book.extractedText, wordCount: book.wordCount)
-                                } label: {
-                                    Label("Send to Watch", systemImage: "applewatch")
-                                }
-                                Button(role: .destructive) {
-                                    modelContext.delete(book)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+        GeometryReader { geometry in
+            let metrics = LibraryLayoutMetrics(
+                isRegularWidth: horizontalSizeClass == .regular,
+                containerWidth: geometry.size.width
+            )
+            let modelShelves = metrics.shelves(for: books)
+            let visibleShelfCount = max(
+                modelShelves.count,
+                metrics.minimumVisibleShelfCount(viewportHeight: geometry.size.height)
+            )
+
+            ScrollView {
+                LazyVStack(spacing: metrics.shelfSpacing) {
+                    ForEach(0..<visibleShelfCount, id: \.self) { shelfIndex in
+                        BookshelfRowView {
+                            if shelfIndex < modelShelves.count {
+                                ForEach(modelShelves[shelfIndex]) { book in
+                                    NavigationLink(value: book) {
+                                        BookSpineView(
+                                            title: book.title,
+                                            author: book.author,
+                                            progress: book.progress,
+                                            wordCount: book.wordCount
+                                        )
+                                    }
+                                    .contextMenu {
+                                        Button {
+                                            syncService.sendBook(id: book.id, title: book.title, author: book.author, text: book.extractedText, wordCount: book.wordCount)
+                                        } label: {
+                                            Label("Send to Watch", systemImage: "applewatch")
+                                        }
+                                        Button(role: .destructive) {
+                                            modelContext.delete(book)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                .padding(.top, 16)
             }
-            .padding(.top, 16)
         }
     }
 

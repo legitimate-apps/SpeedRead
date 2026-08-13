@@ -5,25 +5,93 @@ struct BookshelfRowView<Content: View>: View {
     let content: Content
 
     @Environment(ThemeManager.self) private var themeManager
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     init(@ViewBuilder content: () -> Content) {
         self.content = content()
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .bottom, spacing: 8) {
-                content
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 0)
+        let metrics = LibraryLayoutMetrics(
+            isRegularWidth: horizontalSizeClass == .regular,
+            containerWidth: 0
+        )
 
-            shelfPlank
+        VStack(spacing: 0) {
+            ZStack(alignment: .bottom) {
+                if metrics.isRegularWidth {
+                    shelfBay(metrics: metrics)
+                }
+
+                EqualShelfSlotLayout(metrics: metrics) {
+                    content
+                }
+                .padding(.horizontal, metrics.horizontalInset + metrics.sideRailWidth)
+            }
+
+            shelfPlank(height: metrics.shelfPlankHeight)
         }
     }
 
-    private var shelfPlank: some View {
+    private func shelfBay(metrics: LibraryLayoutMetrics) -> some View {
+        let theme = themeManager.currentTheme
+
+        return ZStack {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            theme.shelfColor.opacity(0.20),
+                            theme.backgroundColor.opacity(0.78),
+                            theme.shelfColor.opacity(0.10)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [.black.opacity(0.16), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(height: 24)
+                .frame(maxHeight: .infinity, alignment: .top)
+
+            HStack(spacing: 0) {
+                sideRail(theme: theme, width: metrics.sideRailWidth)
+                Spacer(minLength: 0)
+                sideRail(theme: theme, width: metrics.sideRailWidth)
+            }
+        }
+        .frame(height: metrics.maximumSpineHeight)
+        .overlay {
+            Rectangle()
+                .strokeBorder(theme.shelfColor.opacity(0.22), lineWidth: 1)
+        }
+    }
+
+    private func sideRail(theme: ShelfTheme, width: CGFloat) -> some View {
+        Rectangle()
+            .fill(
+                LinearGradient(
+                    colors: [
+                        theme.shelfColor.opacity(0.78),
+                        theme.shelfColor,
+                        theme.shelfColor.opacity(0.72)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .frame(width: width)
+            .shadow(color: .black.opacity(0.18), radius: 3, x: width > 0 ? 2 : 0)
+    }
+
+    private func shelfPlank(height: CGFloat) -> some View {
         let theme = themeManager.currentTheme
 
         return ZStack {
@@ -39,15 +107,15 @@ struct BookshelfRowView<Content: View>: View {
                         endPoint: .bottom
                     )
                 )
-                .frame(height: 12)
+                .frame(height: height)
 
             Rectangle()
                 .fill(theme.shelfHighlightColor.opacity(0.15))
                 .frame(height: 1)
                 .frame(maxHeight: .infinity, alignment: .top)
         }
-        .frame(height: 12)
-        .shadow(color: .black.opacity(0.3), radius: 3, y: 2)
+        .frame(height: height)
+        .shadow(color: .black.opacity(0.34), radius: 4, y: 3)
     }
 }
 

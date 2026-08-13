@@ -8,10 +8,19 @@ struct BookSpineView: View {
     let wordCount: Int
 
     @Environment(ThemeManager.self) private var themeManager
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    private var metrics: LibraryLayoutMetrics {
+        LibraryLayoutMetrics(
+            isRegularWidth: horizontalSizeClass == .regular,
+            containerWidth: 0
+        )
+    }
 
     private var spineHeight: CGFloat {
-        let base: CGFloat = 120
-        let extra = min(CGFloat(wordCount) / 50_000.0, 1.0) * 60
+        let base = metrics.minimumSpineHeight
+        let range = metrics.maximumSpineHeight - metrics.minimumSpineHeight
+        let extra = min(CGFloat(wordCount) / 50_000.0, 1.0) * range
         return base + extra
     }
 
@@ -42,14 +51,14 @@ struct BookSpineView: View {
                 Spacer(minLength: 0)
 
                 Text(title)
-                    .font(.system(size: 9, weight: .semibold, design: theme.fontDesign))
+                    .font(.system(size: metrics.titleFontSize, weight: .semibold, design: theme.fontDesign))
                     .foregroundStyle(theme.spineTextColor)
                     .lineLimit(3)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.7)
 
                 Text(author)
-                    .font(.system(size: 7, weight: .regular, design: theme.fontDesign))
+                    .font(.system(size: metrics.authorFontSize, weight: .regular, design: theme.fontDesign))
                     .foregroundStyle(theme.spineTextColor.opacity(0.6))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
@@ -71,7 +80,7 @@ struct BookSpineView: View {
                 }
             }
         }
-        .frame(width: 60, height: spineHeight)
+        .frame(width: metrics.spineWidth, height: spineHeight)
     }
 }
 
