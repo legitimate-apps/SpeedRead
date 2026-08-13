@@ -3,6 +3,10 @@
 Durable context for Claude Code sessions. Update when architecture, conventions, or
 gotchas change. Keep this concise — this file is loaded into every session.
 
+> **Read `CORPUS.md` (repo root) first.** This file is *how to work here*; `CORPUS.md` is
+> *what this project is* — the thesis, design principles, architectural invariants, and the
+> operator's standing goals. Facts we've learned live in the per-project memory dir.
+
 ## What this app is
 
 **SpeedRead** is a SwiftUI e-reader for iPhone + Apple Watch with two reading modes:
