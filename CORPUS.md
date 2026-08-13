@@ -94,12 +94,18 @@ These are the operator's named priorities. They outrank backlog items.
 
 ## 7. Release posture
 
-1. Live: **1.1 (build 2)**, since 2026-05-21. Staged and deliberately held: **1.2 (build 3)** —
-   user-facing-identical to 1.1, so submitting it would burn an App Review cycle on a no-op.
+1. Live: **1.1 (build 2)**, since 2026-05-21. **1.2 (build 3) is staged but stale** — it was held
+   because it was user-facing-identical to 1.1, and that reasoning has now been overtaken: real
+   change has landed on `main` since build 3 was uploaded, so **a new build must be archived and
+   attached** rather than submitting build 3 as-is.
 2. **A release must contain real user-facing change.** Before submitting, diff the candidate's
    *source* against the live build's source, not the version number.
-3. The current top candidate for making 1.2 worth shipping: the **iPad layout defect** (the library
-   renders in roughly the top-left eighth of an iPad screen — live today on a universal app).
+3. **The hold is over — 1.2 now has substance** (all landed 2026-08-13): the iPad library renders
+   as a real adaptive bookcase instead of occupying the top-left eighth of the screen; phone↔watch
+   position sync works in both directions, where it previously worked in neither; and server
+   credentials no longer ship inside the binary. The remaining release work is mechanical: archive
+   a new build, attach it to version 1.2, write a truthful `whatsNew`, recapture iPad screenshots
+   against the fixed layout, and submit via the open review submission.
 
 ## 8. Open TODOs
 
