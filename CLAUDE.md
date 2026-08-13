@@ -151,9 +151,41 @@ verification without driving the UI:
 | `-hasCompletedOnboarding YES` | Skip onboarding (set in `UserDefaults` form, two-arg) |
 | `--auto-send-first-book` | Auto-fires `WatchSyncService.sendBook` on first book ~1s after launch |
 | `--auto-open-first-book` | Auto-navigates into ReaderView for the first Metamorphosis (or first) book ~800ms after launch |
+| `--auto-open-settings` / `--auto-open-browse` | Opens the Settings / Browse sheet ~700ms after launch |
+| `--seed-test-opds-server` | **DEBUG builds only.** Seeds an OPDS server from the environment (below) so Browse/Detail can be captured without driving the Settings form |
 
 Use these via `xcrun simctl launch <udid> com.legitimateapps.SpeedRead --auto-send-first-book`
 to drive flows without XCUITests cloning the simulator.
+
+### Test-server credentials live in the environment, never in the repo
+
+The OPDS seeder and the live integration suite both read their server and credentials from
+environment variables. Nothing secret is committed, and nothing secret reaches a shipping
+binary — the seeder is inside `#if DEBUG`, so it is compiled out of Release entirely.
+
+| Variable | Used by |
+|---|---|
+| `SPEEDREAD_TEST_OPDS_URL` | seeder + live tests |
+| `SPEEDREAD_TEST_OPDS_USER` | seeder + live tests |
+| `SPEEDREAD_TEST_OPDS_PASSWORD` | seeder + live tests |
+| `SPEEDREAD_TEST_OPDS_NAME` | seeder only (optional, display name) |
+| `SPEEDREAD_LIVE_OPDS=1` | live tests only — required to enable the suite |
+
+```bash
+# Seed the debug app on a simulator (simctl needs the SIMCTL_CHILD_ prefix)
+SIMCTL_CHILD_SPEEDREAD_TEST_OPDS_URL="https://example/opds/" \
+SIMCTL_CHILD_SPEEDREAD_TEST_OPDS_USER="someuser" \
+SIMCTL_CHILD_SPEEDREAD_TEST_OPDS_PASSWORD="secret" \
+xcrun simctl launch <udid> com.legitimateapps.SpeedRead --seed-test-opds-server
+
+# Run the live integration suite
+xcodebuild test ... -only-testing:SpeedReadTests/OPDSLiveIntegrationTests \
+  SPEEDREAD_LIVE_OPDS=1 SPEEDREAD_TEST_OPDS_URL=... \
+  SPEEDREAD_TEST_OPDS_USER=... SPEEDREAD_TEST_OPDS_PASSWORD=...
+```
+
+The suite stays skipped unless **all** of the variables are supplied, so a partial
+configuration can never silently point tests at the wrong server.
 
 ## Sample books
 

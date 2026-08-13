@@ -59,9 +59,11 @@ struct LibraryView: View {
                     autoOpenedBook = books.first(where: { $0.title.localizedCaseInsensitiveContains("Metamorphosis") })
                         ?? books.first
                 }
+                #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("--seed-test-opds-server") {
                     seedTestOPDSServer()
                 }
+                #endif
                 if ProcessInfo.processInfo.arguments.contains("--auto-open-settings") {
                     try? await Task.sleep(for: .milliseconds(700))
                     showSettings = true
@@ -203,28 +205,45 @@ struct LibraryView: View {
         }
     }
 
-    /// Debug-only: seed an OPDS server pointing at the local CWNG test
-    /// instance so visual verification can capture the Browse / Detail
-    /// screens without driving the Settings form by hand. No-op if a
-    /// server with the same baseURL already exists.
+    #if DEBUG
+    /// Debug-only: seed an OPDS server so scripted verification can capture the
+    /// Browse / Detail screens without driving the Settings form by hand.
+    ///
+    /// The server address and credentials are read from the environment and are
+    /// deliberately absent from the repository and from any shipping binary.
+    /// Supply them at launch:
+    ///
+    ///     SIMCTL_CHILD_SPEEDREAD_TEST_OPDS_URL=https://example/opds/ \
+    ///     SIMCTL_CHILD_SPEEDREAD_TEST_OPDS_USER=someuser \
+    ///     SIMCTL_CHILD_SPEEDREAD_TEST_OPDS_PASSWORD=secret \
+    ///     xcrun simctl launch <udid> com.legitimateapps.SpeedRead --seed-test-opds-server
+    ///
+    /// No-op if any variable is unset, or if that server is already configured.
     private func seedTestOPDSServer() {
-        let url = URL(string: "https://books.example.com/opds/")!
+        let env = ProcessInfo.processInfo.environment
+        guard let urlString = env["SPEEDREAD_TEST_OPDS_URL"],
+              let url = URL(string: urlString),
+              let username = env["SPEEDREAD_TEST_OPDS_USER"],
+              let password = env["SPEEDREAD_TEST_OPDS_PASSWORD"]
+        else { return }
+
         let descriptor = FetchDescriptor<OPDSServer>()
         if let existing = (try? modelContext.fetch(descriptor)) ?? nil,
            existing.contains(where: { $0.baseURLString == url.absoluteString }) {
             return
         }
         let server = OPDSServer(
-            name: "Home library",
+            name: env["SPEEDREAD_TEST_OPDS_NAME"] ?? "Home library",
             baseURL: url,
-            username: "speedread-test",
-            allowInsecureHTTP: false,
+            username: username,
+            allowInsecureHTTP: url.scheme == "http",
             sortIndex: Int(Date().timeIntervalSince1970)
         )
         modelContext.insert(server)
-        try? KeychainStore.setPassword("not-a-real-password", for: server.keychainTag)
+        try? KeychainStore.setPassword(password, for: server.keychainTag)
         try? modelContext.save()
     }
+    #endif
 
     private func handleImport(_ result: Result<[URL], Error>) {
         switch result {

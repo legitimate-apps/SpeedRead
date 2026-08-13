@@ -3,27 +3,39 @@ import Foundation
 import SwiftData
 @testable import SpeedRead
 
-/// End-to-end integration tests against the live CWNG instance on my server.
+/// End-to-end integration tests against a live Calibre-Web / CWNG instance.
 ///
-/// Every test in this suite is `.enabled(if: SPEEDREAD_LIVE_OPDS == "1")`, so
-/// routine `xcodebuild test` runs skip them automatically. To exercise them
-/// against the live server:
+/// The server address and credentials come from the environment and are
+/// deliberately absent from this repository. Every test is
+/// `.enabled(if: liveEnabled)`, so routine `xcodebuild test` runs skip them —
+/// and they stay skipped unless *all* of the variables below are supplied:
 ///
 ///     xcodebuild test ... \
 ///       -only-testing:SpeedReadTests/OPDSLiveIntegrationTests \
-///       SPEEDREAD_LIVE_OPDS=1
+///       SPEEDREAD_LIVE_OPDS=1 \
+///       SPEEDREAD_TEST_OPDS_URL=https://example/opds/ \
+///       SPEEDREAD_TEST_OPDS_USER=someuser \
+///       SPEEDREAD_TEST_OPDS_PASSWORD=secret
 ///
-/// Pre-conditions:
-///   - my server is online at https://books.example.com
-///   - the read-only `speedread-test` user exists in the CWNG `user` table
-@Suite("OPDS Live Integration (my server)", .serialized)
+/// Pre-condition: that server is reachable and the user exists in its `user`
+/// table with read access to the catalog.
+@Suite("OPDS Live Integration", .serialized)
 struct OPDSLiveIntegrationTests {
-    private static let liveURL = URL(string: "https://books.example.com/opds/")!
-    private static let username = "speedread-test"
-    private static let password = "not-a-real-password"
+    private static let env = ProcessInfo.processInfo.environment
+    private static let liveURLString = env["SPEEDREAD_TEST_OPDS_URL"] ?? ""
+    private static let username = env["SPEEDREAD_TEST_OPDS_USER"] ?? ""
+    private static let password = env["SPEEDREAD_TEST_OPDS_PASSWORD"] ?? ""
+
+    /// Falls back to an unroutable address so a misconfigured run fails fast
+    /// and loudly rather than silently pointing somewhere real.
+    private static let liveURL =
+        URL(string: liveURLString) ?? URL(string: "https://unconfigured.invalid/opds/")!
 
     private static let liveEnabled =
-        ProcessInfo.processInfo.environment["SPEEDREAD_LIVE_OPDS"] == "1"
+        env["SPEEDREAD_LIVE_OPDS"] == "1"
+        && !liveURLString.isEmpty
+        && !username.isEmpty
+        && !password.isEmpty
 
     private func makeServer() -> OPDSServer {
         let server = OPDSServer(
@@ -124,7 +136,7 @@ struct OPDSLiveIntegrationTests {
         let server = makeServer()
         defer { teardown(server) }
         let client = OPDSClient()
-        let searchURL = URL(string: "https://books.example.com/opds/search/the")!
+        let searchURL = Self.liveURL.appending(path: "search/the")
         let feed = try await client.fetchFeed(url: searchURL, on: server)
         #expect(!feed.entries.isEmpty, "Search for 'the' returned no entries from a non-empty library")
     }
