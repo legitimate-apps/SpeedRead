@@ -22,7 +22,7 @@ struct WatchBook: Codable, Identifiable, Hashable {
     }
 }
 
-struct WatchLibrary: Codable {
+struct WatchLibrary: Codable, Equatable {
     var books: [WatchBook]
     var currentBookId: UUID?
 
@@ -50,14 +50,33 @@ struct WatchLibrary: Codable {
         }
     }
 
-    mutating func updatePosition(bookId: UUID, index: Int) {
-        guard let i = books.firstIndex(where: { $0.id == bookId }) else { return }
-        books[i].lastReadIndex = index
-        books[i].lastReadDate = Date()
+    @discardableResult
+    mutating func updatePosition(bookId: UUID, index: Int, timestamp: Date = Date()) -> Bool {
+        guard let i = books.firstIndex(where: { $0.id == bookId }) else { return false }
+        books[i].lastReadIndex = min(max(0, index), max(0, books[i].wordCount - 1))
+        books[i].lastReadDate = timestamp
+        return true
     }
 
     mutating func setCurrentBook(id: UUID) {
         guard books.contains(where: { $0.id == id }) else { return }
         currentBookId = id
+    }
+}
+
+struct WatchLibraryStore {
+    let fileURL: URL
+
+    func load() -> WatchLibrary {
+        guard let data = try? Data(contentsOf: fileURL),
+              let library = try? JSONDecoder().decode(WatchLibrary.self, from: data) else {
+            return .empty
+        }
+        return library
+    }
+
+    func save(_ library: WatchLibrary) throws {
+        let data = try JSONEncoder().encode(library)
+        try data.write(to: fileURL, options: .atomic)
     }
 }

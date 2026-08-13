@@ -1,10 +1,117 @@
 import Combine
 import Foundation
+import SwiftData
 import WatchConnectivity
 import os
 #if os(watchOS)
 import WatchKit
 #endif
+
+struct WatchSyncLogic {
+    struct BookPayload: Equatable {
+        let id: UUID
+        let title: String
+        let author: String
+        let text: String
+        let wordCount: Int
+
+        var dictionary: [String: Any] {
+            [
+                "id": id.uuidString,
+                "title": title,
+                "author": author,
+                "text": text,
+                "wordCount": wordCount
+            ]
+        }
+
+        var fileMetadata: [String: Any] {
+            [
+                "id": id.uuidString,
+                "title": title,
+                "author": author,
+                "wordCount": wordCount
+            ]
+        }
+
+        static func decode(from dictionary: [String: Any], inlineText: String? = nil) -> BookPayload? {
+            guard let idString = dictionary["id"] as? String,
+                  let id = UUID(uuidString: idString),
+                  let title = dictionary["title"] as? String,
+                  let author = dictionary["author"] as? String,
+                  let text = inlineText ?? (dictionary["text"] as? String) else {
+                return nil
+            }
+            let wordCount = (dictionary["wordCount"] as? Int)
+                ?? text.split(whereSeparator: \.isWhitespace).count
+            guard wordCount >= 0 else { return nil }
+            return BookPayload(id: id, title: title, author: author, text: text, wordCount: wordCount)
+        }
+    }
+
+    struct PositionPayload: Equatable {
+        let bookId: UUID
+        let bookTitle: String
+        let wordIndex: Int
+        let timestamp: Date
+
+        var dictionary: [String: Any] {
+            [
+                "bookId": bookId.uuidString,
+                "bookTitle": bookTitle,
+                "wordIndex": wordIndex,
+                "timestamp": timestamp.timeIntervalSince1970
+            ]
+        }
+
+        static func decode(from dictionary: [String: Any]) -> PositionPayload? {
+            guard let idString = dictionary["bookId"] as? String,
+                  let bookId = UUID(uuidString: idString),
+                  let bookTitle = dictionary["bookTitle"] as? String,
+                  let wordIndex = dictionary["wordIndex"] as? Int,
+                  wordIndex >= 0,
+                  let interval = dictionary["timestamp"] as? TimeInterval,
+                  interval.isFinite else {
+                return nil
+            }
+            return PositionPayload(
+                bookId: bookId,
+                bookTitle: bookTitle,
+                wordIndex: wordIndex,
+                timestamp: Date(timeIntervalSince1970: interval)
+            )
+        }
+    }
+
+    enum PositionDecision: Equatable {
+        case apply
+        case ignoreStale
+        case ignoreUnknownBook
+    }
+
+    static func reconcile(
+        incoming: PositionPayload,
+        bookExists: Bool,
+        lastReadDate: Date?
+    ) -> PositionDecision {
+        guard bookExists else { return .ignoreUnknownBook }
+        guard let lastReadDate else { return .apply }
+        return incoming.timestamp > lastReadDate ? .apply : .ignoreStale
+    }
+
+    enum BookDeliveryRoute: Equatable {
+        case message
+        case file
+    }
+
+    static func initialBookDeliveryRoute(isReachable: Bool) -> BookDeliveryRoute {
+        isReachable ? .message : .file
+    }
+
+    static func bookDeliveryRouteAfterMessageFailure() -> BookDeliveryRoute {
+        .file
+    }
+}
 
 final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     static let shared = WatchSyncService()
@@ -29,6 +136,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
 
     @Published var sendState: SendState = .idle
     private var sendStateClearTask: Task<Void, Never>?
+    private var modelContext: ModelContext?
     #endif
 
     private override init() {
@@ -50,59 +158,16 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
 
     // MARK: - Payload
 
-    /// Typed wrapper for the [String: Any] dictionary used by WCSession messages.
-    struct BookPayload: Codable, Equatable {
-        let id: UUID
-        let title: String
-        let author: String
-        let text: String
-        let wordCount: Int
-
-        init(id: UUID, title: String, author: String, text: String, wordCount: Int) {
-            self.id = id
-            self.title = title
-            self.author = author
-            self.text = text
-            self.wordCount = wordCount
-        }
-
-        var dictionary: [String: Any] {
-            [
-                "id": id.uuidString,
-                "title": title,
-                "author": author,
-                "text": text,
-                "wordCount": wordCount
-            ]
-        }
-
-        var fileMetadata: [String: Any] {
-            [
-                "id": id.uuidString,
-                "title": title,
-                "author": author,
-                "wordCount": wordCount
-            ]
-        }
-
-        /// Decodes from a [String: Any] payload. `text` may be nil when the body
-        /// arrives via file transfer rather than inline message.
-        static func decode(from dict: [String: Any], inlineText: String? = nil) -> BookPayload? {
-            guard let title = dict["title"] as? String,
-                  let author = dict["author"] as? String,
-                  let text = inlineText ?? (dict["text"] as? String) else {
-                return nil
-            }
-            let id = (dict["id"] as? String).flatMap(UUID.init(uuidString:)) ?? UUID()
-            let wordCount = (dict["wordCount"] as? Int)
-                ?? text.split(whereSeparator: \.isWhitespace).count
-            return BookPayload(id: id, title: title, author: author, text: text, wordCount: wordCount)
-        }
-    }
+    typealias BookPayload = WatchSyncLogic.BookPayload
 
     // MARK: - iPhone → Watch
 
     #if os(iOS)
+    @MainActor
+    func configure(modelContext: ModelContext) {
+        self.modelContext = modelContext
+    }
+
     func sendBook(id: UUID, title: String, author: String, text: String, wordCount: Int) {
         guard WCSession.default.activationState == .activated else {
             sendState = .failed("Watch not connected")
@@ -115,7 +180,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
 
         Self.logger.info("Sending '\(title, privacy: .public)' — reachable=\(WCSession.default.isReachable) paired=\(WCSession.default.isPaired)")
 
-        if WCSession.default.isReachable {
+        if WatchSyncLogic.initialBookDeliveryRoute(isReachable: WCSession.default.isReachable) == .message {
             WCSession.default.sendMessage(payload.dictionary, replyHandler: { [weak self] reply in
                 Self.logger.debug("sendMessage reply: \(reply)")
                 Task { @MainActor [weak self] in
@@ -159,18 +224,19 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
 
     // MARK: - Bidirectional Position Sync
 
-    func syncReadingPosition(bookId: UUID, bookTitle: String, wordIndex: Int) {
+    func syncReadingPosition(bookId: UUID, bookTitle: String, wordIndex: Int, timestamp: Date = Date()) {
         #if os(watchOS)
-        library.updatePosition(bookId: bookId, index: wordIndex)
+        library.updatePosition(bookId: bookId, index: wordIndex, timestamp: timestamp)
         persistLibrary()
         #endif
         guard WCSession.default.activationState == .activated else { return }
-        try? WCSession.default.updateApplicationContext([
-            "bookId": bookId.uuidString,
-            "bookTitle": bookTitle,
-            "wordIndex": wordIndex,
-            "timestamp": Date().timeIntervalSince1970
-        ])
+        let payload = WatchSyncLogic.PositionPayload(
+            bookId: bookId,
+            bookTitle: bookTitle,
+            wordIndex: wordIndex,
+            timestamp: timestamp
+        )
+        try? WCSession.default.updateApplicationContext(payload.dictionary)
     }
 
     // MARK: - watchOS Persistence
@@ -179,6 +245,10 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     private static var libraryURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("watchlibrary.json")
+    }
+
+    private static var libraryStore: WatchLibraryStore {
+        WatchLibraryStore(fileURL: libraryURL)
     }
 
     private static var legacyBookURL: URL {
@@ -194,9 +264,9 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func loadLibrary() {
-        if let data = try? Data(contentsOf: Self.libraryURL),
-           let lib = try? JSONDecoder().decode(WatchLibrary.self, from: data) {
-            library = lib
+        let persistedLibrary = Self.libraryStore.load()
+        if persistedLibrary != .empty || FileManager.default.fileExists(atPath: Self.libraryURL.path) {
+            library = persistedLibrary
             return
         }
         if let data = try? Data(contentsOf: Self.legacyBookURL),
@@ -215,8 +285,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
 
     func persistLibrary() {
         do {
-            let data = try JSONEncoder().encode(library)
-            try data.write(to: Self.libraryURL, options: .atomic)
+            try Self.libraryStore.save(library)
         } catch {
             Self.logger.error("Failed to persist library: \(error.localizedDescription)")
         }
@@ -268,16 +337,49 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     #endif
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
-        #if os(watchOS)
-        guard let bookIdStr = applicationContext["bookId"] as? String,
-              let bookId = UUID(uuidString: bookIdStr),
-              let index = applicationContext["wordIndex"] as? Int else { return }
+        guard let payload = WatchSyncLogic.PositionPayload.decode(from: applicationContext) else { return }
         Task { @MainActor [weak self] in
-            self?.library.updatePosition(bookId: bookId, index: index)
-            self?.persistLibrary()
+            #if os(watchOS)
+            guard let self else { return }
+            guard let book = self.library.books.first(where: { $0.id == payload.bookId }) else { return }
+            guard WatchSyncLogic.reconcile(
+                incoming: payload,
+                bookExists: true,
+                lastReadDate: book.lastReadDate
+            ) == .apply else { return }
+            self.library.updatePosition(
+                bookId: payload.bookId,
+                index: payload.wordIndex,
+                timestamp: payload.timestamp
+            )
+            self.persistLibrary()
+            #elseif os(iOS)
+            self?.applyIncomingPosition(payload)
+            #endif
         }
-        #endif
     }
+
+    #if os(iOS)
+    @MainActor
+    private func applyIncomingPosition(_ payload: WatchSyncLogic.PositionPayload) {
+        guard let modelContext else { return }
+        let bookId = payload.bookId
+        let descriptor = FetchDescriptor<Book>(predicate: #Predicate { $0.id == bookId })
+        guard let book = try? modelContext.fetch(descriptor).first else { return }
+        guard WatchSyncLogic.reconcile(
+            incoming: payload,
+            bookExists: true,
+            lastReadDate: book.lastReadDate
+        ) == .apply else { return }
+        book.lastReadWordIndex = min(payload.wordIndex, max(0, book.wordCount - 1))
+        book.lastReadDate = payload.timestamp
+        do {
+            try modelContext.save()
+        } catch {
+            Self.logger.error("Failed to persist watch reading position: \(error.localizedDescription)")
+        }
+    }
+    #endif
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         Self.logger.debug("didReceiveMessage keys: \(message.keys.sorted())")

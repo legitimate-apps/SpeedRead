@@ -6,6 +6,7 @@ struct RSVPView: View {
     @Bindable var book: Book
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var syncService: WatchSyncService
 
     @State private var engine = RSVPEngine()
     @State private var cachedWords: [String] = []
@@ -81,7 +82,7 @@ struct RSVPView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
                         let index = engine.snapshotIndexAndPause()
-                        book.lastReadWordIndex = index
+                        commitReadingPosition(index)
                         dismiss()
                     } label: {
                         HStack(spacing: 6) {
@@ -132,7 +133,7 @@ struct RSVPView: View {
         }
         .onDisappear {
             if engine.isLoaded {
-                book.lastReadWordIndex = engine.currentIndex
+                commitReadingPosition(engine.currentIndex)
             }
             engine.stop()
         }
@@ -142,6 +143,19 @@ struct RSVPView: View {
         .sheet(isPresented: $showHighlights) {
             HighlightListView(book: book, engine: engine)
         }
+    }
+
+    private func commitReadingPosition(_ index: Int) {
+        let timestamp = Date()
+        book.lastReadWordIndex = index
+        book.lastReadDate = timestamp
+        try? modelContext.save()
+        syncService.syncReadingPosition(
+            bookId: book.id,
+            bookTitle: book.title,
+            wordIndex: index,
+            timestamp: timestamp
+        )
     }
 
     // MARK: - Zone 3: Control Panel

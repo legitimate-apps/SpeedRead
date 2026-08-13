@@ -8,6 +8,7 @@ struct ReaderView: View {
 
     @Bindable var book: Book
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var syncService: WatchSyncService
 
     @AppStorage("readerFontSize") private var fontSize: Double = 18
     @AppStorage("readerLineSpacing") private var lineSpacingPref: Double = 6
@@ -105,13 +106,13 @@ struct ReaderView: View {
         }
         .sheet(isPresented: $showBookmarks) {
             ReaderBookmarkPicker(book: book) { index in
-                book.lastReadWordIndex = index
+                commitReadingPosition(index)
                 pendingScrollIndex = index
             }
         }
         .sheet(isPresented: $showHighlights) {
             ReaderHighlightPicker(book: book) { index in
-                book.lastReadWordIndex = index
+                commitReadingPosition(index)
                 pendingScrollIndex = index
             }
         }
@@ -292,12 +293,7 @@ struct ReaderView: View {
 
     private func handleWordTap(at index: Int) {
         let clamped = max(0, min(index, max(0, cachedWords.count - 1)))
-        book.lastReadWordIndex = clamped
-        do {
-            try modelContext.save()
-        } catch {
-            Self.logger.error("Failed to persist lastReadWordIndex: \(error.localizedDescription, privacy: .public)")
-        }
+        commitReadingPosition(clamped)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
         flashedWordIndex = clamped
@@ -309,6 +305,23 @@ struct ReaderView: View {
                 flashedWordIndex = nil
             }
         }
+    }
+
+    private func commitReadingPosition(_ index: Int) {
+        let timestamp = Date()
+        book.lastReadWordIndex = index
+        book.lastReadDate = timestamp
+        do {
+            try modelContext.save()
+        } catch {
+            Self.logger.error("Failed to persist lastReadWordIndex: \(error.localizedDescription, privacy: .public)")
+        }
+        syncService.syncReadingPosition(
+            bookId: book.id,
+            bookTitle: book.title,
+            wordIndex: index,
+            timestamp: timestamp
+        )
     }
 
     private func handleRSVPDismiss() {

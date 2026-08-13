@@ -12,7 +12,6 @@ struct SpeedReadApp: App {
             ContentView()
                 .environmentObject(syncService)
                 .environment(themeManager)
-                .onAppear { syncService.activate() }
         }
         .modelContainer(for: [Book.self, Bookmark.self, Highlight.self, OPDSServer.self])
     }
