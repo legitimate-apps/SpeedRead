@@ -5,6 +5,8 @@
 **Owner:** <owner>
 **Companion doc:** `2026-04-28-reader-overhaul.md` (the original reader overhaul scope)
 
+The project's thesis and standing goals now live in `CORPUS.md` at the repo root; this file is the working backlog.
+
 This document is the source of truth for known issues, planned improvements, and the prioritized feature backlog. Update the **Status** column as work lands.
 
 ---
@@ -12,7 +14,7 @@ This document is the source of truth for known issues, planned improvements, and
 ## How to use this doc
 
 - Every audit item has an ID (B# bug, I# improvement, F# feature) and a **Status**.
-- Statuses: `pending` · `in-progress` · `done` · `deferred` · `wontfix`.
+- Statuses: `pending` · `fixed` · `in-progress` · `done` · `deferred` · `wontfix`.
 - When work lands, append a one-line note to the **Changelog** at the bottom AND update the row.
 - Add new items below the existing ones; do not renumber.
 
@@ -22,41 +24,44 @@ This document is the source of truth for known issues, planned improvements, and
 
 | ID | Sev | Area | Location | Issue | Status |
 |----|-----|------|----------|-------|--------|
-| B1 | High | Perf | `Book.swift:70`, `RSVPView.swift:125,304,320` | `Book.words` re-tokenizes on every access; RSVPView calls it 3× | done (R1) |
+| B1 | High | Perf | `SpeedRead/Models/Book.swift:17-20,42-44,77-90`; `SpeedRead/Views/RSVPView.swift:127-131` | `Book.words` re-tokenizes on every access; RSVPView calls it 3× | fixed |
 | B2 | High | EPUB | `EPUBExtractor.swift:65-147` | ZIP reader does O(n²) byte scans; no Central Directory fallback; full byte copy in memory | pending |
 | B3 | High | EPUB | `EPUBExtractor.swift:236-272` | Spine href resolution doesn't normalize `..` paths; chapters can be silently dropped | pending |
 | B4 | Med | Gesture | `RSVPView.swift:262-298` | `lastDragX` reset on `.onEnded`; first sample after drag-start has full translation as delta → visual jump | pending |
-| B5 | Med | Engine | `RSVPEngine.swift:121-127` | At end-of-book, progress < 1.0 because index = count - 1 | done (R1) |
-| B6 | Med | RSVP dismiss | `RSVPView.swift:78-82` | Pause-then-read may capture a tick that already advanced; read currentIndex before pausing | done (R1) |
-| B7 | Med | Reader scroll | `ReaderView.swift:50-56` | `asyncAfter(0.05)` hack to scroll after layout — race-prone | done (R1) |
-| B8 | Med | Persistence | `ReaderView.swift:276-280` | `try? modelContext.save()` swallows save errors silently | pending |
-| B9 | Low | Tap | `ReaderView.swift:151-175` | Words use `hSpacing: 0`; tap between glyphs ambiguous | pending |
-| B10 | Low | RTF | `DocumentImporter.swift:27-28` | `.rtfd` advertised but is a directory bundle; `Data(contentsOf:)` will fail | pending |
-| B11 | Low | TXT | `TextFileExtractor.swift:45` | Title heuristic catches "CHAPTER ONE" / epigraphs as titles | done (R1) |
+| B5 | Med | Engine | `SpeedRead/Engine/RSVPEngine.swift:22-25,47-50,147-153` | At end-of-book, progress < 1.0 because index = count - 1 | fixed |
+| B6 | Med | RSVP dismiss | `SpeedRead/Engine/RSVPEngine.swift:83-95`; `SpeedRead/Views/RSVPView.swift:81-85` | Pause-then-read may capture a tick that already advanced; read currentIndex before pausing | fixed |
+| B7 | Med | Reader scroll | `SpeedRead/Views/ReaderView.swift:48-61` | `asyncAfter(0.05)` hack to scroll after layout — race-prone | fixed |
+| B8 | Med | Persistence | `SpeedRead/Views/ReaderView.swift:293-300` | `try? modelContext.save()` swallows save errors silently | fixed |
+| B9 | Low | Tap | `SpeedRead/Views/ReaderView.swift:156-184` | Words use `hSpacing: 0`; tap between glyphs ambiguous | fixed |
+| B10 | Low | RTF | `SpeedRead/Services/DocumentImporter.swift:26-40`; `SpeedRead/Views/LibraryView.swift:107-110` | `.rtfd` advertised but is a directory bundle; `Data(contentsOf:)` will fail | fixed |
+| B11 | Low | TXT | `SpeedRead/Extraction/TextFileExtractor.swift:30-35,54-71` | Title heuristic catches "CHAPTER ONE" / epigraphs as titles | fixed |
 | B12 | Low | Animation | `LibraryView.swift:84` | `.animation(value: bool)` doesn't animate enum-state transitions | pending |
-| B13 | Low | Library | `LibraryView.swift:38-40` | `loadSampleBooksIfNeeded` runs on every appear; should run once at app launch | done (R1) |
-| B14 | Low | A11y | `ReaderView.swift:168` | `onTapGesture` instead of `Button` breaks Voice Control / focus / keyboard | pending |
+| B13 | Low | Library | `SpeedRead/Views/LibraryView.swift:18,42-45` | `loadSampleBooksIfNeeded` runs on every appear; should run once at app launch | fixed |
+| B14 | Low | A11y | `SpeedRead/Views/ReaderView.swift:156-184` | `onTapGesture` instead of `Button` breaks Voice Control / focus / keyboard | fixed |
 | B15 | Low | Gesture | `RSVPView.swift:50-54` | Tap and scrub on same view conflict; quick swipes register as taps | pending |
 | B16 | Low | UI dup | `ReaderView.swift:418-495` vs `BookmarkListView`/`HighlightListView` | Two divergent list implementations for the same model | pending |
+| B17 | High | iPad layout | `SpeedRead/Views/LibraryView.swift:21-27,172-203`; `SpeedRead/Views/BookshelfRowView.swift:13-20,26-50`; `SpeedRead/Views/BookSpineView.swift:12-15,44-56,74` | iPad library is phone-scale and top-heavy: fixed four-book chunks, model-only rows with no viewport fill, fixed 60×120-180 pt spines, fixed 9/7 pt type, leading-edge packing plus one trailing `Spacer`, a full-width plank masking narrow content, no adaptive grid/size-class branch, and no vertical-fill policy. Estimated fix: ~25-50 lines across `LibraryView` / `BookshelfRowView` / `BookSpineView`. | pending |
+| B18 | Med | Swift 6 / SwiftData | `SpeedReadTests/OPDSLiveIntegrationTests.swift:112-113` | Three warning groups become errors in Swift 6 mode: unavailable `Book: Sendable`, non-Sendable `ModelContext` captured by an `@Sendable` closure, and non-Sendable `Book` captured by the generated `#expect` closure. | pending |
+| B19 | Low | watchOS assets | `SpeedRead/Assets.xcassets` (Xcode 26.6 watch build diagnostic; no source line) | Asset catalog warns: `Could not get trait set for device Watch7,18 with version 26.5`. | pending |
 
 ## B. Improvements (code quality, polish)
 
 | ID | Type | Description | Status |
 |----|------|-------------|--------|
 | I1 | Perf | Move tokenization off main actor for very large books | pending |
-| I2 | Architecture | Persist tokenized words at import time, not per-open | done (R1) |
+| I2 | Architecture | Persist tokenized words at import time, not per-open (`SpeedRead/Models/Book.swift:17-20,42-44`; `SpeedRead/Services/DocumentImporter.swift:50-58`) | fixed |
 | I3 | Architecture | Extract `ReaderSession` view-model from `ReaderView` | pending |
 | I4 | UX | Split RSVP tap-zone (top half play/pause, bottom half scrub) | pending |
-| I5 | UX | Flash tapped word red briefly before RSVP slides up | pending |
-| I6 | UX | Reader header shows "X min remaining" at current WPM | pending |
+| I5 | UX | Flash tapped word red briefly before RSVP slides up (`SpeedRead/Views/ReaderView.swift:160-178,293-310`) | fixed |
+| I6 | UX | Reader header shows "X min remaining" at current WPM (`SpeedRead/Views/ReaderView.swift:71-80,271-283`) | fixed |
 | I7 | UX | Long-press word → context menu (define, copy, highlight, bookmark) | pending |
-| I8 | UX | Rename "Last word" pill → "Resume" | pending |
+| I8 | UX | Rename "Last word" pill → "Resume" (`SpeedRead/Views/ReaderView.swift:204-216`) | fixed |
 | I9 | UX | Animate RSVP action-buttons reveal/hide on play/pause | pending |
 | I10 | UX | RSVP highlight as press-and-hold instead of two-tap | pending |
 | I11 | UX | "Reset to defaults" in reader settings sheet | pending |
 | I12 | UX | Edit book title/author after import | pending |
 | I13 | UX | "Couldn't extract text" empty-state with re-import affordance | pending |
-| I14 | UX | Haptics on word tap, theme cycle, RSVP play/pause | pending |
+| I14 | UX | Haptics on word tap, theme cycle, RSVP play/pause (`SpeedRead/Views/ReaderView.swift:293-301,322-328`; `SpeedRead/Views/RSVPView.swift:53-56`) | fixed |
 | I15 | UX | Library shelf adapts to landscape (wider rows) | pending |
 | I16 | A11y | Group word-level a11y per paragraph; expose words as custom actions | pending |
 | I17 | A11y | Honor Dynamic Type with scaled fonts | pending |
@@ -73,6 +78,9 @@ This document is the source of truth for known issues, planned improvements, and
 | I28 | Code | Unify reader theme + shelf theme into one system | pending |
 | I29 | Code | Constants → `ReaderConfig` namespace | pending |
 | I30 | DX | SwiftUI `#Preview` for `ReaderView` | pending |
+| I31 | Test | **STANDING GOAL (operator):** automated Apple Watch and phone↔watch sync coverage, including transfer, persistence, update, failure, and recovery paths | pending |
+| I32 | Integration | **STANDING GOAL (operator):** “see my Calibre library in SpeedRead” remote-library integration; remain generic-OPDS-first, with Calibre-Web-NextGen as the recommended path | pending |
+| I33 | Docs | **OPERATOR-GATED — DO NOT START:** full general Calibre-Web-NextGen setup tutorial. SpeedRead ships only a brief local-instance tutorial; the operator will write the fuller walkthrough. | pending |
 
 ## C. Features
 
@@ -137,6 +145,9 @@ This document is the source of truth for known issues, planned improvements, and
    - F4 (punctuation pause), F5 (multi-word chunk), F7 (training plan)
 5. **Round 5 — Sync & accessibility**
    - F10 (CloudKit), I16/I17/I18 (a11y)
+6. **Round 6 — 2026-08-13 health and backlog truth sweep** (completed)
+   - Reclassified every B1-B16 and I1-I19 row against current source; added B17-B19 and standing/gated improvements I31-I33.
+   - Audit basis: Xcode 26.6; 134/134 unit tests passing; watch target building clean.
 
 Each round is its own session/PR. This doc gets the Changelog updated.
 
@@ -147,3 +158,4 @@ Each round is its own session/PR. This doc gets the Changelog updated.
 - **2026-04-28** — Doc created from full audit pass.
 - **2026-04-28** — Round 1 started.
 - **2026-04-28** — Round 1 landed: B1 / I2 / I20 (Book stores `tokenizedWords`, RSVPView uses cached array, added `Book.ensureTokensCached`); I26 / B6 (`RSVPEngine.isLoaded`, `snapshotIndexAndPause()` for atomic dismiss capture); B5 (`didFinish` flag → progress reaches 1.0 at end of book); B7 (replaced `asyncAfter` scroll race with `.task(id: cachedWords.count)`); B11 (TXT title heuristic rejects ALL CAPS / "CHAPTER N" / "PROLOGUE" / pure-punctuation lines); B13 (sample loader gated by `didLoadSamples` flag, runs once per launch). 112/112 tests passing (4 new).
+- **2026-08-13** — Round 6 health and backlog truth sweep: Xcode 26.6, 134/134 unit tests passing, watch target building clean. Reclassified B1-B16 and I1-I19 from current source; added B17-B19 plus standing/gated improvements I31-I33. Project thesis and standing-goal authority moved to root `CORPUS.md`.
