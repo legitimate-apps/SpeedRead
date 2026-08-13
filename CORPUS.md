@@ -67,7 +67,7 @@ These are the operator's named priorities. They outrank backlog items.
    actively maintained — not a demo that rots between releases. Concretely: the watch library, RSVP
    via the Digital Crown, and the phone↔watch sync path each carry real automated coverage, and a
    watch regression blocks a release the same way a phone regression does.
-   *Current state: coverage here is believed to be near zero — being measured now.*
+   *Current state (2026-08-13): coverage went from effectively zero — one assertion-free generated test — to 15 real tests plus an end-to-end paired-simulator verification of the position path (apply, stale-reject, and a delivery control). The `--debug-sync-position-index/-timestamp` DEBUG hooks exist so that run stays repeatable.*
 
 2. **Read your own Calibre library from SpeedRead.** The headline outcome is simple: open SpeedRead,
    see your library, read it. Build this **generically against OPDS / Calibre-Web** so it works for
