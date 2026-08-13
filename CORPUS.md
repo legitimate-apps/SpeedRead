@@ -106,5 +106,3 @@ These are the operator's named priorities. They outrank backlog items.
 1. **Full CWNG setup tutorial — operator-gated.** The general "how to stand up Calibre-Web-NextGen"
    walkthrough is the operator's to write; SpeedRead ships only the brief local-instance version
    (§5.2) and leaves a slot to link the fuller one later.
-2. **CWNG public URL is unverified.** Do not put a link in shipping copy until the canonical public
-   repo URL is confirmed — guessing it would ship a dead link.
