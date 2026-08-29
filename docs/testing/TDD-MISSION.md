@@ -313,8 +313,9 @@ Structural upgrades beyond the brief:
 - **ZIP now indexes from the Central Directory**, with the old local-header scan kept as the
   documented fallback for archives that genuinely lack one.
 
-Sol reports iOS 42.91% → **44.75%**, `EPUBExtractor.swift` 71.96% → **87.92%**, 198 iOS tests.
-**Not yet independently reproduced by me** — the machine is running the watch lane for the crown bug.
+iOS 42.91% → **44.75%** (3978/8890), `EPUBExtractor.swift` 71.96% → **87.92%** (473/538), 198 tests,
+0 skipped. **Reproduced independently by the manager** with a bare `xcodebuild test` — every figure
+matched exactly, and attributable rose to **82.83%** (3560/4298).
 
 **The assertion-audit tool earned its place immediately:** it flagged three new EPUB tests as
 assertion-free because their assertions lived in a shared helper rather than in the named test. Sol
@@ -328,3 +329,55 @@ decision §10.1 it must gate on **attributable**. Sol tripped over this — it i
 **Housekeeping:** a `speedread-tests-2` DerivedData lease is still registered. Sol could not release
 it because an unrelated `peer-ci` process has held the global `dd-lease` registry lock for
 26+ minutes; `dd-lease list` still hangs as of 14:04. Correctly left alone rather than killed.
+
+## 14. Crown direction — operator-reported bug, fixed red-first 2026-08-29
+
+The operator reported that stepping through words with the Digital Crown moved through the book
+backwards. Two candidate causes existed and they needed **opposite** fixes, so rather than guess I
+put the discriminating question to them: does it go wrong on the very first turn from a fresh open
+(direction inverted), or does it snap back to the position you opened at (a stale `crownValue`)?
+They answered direction.
+
+Fixed as `CrownSeek`, a named type holding the decision, with the view holding none of it. The
+direction is a *product* decision — `digitalCrownRotation` does not state which physical rotation
+its rising value corresponds to — so it belongs somewhere a test can pin it and a future change is
+one line.
+
+```
+RED    aHigherCrownValueLandsEarlierInTheBook      2 issues
+       oneDetentOfCrownTravelMovesExactlyOneWord   (a - b -> -1) == 1
+       indexIsClampedInsideTheBook                 2 issues
+GREEN  11/11 on watchOS 26.5, and again after the view was rewired
+```
+
+Commits `51cbaf6` (red) → `1596990` (fix) → `6292f3a` (wire the view).
+
+### Still open, deliberately not patched
+
+`crownValue` is written **only** in `.onAppear` and never follows the engine, so after playback the
+first detent should snap the reader back to wherever they opened RSVP. Real, and *not* what the
+operator reported. Not fixed standalone because it is precisely what `browseWordIndex` handles in
+the three-marker design now under review — patching it twice would be churn. If that design is
+rejected, this becomes its own red-first fix.
+
+## 15. Watch settings + position model — DESIGN UNDER REVIEW, not started
+
+Operator decisions taken so far (architectural path, brainstorming skill):
+- **Three markers in the one word-index coordinate space** — this does not bend CORPUS §4.1, which
+  fixes the coordinate *system*, not the number of markers in it:
+  `lastReadWordIndex` (reading; syncs; last-write-wins on timestamp) ·
+  `browseWordIndex` (crown/chapter/scrub; **device-local, never syncs**) ·
+  `furthestReadWordIndex` (syncs; **merges by max**, so clock skew and out-of-order delivery cannot
+  corrupt it).
+- **Commit rule:** reading commits, browsing does not. Press play, playback advancing, or closing
+  after playing. Opening a book commits nothing.
+- **Phone side prompts** — "Continue from Apple Watch?", dismissible, only when newer and materially
+  different. Phone→watch still applies silently; a modal on a 44 mm screen is worse than the problem.
+- **Chapter row hidden** when a book has no real chapters. No synthetic parts.
+- **Sequencing:** sheet first (WPM + recall), chapters after — chapters need the extractor to
+  preserve spine boundaries, a `Book`/`WatchBook` field, a sync-payload field, and a migration that
+  must not shift a single word index or every saved position, bookmark and highlight breaks.
+
+Awaiting: approval of the design, and of one rename — "Go to Phone Position" →
+"Back to where I was reading" (same number when synced; the local one also works with the phone in
+another room and does not lie about what it does).
