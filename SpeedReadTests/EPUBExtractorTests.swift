@@ -285,6 +285,39 @@ struct EPUBExtractorTests {
         #expect(entries == ["chapter.xhtml": original])
     }
 
+    @Test func unzipUsesCentralDirectoryForUnsignedDataDescriptor() throws {
+        let original = Data("unsigned descriptor payload".utf8)
+        let archive = buildSingleEntryZIP(
+            name: "unsigned-descriptor.txt",
+            originalData: original,
+            compressedData: original,
+            method: 0,
+            usesDataDescriptor: true,
+            descriptorHasSignature: false
+        )
+
+        let entries = try EPUBExtractor.unzipEntries(from: archive)
+
+        #expect(entries == ["unsigned-descriptor.txt": original])
+    }
+
+    @Test func unzipUsesCentralDirectoryForPrefixedArchive() throws {
+        let original = Data("self-extracting archive payload".utf8)
+        let prefix = Data("launcher-prefix-that-is-not-a-local-header".utf8)
+        let archive = buildSingleEntryZIP(
+            prefix: prefix,
+            name: "prefixed.txt",
+            originalData: original,
+            compressedData: original,
+            method: 0,
+            usesDataDescriptor: false
+        )
+
+        let entries = try EPUBExtractor.unzipEntries(from: archive)
+
+        #expect(entries == ["prefixed.txt": original])
+    }
+
     private func makeEPUB(
         opfPath: String = "content.opf",
         opfXML: String,
@@ -408,17 +441,20 @@ struct EPUBExtractorTests {
     }
 
     private func buildSingleEntryZIP(
+        prefix: Data = Data(),
         name: String,
         originalData: Data,
         compressedData: Data,
         method: UInt16,
-        usesDataDescriptor: Bool
+        usesDataDescriptor: Bool,
+        descriptorHasSignature: Bool = true
     ) -> Data {
         let nameData = Data(name.utf8)
         let checksum = crc32(originalData)
         let flags: UInt16 = usesDataDescriptor ? 0x0008 : 0
 
-        var archive = Data()
+        var archive = prefix
+        let localHeaderOffset = UInt32(prefix.count)
         archive.appendUInt32(0x04034b50)
         archive.appendUInt16(20)
         archive.appendUInt16(flags)
@@ -434,7 +470,9 @@ struct EPUBExtractorTests {
         archive.append(compressedData)
 
         if usesDataDescriptor {
-            archive.appendUInt32(0x08074b50)
+            if descriptorHasSignature {
+                archive.appendUInt32(0x08074b50)
+            }
             archive.appendUInt32(checksum)
             archive.appendUInt32(UInt32(compressedData.count))
             archive.appendUInt32(UInt32(originalData.count))
@@ -458,7 +496,7 @@ struct EPUBExtractorTests {
         centralDirectory.appendUInt16(0)
         centralDirectory.appendUInt16(0)
         centralDirectory.appendUInt32(0)
-        centralDirectory.appendUInt32(0)
+        centralDirectory.appendUInt32(localHeaderOffset)
         centralDirectory.append(nameData)
         archive.append(centralDirectory)
 
