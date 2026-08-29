@@ -44,15 +44,23 @@ final class ReaderSession {
     private var hasLoaded = false
 
     func load(book: Book) {
-        // Deliberately inert TDD scaffold. The behavior lands after its tests.
+        guard !hasLoaded else { return }
+        hasLoaded = true
+        book.ensureTokensCached()
+        cachedWords = book.words
+        paragraphs = ReaderParagraphizer.paragraphs(
+            from: book.extractedText,
+            allWords: cachedWords
+        )
     }
 
     func clampedIndex(_ index: Int) -> Int {
-        0
+        guard !cachedWords.isEmpty else { return 0 }
+        return min(max(0, index), cachedWords.count - 1)
     }
 
     func scrollAnchorID(for index: Int) -> String {
-        ""
+        "word-\(index)"
     }
 
     func commitReadingPosition(
@@ -62,7 +70,25 @@ final class ReaderSession {
         sync: any ReadingPositionSyncing = WatchSyncService.shared,
         now: Date = Date()
     ) -> ReadingPositionCommit {
-        ReadingPositionCommit(index: 0, timestamp: now, didSave: false)
+        let clamped = clampedIndex(index)
+        book.lastReadWordIndex = clamped
+        book.lastReadDate = now
+
+        let didSave: Bool
+        do {
+            try saver.save()
+            didSave = true
+        } catch {
+            didSave = false
+        }
+
+        sync.syncReadingPosition(
+            bookId: book.id,
+            bookTitle: book.title,
+            wordIndex: clamped,
+            timestamp: now
+        )
+        return ReadingPositionCommit(index: clamped, timestamp: now, didSave: didSave)
     }
 
     func handleWordTap(
@@ -72,22 +98,43 @@ final class ReaderSession {
         sync: any ReadingPositionSyncing = WatchSyncService.shared,
         now: Date = Date()
     ) -> ReaderTapOutcome {
-        let commit = ReadingPositionCommit(index: 0, timestamp: now, didSave: false)
-        let flash = ReaderWordFlash(id: 0, wordIndex: 0)
+        let commit = commitReadingPosition(
+            index,
+            book: book,
+            saver: saver,
+            sync: sync,
+            now: now
+        )
+        nextFlashID += 1
+        let flash = ReaderWordFlash(id: nextFlashID, wordIndex: commit.index)
+        wordFlash = flash
         return ReaderTapOutcome(commit: commit, flash: flash)
     }
 
-    func clearWordFlash(_ flash: ReaderWordFlash) {}
+    func clearWordFlash(_ flash: ReaderWordFlash) {
+        guard wordFlash == flash else { return }
+        wordFlash = nil
+    }
 
-    func requestInitialScroll(for book: Book) {}
+    func requestInitialScroll(for book: Book) {
+        pendingScrollIndex = clampedIndex(book.lastReadWordIndex)
+    }
 
-    func reconcileRSVPDismiss(for book: Book) {}
+    func reconcileRSVPDismiss(for book: Book) {
+        pendingScrollIndex = clampedIndex(book.lastReadWordIndex)
+    }
 
     func consumePendingScroll() -> Int? {
-        nil
+        defer { pendingScrollIndex = nil }
+        return pendingScrollIndex
     }
 
     func cycleTheme(from rawValue: String) -> String {
-        rawValue
+        let modes = ReaderThemeMode.allCases
+        let current = ReaderThemeMode(rawValue: rawValue) ?? .parchment
+        guard let index = modes.firstIndex(of: current) else {
+            return ReaderThemeMode.parchment.rawValue
+        }
+        return modes[(index + 1) % modes.count].rawValue
     }
 }
