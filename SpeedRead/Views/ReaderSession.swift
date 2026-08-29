@@ -156,11 +156,14 @@ final class ReaderSession {
     }
 
     func cycleTheme(from rawValue: String) -> String {
-        let modes = ReaderThemeMode.allCases
         let current = ReaderThemeMode(rawValue: rawValue) ?? .parchment
-        guard let index = modes.firstIndex(of: current) else {
+        switch current {
+        case .parchment:
+            return ReaderThemeMode.sepia.rawValue
+        case .sepia:
+            return ReaderThemeMode.night.rawValue
+        case .night:
             return ReaderThemeMode.parchment.rawValue
         }
-        return modes[(index + 1) % modes.count].rawValue
     }
 }

@@ -245,6 +245,64 @@ struct RSVPPresentationSessionTests {
         #expect(session.endGesture() == .togglePlayback)
     }
 
+    @Test func zeroElapsedTimeKeepsBaseScrubResolution() throws {
+        let session = RSVPPresentationSession()
+        let now = Date(timeIntervalSince1970: 5_000)
+        _ = try #require(session.updateGesture(
+            translationX: -8,
+            at: now,
+            isPlaying: false,
+            currentIndex: 10,
+            wordCount: 100
+        ))
+
+        let update = try #require(session.updateGesture(
+            translationX: -16,
+            at: now,
+            isPlaying: false,
+            currentIndex: 11,
+            wordCount: 100
+        ))
+
+        #expect(update.velocity == 0)
+        #expect(update.effectivePointsPerWord == ReaderConfig.RSVP.basePointsPerWord)
+        #expect(update.wordDelta == 1)
+    }
+
+    @Test func withinGestureVelocityAcceleratesAndCapsScrubResolution() throws {
+        let session = RSVPPresentationSession()
+        let start = Date(timeIntervalSince1970: 6_000)
+        _ = try #require(session.updateGesture(
+            translationX: -8,
+            at: start,
+            isPlaying: false,
+            currentIndex: 10,
+            wordCount: 1_000
+        ))
+
+        let accelerated = try #require(session.updateGesture(
+            translationX: -24,
+            at: start.addingTimeInterval(0.01),
+            isPlaying: false,
+            currentIndex: 11,
+            wordCount: 1_000
+        ))
+        #expect(accelerated.velocity > ReaderConfig.RSVP.velocityPointsPerSecond)
+        #expect(accelerated.effectivePointsPerWord < ReaderConfig.RSVP.basePointsPerWord)
+
+        let capped = try #require(session.updateGesture(
+            translationX: -124,
+            at: start.addingTimeInterval(0.011),
+            isPlaying: false,
+            currentIndex: accelerated.targetIndex,
+            wordCount: 1_000
+        ))
+        let minimumPointsPerWord = ReaderConfig.RSVP.basePointsPerWord
+            / (ReaderConfig.RSVP.maximumVelocityMultiplier / ReaderConfig.RSVP.basePointsPerWord)
+        #expect(abs(capped.effectivePointsPerWord - minimumPointsPerWord) < 0.0001)
+        #expect(capped.wordDelta > accelerated.wordDelta)
+    }
+
     @Test func playingAndEmptyStreamsCannotSeek() {
         let playing = RSVPPresentationSession()
         #expect(playing.updateGesture(

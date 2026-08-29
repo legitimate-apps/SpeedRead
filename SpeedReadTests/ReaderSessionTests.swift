@@ -139,6 +139,20 @@ struct ReaderSessionTests {
         #expect(sync.events.map(\.wordIndex) == [0])
     }
 
+    @Test func productionDefaultSyncDependencyDoesNotBlockLocalCommit() {
+        let book = makeBook(text: "zero one")
+        let session = ReaderSession()
+        let saver = RecordingPositionSaver()
+        let now = Date(timeIntervalSince1970: 250)
+        session.load(book: book)
+
+        let result = session.commitReadingPosition(1, book: book, saver: saver, now: now)
+
+        #expect(result == ReadingPositionCommit(index: 1, timestamp: now, didSave: true))
+        #expect(book.lastReadWordIndex == 1)
+        #expect(saver.saveCount == 1)
+    }
+
     @Test func initialAndRSVPDismissScrollsUseTheCurrentClampedPosition() {
         let book = makeBook(text: "zero one two")
         let session = ReaderSession()
