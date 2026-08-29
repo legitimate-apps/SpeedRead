@@ -1,0 +1,44 @@
+{
+  "configurations" : [
+    {
+      "id" : "BC2028CF-A27C-45C1-9E54-788C9D4FE572",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : {
+      "targets" : [
+        {
+          "containerPath" : "container:SpeedRead.xcodeproj",
+          "identifier" : "87038ECF2F7DA3E400AB9568",
+          "name" : "SpeedRead"
+        },
+        {
+          "containerPath" : "container:SpeedRead.xcodeproj",
+          "identifier" : "87039CA12F7DC13500AB9568",
+          "name" : "SpeedReadWatch Watch App"
+        }
+      ]
+    },
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:SpeedRead.xcodeproj",
+      "identifier" : "87038ECF2F7DA3E400AB9568",
+      "name" : "SpeedRead"
+    },
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:SpeedRead.xcodeproj",
+        "identifier" : "87038EE12F7DA3E500AB9568",
+        "name" : "SpeedReadTests"
+      }
+    }
+  ],
+  "version" : 1
+}

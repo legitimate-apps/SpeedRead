@@ -7,18 +7,17 @@ import SwiftData
 ///
 /// The server address and credentials come from the environment and are
 /// deliberately absent from this repository. Every test is
-/// `.enabled(if: liveEnabled)`, so routine `xcodebuild test` runs skip them —
-/// and they stay skipped unless *all* of the variables below are supplied:
+/// `.enabled(if: liveEnabled)`, so the explicit Integration test plan stays
+/// skipped unless *all* of the variables below are supplied:
 ///
-///     xcodebuild test ... \
-///       -only-testing:SpeedReadTests/OPDSLiveIntegrationTests \
-///       SPEEDREAD_LIVE_OPDS=1 \
-///       SPEEDREAD_TEST_OPDS_URL=https://example/opds/ \
-///       SPEEDREAD_TEST_OPDS_USER=someuser \
-///       SPEEDREAD_TEST_OPDS_PASSWORD=secret
+///     SPEEDREAD_LIVE_OPDS=1 \
+///     SPEEDREAD_TEST_OPDS_URL=https://example/opds/ \
+///     SPEEDREAD_TEST_OPDS_USER=someuser \
+///     SPEEDREAD_TEST_OPDS_PASSWORD=secret \
+///     xcodebuild test ... -testPlan Integration
 ///
-/// Pre-condition: that server is reachable and the user exists in its `user`
-/// table with read access to the catalog.
+/// Pre-condition: that server is reachable and the user exists with read
+/// access to the catalog.
 @Suite("OPDS Live Integration", .serialized)
 struct OPDSLiveIntegrationTests {
     private static let env = ProcessInfo.processInfo.environment
@@ -39,7 +38,7 @@ struct OPDSLiveIntegrationTests {
 
     private func makeServer() -> OPDSServer {
         let server = OPDSServer(
-            name: "cwng-live",
+            name: "live-opds",
             baseURL: Self.liveURL,
             username: Self.username,
             allowInsecureHTTP: false

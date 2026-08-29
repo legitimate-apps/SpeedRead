@@ -56,19 +56,23 @@ xcrun simctl boot <watch-udid>
 ## Tests
 
 ```bash
-# Unit tests (Swift Testing) — fast
+# Hermetic unit tests with code coverage (the SpeedRead scheme default)
 xcodebuild test \
   -project SpeedRead.xcodeproj \
   -scheme SpeedRead \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
-  -only-testing:SpeedReadTests
+  -destination 'platform=iOS Simulator,id=<ios-udid>' \
+  -parallel-testing-enabled NO
 
-# UI tests (XCTest) — slower; clones the simulator
+# UI tests (XCTest) — explicit lane
 xcodebuild test \
   -project SpeedRead.xcodeproj \
   -scheme SpeedRead \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
-  -only-testing:SpeedReadUITests
+  -testPlan UI \
+  -destination 'platform=iOS Simulator,id=<ios-udid>' \
+  -parallel-testing-enabled NO
+
+# iOS + watchOS coverage report and threshold gate
+Scripts/coverage.sh 80
 ```
 
 ## Project layout
@@ -85,8 +89,10 @@ SpeedRead/                    iOS app source
   Resources/                  Assets, fonts
 SpeedReadWatch Watch App/     watchOS source (mirrors iOS where shared)
 SampleBooks/                  Bundled .epub / .pdf
-SpeedReadTests/               Swift Testing unit tests
+SpeedReadTests/               Hermetic Swift Testing unit tests
+SpeedReadIntegrationTests/    Environment-gated live OPDS integration tests
 SpeedReadUITests/             XCTest UI tests
+Scripts/coverage.sh           iOS + watchOS line-coverage instrument
 docs/plans/                   Live design + plan + audit docs
 ```
 

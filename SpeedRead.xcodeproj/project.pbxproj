@@ -25,6 +25,13 @@
 			remoteGlobalIDString = 87038ECF2F7DA3E400AB9568;
 			remoteInfo = SpeedRead;
 		};
+		A11E00000000000000000007 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 87038EC82F7DA3E400AB9568 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 87038ECF2F7DA3E400AB9568;
+			remoteInfo = SpeedRead;
+		};
 		87039CAF2F7DC13600AB9568 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 87038EC82F7DA3E400AB9568 /* Project object */;
@@ -69,6 +76,7 @@
 		87039CA22F7DC13500AB9568 /* SpeedReadWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SpeedReadWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		87039CAE2F7DC13600AB9568 /* SpeedReadWatch Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SpeedReadWatch Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		87039CB82F7DC13600AB9568 /* SpeedReadWatch Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SpeedReadWatch Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A11E00000000000000000001 /* SpeedReadIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpeedReadIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -100,6 +108,11 @@
 		87039CBB2F7DC13600AB9568 /* SpeedReadWatch Watch AppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "SpeedReadWatch Watch AppUITests";
+			sourceTree = "<group>";
+		};
+		A11E00000000000000000002 /* SpeedReadIntegrationTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SpeedReadIntegrationTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -147,6 +160,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A11E00000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -159,6 +179,7 @@
 				87039CA32F7DC13500AB9568 /* SpeedReadWatch Watch App */,
 				87039CB12F7DC13600AB9568 /* SpeedReadWatch Watch AppTests */,
 				87039CBB2F7DC13600AB9568 /* SpeedReadWatch Watch AppUITests */,
+				A11E00000000000000000002 /* SpeedReadIntegrationTests */,
 				87038ED12F7DA3E400AB9568 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -172,6 +193,7 @@
 				87039CA22F7DC13500AB9568 /* SpeedReadWatch Watch App.app */,
 				87039CAE2F7DC13600AB9568 /* SpeedReadWatch Watch AppTests.xctest */,
 				87039CB82F7DC13600AB9568 /* SpeedReadWatch Watch AppUITests.xctest */,
+				A11E00000000000000000001 /* SpeedReadIntegrationTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -248,6 +270,29 @@
 			productName = SpeedReadUITests;
 			productReference = 87038EEC2F7DA3E500AB9568 /* SpeedReadUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		A11E00000000000000000006 /* SpeedReadIntegrationTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A11E0000000000000000000B /* Build configuration list for PBXNativeTarget "SpeedReadIntegrationTests" */;
+			buildPhases = (
+				A11E00000000000000000005 /* Sources */,
+				A11E00000000000000000003 /* Frameworks */,
+				A11E00000000000000000004 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A11E00000000000000000008 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A11E00000000000000000002 /* SpeedReadIntegrationTests */,
+			);
+			name = SpeedReadIntegrationTests;
+			packageProductDependencies = (
+			);
+			productName = SpeedReadIntegrationTests;
+			productReference = A11E00000000000000000001 /* SpeedReadIntegrationTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		87039CA12F7DC13500AB9568 /* SpeedReadWatch Watch App */ = {
 			isa = PBXNativeTarget;
@@ -338,6 +383,10 @@
 						CreatedOnToolsVersion = 26.3;
 						TestTargetID = 87038ECF2F7DA3E400AB9568;
 					};
+					A11E00000000000000000006 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 87038ECF2F7DA3E400AB9568;
+					};
 					87039CA12F7DC13500AB9568 = {
 						CreatedOnToolsVersion = 26.3;
 					};
@@ -371,6 +420,7 @@
 				87039CA12F7DC13500AB9568 /* SpeedReadWatch Watch App */,
 				87039CAD2F7DC13600AB9568 /* SpeedReadWatch Watch AppTests */,
 				87039CB72F7DC13600AB9568 /* SpeedReadWatch Watch AppUITests */,
+				A11E00000000000000000006 /* SpeedReadIntegrationTests */,
 			);
 		};
 /* End PBXProject section */
@@ -412,6 +462,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		87039CB62F7DC13600AB9568 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A11E00000000000000000004 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -463,6 +520,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A11E00000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -490,6 +554,11 @@
 			isa = PBXTargetDependency;
 			target = 87039CA12F7DC13500AB9568 /* SpeedReadWatch Watch App */;
 			targetProxy = 87039CC02F7DC13600AB9568 /* PBXContainerItemProxy */;
+		};
+		A11E00000000000000000008 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 87038ECF2F7DA3E400AB9568 /* SpeedRead */;
+			targetProxy = A11E00000000000000000007 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -756,6 +825,58 @@
 			};
 			name = Release;
 		};
+		A11E00000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 3LTL47SJ8C;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.legitimateapps.SpeedReadIntegrationTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SpeedRead.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SpeedRead";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		A11E0000000000000000000A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 3LTL47SJ8C;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.legitimateapps.SpeedReadIntegrationTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SpeedRead.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SpeedRead";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
 		87038EFD2F7DA3E500AB9568 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1002,6 +1123,15 @@
 			buildConfigurations = (
 				87038EFD2F7DA3E500AB9568 /* Debug */,
 				87038EFE2F7DA3E500AB9568 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A11E0000000000000000000B /* Build configuration list for PBXNativeTarget "SpeedReadIntegrationTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A11E00000000000000000009 /* Debug */,
+				A11E0000000000000000000A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

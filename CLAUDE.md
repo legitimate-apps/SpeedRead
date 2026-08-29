@@ -28,6 +28,7 @@ syncs phone ↔ watch over WatchConnectivity.
 | `SpeedRead` (iOS app, universal: iPhone/iPad/Vision) | `com.legitimateapps.SpeedRead` | iOS 17.6 |
 | `SpeedReadWatch Watch App` | `com.legitimateapps.SpeedRead.watchkitapp` | watchOS 10.6 |
 | `SpeedReadTests` (unit, Swift Testing) | `com.legitimateapps.SpeedReadTests` | iOS 26.2 |
+| `SpeedReadIntegrationTests` (live OPDS, Swift Testing) | `com.legitimateapps.SpeedReadIntegrationTests` | iOS 26.2 |
 | `SpeedReadUITests` (XCTest) | `com.legitimateapps.SpeedReadUITests` | iOS 26.2 |
 
 - Swift 5, Xcode 16+ (uses `PBXFileSystemSynchronizedRootGroup` — files dropped into
@@ -72,7 +73,8 @@ SpeedReadWatch Watch App/
   Shared/                      // WatchBook, WatchLibrary, SpineColor (mirror of iOS)
   Views/                       // WatchLibraryView, WatchBookDetailView, WatchRSVPView, WatchSettingsView
 SampleBooks/                   // .epub / .pdf bundled, auto-loaded on first launch
-SpeedReadTests/                // 17 test files, Swift Testing framework (#expect)
+SpeedReadTests/                // Hermetic Swift Testing unit tests (#expect)
+SpeedReadIntegrationTests/     // Environment-gated live OPDS tests; explicit lane only
 SpeedReadUITests/              // XCTest, including launch-arg-driven backdoors
 docs/plans/                    // Live working docs — design + plan + audit + roadmap
 .claude/commands/              // Project-scoped slash commands (TestFlight deploy)
@@ -118,26 +120,49 @@ target membership (not a separate package).
 ## Build & test commands
 
 ```bash
-# Run iOS unit tests (Swift Testing) — primary signal
+# Default lane: hermetic iOS unit tests with app + watch-app coverage instrumentation.
+# Hermetic.xctestplan is the scheme default, so no -testPlan or -only-testing is needed.
 xcodebuild test \
   -project SpeedRead.xcodeproj \
   -scheme SpeedRead \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
-  -only-testing:SpeedReadTests
+  -destination 'platform=iOS Simulator,id=<ios-udid>' \
+  -parallel-testing-enabled NO
 
-# Run UI tests (XCTest) — slower, clones the simulator
+# Live OPDS integration lane (requires all four environment variables).
+SPEEDREAD_LIVE_OPDS=1 \
+SPEEDREAD_TEST_OPDS_URL=... \
+SPEEDREAD_TEST_OPDS_USER=... \
+SPEEDREAD_TEST_OPDS_PASSWORD=... \
 xcodebuild test \
   -project SpeedRead.xcodeproj \
   -scheme SpeedRead \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
-  -only-testing:SpeedReadUITests
+  -testPlan Integration \
+  -destination 'platform=iOS Simulator,id=<ios-udid>' \
+  -parallel-testing-enabled NO
 
-# Build watch app
-xcodebuild build \
+# iOS UI lane — explicit because it is intentionally absent from the default lane.
+xcodebuild test \
+  -project SpeedRead.xcodeproj \
+  -scheme SpeedRead \
+  -testPlan UI \
+  -destination 'platform=iOS Simulator,id=<ios-udid>' \
+  -parallel-testing-enabled NO
+
+# watchOS hermetic unit lane with watch-app coverage.
+xcodebuild test \
   -project SpeedRead.xcodeproj \
   -scheme 'SpeedReadWatch Watch App' \
-  -destination 'platform=watchOS Simulator,name=Apple Watch SE (44mm) (2nd generation)'
+  -destination 'platform=watchOS Simulator,id=<watch-udid>' \
+  -parallel-testing-enabled NO
+
+# Run both hermetic destinations, print worst-first per-file coverage, and enforce a gate.
+Scripts/coverage.sh 80
 ```
+
+`Scripts/coverage.sh` accepts `SPEEDREAD_IOS_DESTINATION` and
+`SPEEDREAD_WATCH_DESTINATION` as complete xcodebuild destination strings. It also accepts
+`SPEEDREAD_DERIVED_DATA_PATH` and `SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH`; otherwise it uses
+`dd-lease` when available. The script runs the iOS and watchOS lanes serially.
 
 Pre-allowed in `.claude/settings.local.json`: `Bash(xcodebuild test:*)`.
 
@@ -178,10 +203,10 @@ SIMCTL_CHILD_SPEEDREAD_TEST_OPDS_USER="someuser" \
 SIMCTL_CHILD_SPEEDREAD_TEST_OPDS_PASSWORD="secret" \
 xcrun simctl launch <udid> com.legitimateapps.SpeedRead --seed-test-opds-server
 
-# Run the live integration suite
-xcodebuild test ... -only-testing:SpeedReadTests/OPDSLiveIntegrationTests \
-  SPEEDREAD_LIVE_OPDS=1 SPEEDREAD_TEST_OPDS_URL=... \
-  SPEEDREAD_TEST_OPDS_USER=... SPEEDREAD_TEST_OPDS_PASSWORD=...
+# Run the live integration suite through its explicit test-plan lane
+SPEEDREAD_LIVE_OPDS=1 SPEEDREAD_TEST_OPDS_URL=... \
+SPEEDREAD_TEST_OPDS_USER=... SPEEDREAD_TEST_OPDS_PASSWORD=... \
+xcodebuild test ... -testPlan Integration
 ```
 
 The suite stays skipped unless **all** of the variables are supplied, so a partial
@@ -217,8 +242,8 @@ guarded by `didLoadSamples` state so it doesn't run on every `.task`.
   rearranging imports; just rebuild.
 - Simulator shells occasionally crash (`system shell crashed`). Recovery:
   `xcrun simctl shutdown <udid>` then reboot.
-- `xcodebuild` without `-only-testing:` runs both unit and UI tests; UI tests clone the
-  simulator and can take many minutes. Default to unit-only when iterating.
+- `xcodebuild test -scheme SpeedRead` selects `Hermetic.xctestplan` by default. The live OPDS and
+  UI suites run only when `-testPlan Integration` or `-testPlan UI` is explicit.
 
 ## Gotchas
 
