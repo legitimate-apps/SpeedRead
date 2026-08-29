@@ -1,31 +1,32 @@
 //  RSVPView.swift
 import SwiftData
 import SwiftUI
+import os
 
+@MainActor
 struct RSVPView: View {
+    private static let logger = Logger(subsystem: "com.legitimateapps.SpeedRead", category: "RSVP")
+
     @Bindable var book: Book
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var syncService: WatchSyncService
 
-    @State private var engine = RSVPEngine()
-    @State private var cachedWords: [String] = []
-    @State private var highlightStartIndex: Int?
-    @AppStorage("rsvpLastWPM") private var persistedWPM: Int = 300
+    @State private var engine: RSVPEngine
+    @State private var presentation: RSVPPresentationSession
+    @AppStorage("rsvpLastWPM") private var persistedWPM: Int = ReaderConfig.RSVP.defaultWPM
     @State private var showBookmarks = false
     @State private var showHighlights = false
-    @State private var bookmarkFlash = false
-    @State private var highlightFlash = false
 
-    // Scrub gesture state
-    @State private var lastDragX: CGFloat = 0
-    @State private var dragAccumulator: CGFloat = 0
-    @State private var lastDragTime: Date = .now
-    @State private var dragVelocity: CGFloat = 0
-
-    private let basePtsPerWord: CGFloat = 8
-    private let maxVelocityMultiplier: CGFloat = 50
-    private let hapticInterval = 10
+    init(
+        book: Book,
+        engine: RSVPEngine? = nil,
+        presentation: RSVPPresentationSession? = nil
+    ) {
+        self.book = book
+        _engine = State(initialValue: engine ?? RSVPEngine())
+        _presentation = State(initialValue: presentation ?? RSVPPresentationSession())
+    }
 
     var body: some View {
         NavigationStack {
@@ -51,27 +52,23 @@ struct RSVPView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
-                    .onTapGesture {
-                        engine.togglePlayPause()
-                        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-                    }
                     .gesture(scrubGesture)
 
                     // ─── ZONE 3: Control Panel (fixed height) ───
                     controlPanel
-                        .frame(height: 160)
-                        .padding(.bottom, 20)
+                        .frame(height: ReaderConfig.RSVP.controlPanelHeight)
+                        .padding(.bottom, ReaderConfig.RSVP.controlPanelBottomPadding)
                 }
 
                 // Bookmark flash overlay
-                if bookmarkFlash {
+                if presentation.feedbackFlash?.kind == .bookmark {
                     Color.agedGold.opacity(0.15)
                         .ignoresSafeArea()
                         .allowsHitTesting(false)
                 }
 
                 // Highlight flash overlay
-                if highlightFlash {
+                if presentation.feedbackFlash?.kind == .highlight {
                     Color.crimson.opacity(0.15)
                         .ignoresSafeArea()
                         .allowsHitTesting(false)
@@ -81,8 +78,15 @@ struct RSVPView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
-                        let index = engine.snapshotIndexAndPause()
-                        commitReadingPosition(index)
+                        let result = presentation.close(
+                            engine: engine,
+                            book: book,
+                            saver: modelContext,
+                            sync: syncService
+                        )
+                        if !result.didSave {
+                            Self.logger.error("Failed to persist lastReadWordIndex on close")
+                        }
                         dismiss()
                     } label: {
                         HStack(spacing: 6) {
@@ -126,16 +130,29 @@ struct RSVPView: View {
         }
         .preferredColorScheme(.dark)
         .onAppear {
-            book.ensureTokensCached()
-            cachedWords = book.words
-            engine.wpm = persistedWPM
-            engine.load(words: cachedWords, startingAt: book.lastReadWordIndex)
+            presentation.load(book: book, engine: engine, wpm: persistedWPM)
         }
         .onDisappear {
-            if engine.isLoaded {
-                commitReadingPosition(engine.currentIndex)
+            let result = presentation.handleDisappear(
+                engine: engine,
+                book: book,
+                saver: modelContext,
+                sync: syncService
+            )
+            if result?.didSave == false {
+                Self.logger.error("Failed to persist lastReadWordIndex on disappear")
             }
-            engine.stop()
+        }
+        .task(id: presentation.feedbackFlash?.id) {
+            guard let flash = presentation.feedbackFlash else { return }
+            do {
+                try await Task.sleep(for: ReaderConfig.RSVP.feedbackFlashDuration)
+            } catch {
+                return
+            }
+            withAnimation(.easeIn(duration: ReaderConfig.RSVP.feedbackFadeDuration)) {
+                presentation.clearFeedback(flash)
+            }
         }
         .sheet(isPresented: $showBookmarks) {
             BookmarkListView(book: book, engine: engine)
@@ -143,19 +160,6 @@ struct RSVPView: View {
         .sheet(isPresented: $showHighlights) {
             HighlightListView(book: book, engine: engine)
         }
-    }
-
-    private func commitReadingPosition(_ index: Int) {
-        let timestamp = Date()
-        book.lastReadWordIndex = index
-        book.lastReadDate = timestamp
-        try? modelContext.save()
-        syncService.syncReadingPosition(
-            bookId: book.id,
-            bookTitle: book.title,
-            wordIndex: index,
-            timestamp: timestamp
-        )
     }
 
     // MARK: - Zone 3: Control Panel
@@ -176,7 +180,7 @@ struct RSVPView: View {
     private var wpmControls: some View {
         HStack(spacing: 20) {
             Button {
-                engine.wpm -= 25
+                engine.wpm -= ReaderConfig.RSVP.wpmStep
                 persistedWPM = engine.wpm
                 UISelectionFeedbackGenerator().selectionChanged()
             } label: {
@@ -194,7 +198,7 @@ struct RSVPView: View {
                 .accessibilityLabel("\(engine.wpm) words per minute")
 
             Button {
-                engine.wpm += 25
+                engine.wpm += ReaderConfig.RSVP.wpmStep
                 persistedWPM = engine.wpm
                 UISelectionFeedbackGenerator().selectionChanged()
             } label: {
@@ -234,14 +238,14 @@ struct RSVPView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "highlighter")
-                    Text(highlightStartIndex != nil ? "Stop" : "Highlight")
+                    Text(presentation.highlightStartIndex != nil ? "Stop" : "Highlight")
                         .font(.system(size: 13, weight: .medium))
                 }
-                .foregroundStyle(highlightStartIndex != nil ? .white : Color.rsvpText)
+                .foregroundStyle(presentation.highlightStartIndex != nil ? .white : Color.rsvpText)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(
-                    highlightStartIndex != nil ? Color.crimson : Color.walnut.opacity(0.6),
+                    presentation.highlightStartIndex != nil ? Color.crimson : Color.walnut.opacity(0.6),
                     in: Capsule()
                 )
             }
@@ -284,75 +288,53 @@ struct RSVPView: View {
     // MARK: - Scrub Gesture
 
     private var scrubGesture: some Gesture {
-        DragGesture(minimumDistance: 5)
+        DragGesture(minimumDistance: 0)
             .onChanged { value in
-                guard engine.state != .playing else { return }
-
-                let now = Date.now
-                let deltaX = -(value.translation.width - lastDragX)
-                let deltaTime = now.timeIntervalSince(lastDragTime)
-
-                if deltaTime > 0 {
-                    dragVelocity = abs(deltaX / CGFloat(deltaTime))
-                }
-
-                let velocityFactor = min(dragVelocity / 500, maxVelocityMultiplier / basePtsPerWord)
-                let effectivePtsPerWord = basePtsPerWord / max(1, velocityFactor)
-
-                dragAccumulator += deltaX
-                let wordDelta = Int(dragAccumulator / effectivePtsPerWord)
-
-                if wordDelta != 0 {
-                    let newIndex = engine.currentIndex + wordDelta
-                    engine.seek(to: newIndex)
-                    dragAccumulator -= CGFloat(wordDelta) * effectivePtsPerWord
-
-                    if abs(wordDelta) >= hapticInterval || engine.currentIndex % hapticInterval == 0 {
+                if let update = presentation.updateGesture(
+                    translationX: value.translation.width,
+                    isPlaying: engine.state == .playing,
+                    currentIndex: engine.currentIndex,
+                    wordCount: engine.totalWords
+                ) {
+                    engine.seek(to: update.targetIndex)
+                    if update.shouldProduceHaptic {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     }
                 }
-
-                lastDragX = value.translation.width
-                lastDragTime = now
             }
             .onEnded { _ in
-                lastDragX = 0
-                dragAccumulator = 0
-                dragVelocity = 0
+                if presentation.endGesture() == .togglePlayback {
+                    engine.togglePlayPause()
+                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                }
             }
     }
 
     // MARK: - Actions
 
     private func addBookmark() {
-        let preview = Bookmark.previewText(from: cachedWords, at: engine.currentIndex)
-        let bookmark = Bookmark(wordIndex: engine.currentIndex, previewText: preview)
+        let draft = presentation.bookmarkDraft(at: engine.currentIndex)
+        let bookmark = Bookmark(wordIndex: draft.wordIndex, previewText: draft.previewText)
         bookmark.book = book
         modelContext.insert(bookmark)
 
-        withAnimation(.easeOut(duration: 0.3)) { bookmarkFlash = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            withAnimation(.easeIn(duration: 0.2)) { bookmarkFlash = false }
+        withAnimation(.easeOut(duration: ReaderConfig.RSVP.feedbackFadeDuration)) {
+            _ = presentation.requestFeedback(.bookmark)
         }
     }
 
     private func toggleHighlight() {
-        if let startIndex = highlightStartIndex {
-            let endIndex = engine.currentIndex
-            let actualStart = min(startIndex, endIndex)
-            let actualEnd = max(startIndex, endIndex)
-            let text = Highlight.captureText(from: cachedWords, start: actualStart, end: actualEnd)
-            let highlight = Highlight(startWordIndex: actualStart, endWordIndex: actualEnd, highlightedText: text)
-            highlight.book = book
-            modelContext.insert(highlight)
-            highlightStartIndex = nil
+        guard let draft = presentation.toggleHighlight(at: engine.currentIndex) else { return }
+        let highlight = Highlight(
+            startWordIndex: draft.startIndex,
+            endWordIndex: draft.endIndex,
+            highlightedText: draft.text
+        )
+        highlight.book = book
+        modelContext.insert(highlight)
 
-            withAnimation(.easeOut(duration: 0.3)) { highlightFlash = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                withAnimation(.easeIn(duration: 0.2)) { highlightFlash = false }
-            }
-        } else {
-            highlightStartIndex = engine.currentIndex
+        withAnimation(.easeOut(duration: ReaderConfig.RSVP.feedbackFadeDuration)) {
+            _ = presentation.requestFeedback(.highlight)
         }
     }
 }

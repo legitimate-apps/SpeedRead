@@ -29,5 +29,6 @@ enum ReaderConfig {
         static let controlPanelHeight: CGFloat = 160
         static let controlPanelBottomPadding: CGFloat = 20
         static let feedbackFlashDuration = Duration.milliseconds(300)
+        static let feedbackFadeDuration = 0.2
     }
 }
