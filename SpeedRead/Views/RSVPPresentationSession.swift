@@ -49,9 +49,14 @@ final class RSVPPresentationSession {
     private var dragVelocity: CGFloat = 0
     private var maximumTranslation: CGFloat = 0
     private var nextFeedbackID = 0
+    private var didCommitClose = false
 
     func load(book: Book, engine: RSVPEngine, wpm: Int) {
-        // Deliberately inert TDD scaffold. The behavior lands after its tests.
+        book.ensureTokensCached()
+        cachedWords = book.words
+        didCommitClose = false
+        engine.wpm = wpm
+        engine.load(words: cachedWords, startingAt: book.lastReadWordIndex)
     }
 
     func close(
@@ -61,8 +66,17 @@ final class RSVPPresentationSession {
         sync: (any ReadingPositionSyncing)? = nil,
         now: Date = Date()
     ) -> ReadingPositionCommit {
-        engine.stop()
-        return ReadingPositionCommit(index: 0, timestamp: now, didSave: false)
+        let index = engine.snapshotIndexAndPause()
+        let commit = ReadingPositionCoordinator.commit(
+            index,
+            wordCount: cachedWords.count,
+            book: book,
+            saver: saver,
+            sync: sync,
+            now: now
+        )
+        didCommitClose = true
+        return commit
     }
 
     func handleDisappear(
@@ -72,23 +86,64 @@ final class RSVPPresentationSession {
         sync: (any ReadingPositionSyncing)? = nil,
         now: Date = Date()
     ) -> ReadingPositionCommit? {
+        guard !didCommitClose else {
+            engine.stop()
+            return nil
+        }
+        guard engine.isLoaded else {
+            engine.stop()
+            return nil
+        }
+        let index = engine.snapshotIndexAndPause()
+        let commit = ReadingPositionCoordinator.commit(
+            index,
+            wordCount: cachedWords.count,
+            book: book,
+            saver: saver,
+            sync: sync,
+            now: now
+        )
         engine.stop()
-        return nil
+        return commit
     }
 
     func bookmarkDraft(at index: Int) -> RSVPBookmarkDraft {
-        RSVPBookmarkDraft(wordIndex: 0, previewText: "")
+        let clamped = ReadingPositionCoordinator.clampedIndex(index, wordCount: cachedWords.count)
+        return RSVPBookmarkDraft(
+            wordIndex: clamped,
+            previewText: Bookmark.previewText(from: cachedWords, at: clamped)
+        )
     }
 
     func toggleHighlight(at index: Int) -> RSVPHighlightDraft? {
-        nil
+        guard !cachedWords.isEmpty else { return nil }
+        let clamped = ReadingPositionCoordinator.clampedIndex(index, wordCount: cachedWords.count)
+        guard let startIndex = highlightStartIndex else {
+            highlightStartIndex = clamped
+            return nil
+        }
+
+        let actualStart = min(startIndex, clamped)
+        let actualEnd = max(startIndex, clamped)
+        highlightStartIndex = nil
+        return RSVPHighlightDraft(
+            startIndex: actualStart,
+            endIndex: actualEnd,
+            text: Highlight.captureText(from: cachedWords, start: actualStart, end: actualEnd)
+        )
     }
 
     func requestFeedback(_ kind: RSVPFeedbackKind) -> RSVPFeedbackFlash {
-        RSVPFeedbackFlash(id: 0, kind: kind)
+        nextFeedbackID += 1
+        let flash = RSVPFeedbackFlash(id: nextFeedbackID, kind: kind)
+        feedbackFlash = flash
+        return flash
     }
 
-    func clearFeedback(_ flash: RSVPFeedbackFlash) {}
+    func clearFeedback(_ flash: RSVPFeedbackFlash) {
+        guard feedbackFlash == flash else { return }
+        feedbackFlash = nil
+    }
 
     func updateGesture(
         translationX: CGFloat,

@@ -32,6 +32,44 @@ struct ReaderTapOutcome: Equatable {
     let flash: ReaderWordFlash
 }
 
+@MainActor
+enum ReadingPositionCoordinator {
+    static func clampedIndex(_ index: Int, wordCount: Int) -> Int {
+        guard wordCount > 0 else { return 0 }
+        return min(max(0, index), wordCount - 1)
+    }
+
+    static func commit(
+        _ index: Int,
+        wordCount: Int,
+        book: Book,
+        saver: any ReadingPositionSaving,
+        sync: (any ReadingPositionSyncing)? = nil,
+        now: Date = Date()
+    ) -> ReadingPositionCommit {
+        let clamped = clampedIndex(index, wordCount: wordCount)
+        book.lastReadWordIndex = clamped
+        book.lastReadDate = now
+
+        let didSave: Bool
+        do {
+            try saver.save()
+            didSave = true
+        } catch {
+            didSave = false
+        }
+
+        let positionSync = sync ?? WatchSyncService.shared
+        positionSync.syncReadingPosition(
+            bookId: book.id,
+            bookTitle: book.title,
+            wordIndex: clamped,
+            timestamp: now
+        )
+        return ReadingPositionCommit(index: clamped, timestamp: now, didSave: didSave)
+    }
+}
+
 @Observable
 @MainActor
 final class ReaderSession {
@@ -55,8 +93,7 @@ final class ReaderSession {
     }
 
     func clampedIndex(_ index: Int) -> Int {
-        guard !cachedWords.isEmpty else { return 0 }
-        return min(max(0, index), cachedWords.count - 1)
+        ReadingPositionCoordinator.clampedIndex(index, wordCount: cachedWords.count)
     }
 
     func scrollAnchorID(for index: Int) -> String {
@@ -70,26 +107,14 @@ final class ReaderSession {
         sync: (any ReadingPositionSyncing)? = nil,
         now: Date = Date()
     ) -> ReadingPositionCommit {
-        let clamped = clampedIndex(index)
-        book.lastReadWordIndex = clamped
-        book.lastReadDate = now
-
-        let didSave: Bool
-        do {
-            try saver.save()
-            didSave = true
-        } catch {
-            didSave = false
-        }
-
-        let positionSync = sync ?? WatchSyncService.shared
-        positionSync.syncReadingPosition(
-            bookId: book.id,
-            bookTitle: book.title,
-            wordIndex: clamped,
-            timestamp: now
+        ReadingPositionCoordinator.commit(
+            index,
+            wordCount: cachedWords.count,
+            book: book,
+            saver: saver,
+            sync: sync,
+            now: now
         )
-        return ReadingPositionCommit(index: clamped, timestamp: now, didSave: didSave)
     }
 
     func handleWordTap(
