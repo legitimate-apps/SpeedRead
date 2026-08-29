@@ -5,39 +5,36 @@ import Testing
 @Suite("Bundled Sample Book Tests")
 struct BundledSampleBookTests {
     @Test func yellowWallpaperEPUBContentIsPinned() throws {
-        try expectEPUB(
-            name: "TheYellowWallpaper",
-            title: "The Yellow Wallpaper",
-            author: "Charlotte Perkins Gilman",
-            characterCount: 50_913,
-            wordCount: 9_173,
-            firstWord: "\"Cover\"",
-            lastWord: "eBooks."
-        )
+        let (result, words) = try extractEPUB(named: "TheYellowWallpaper")
+
+        #expect(result.title == "The Yellow Wallpaper")
+        #expect(result.author == "Charlotte Perkins Gilman")
+        #expect(result.text.count == 50_913)
+        #expect(words.count == 9_173)
+        #expect(words.first == "\"Cover\"")
+        #expect(words.last == "eBooks.")
     }
 
     @Test func metamorphosisEPUBContentIsPinned() throws {
-        try expectEPUB(
-            name: "TheMetamorphosis",
-            title: "Metamorphosis",
-            author: "Franz Kafka",
-            characterCount: 138_589,
-            wordCount: 25_153,
-            firstWord: "\"Cover\"",
-            lastWord: "eBooks."
-        )
+        let (result, words) = try extractEPUB(named: "TheMetamorphosis")
+
+        #expect(result.title == "Metamorphosis")
+        #expect(result.author == "Franz Kafka")
+        #expect(result.text.count == 138_589)
+        #expect(words.count == 25_153)
+        #expect(words.first == "\"Cover\"")
+        #expect(words.last == "eBooks.")
     }
 
     @Test func christmasCarolEPUBContentIsPinned() throws {
-        try expectEPUB(
-            name: "AChristmasCarol",
-            title: "A Christmas Carol in Prose; Being a Ghost Story of Christmas",
-            author: "Charles Dickens",
-            characterCount: 206_206,
-            wordCount: 32_036,
-            firstWord: "\"Cover\"",
-            lastWord: "eBooks."
-        )
+        let (result, words) = try extractEPUB(named: "AChristmasCarol")
+
+        #expect(result.title == "A Christmas Carol in Prose; Being a Ghost Story of Christmas")
+        #expect(result.author == "Charles Dickens")
+        #expect(result.text.count == 206_206)
+        #expect(words.count == 32_036)
+        #expect(words.first == "\"Cover\"")
+        #expect(words.last == "eBooks.")
     }
 
     @Test func christmasCarolPDFContentIsPinned() throws {
@@ -53,24 +50,9 @@ struct BundledSampleBookTests {
         #expect(words.last == "Dickens")
     }
 
-    private func expectEPUB(
-        name: String,
-        title: String,
-        author: String,
-        characterCount: Int,
-        wordCount: Int,
-        firstWord: String,
-        lastWord: String
-    ) throws {
+    private func extractEPUB(named name: String) throws -> (ExtractionResult, [String]) {
         let url = try #require(Bundle.main.url(forResource: name, withExtension: "epub"))
         let result = try EPUBExtractor().extractText(from: Data(contentsOf: url))
-        let words = Book.tokenize(result.text)
-
-        #expect(result.title == title)
-        #expect(result.author == author)
-        #expect(result.text.count == characterCount)
-        #expect(words.count == wordCount)
-        #expect(words.first == firstWord)
-        #expect(words.last == lastWord)
+        return (result, Book.tokenize(result.text))
     }
 }
