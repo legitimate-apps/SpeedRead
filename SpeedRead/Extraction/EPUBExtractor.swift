@@ -12,49 +12,56 @@ struct EPUBExtractor: TextExtractor {
             throw ExtractionError.invalidData
         }
 
-        guard let containerData = entries["META-INF/container.xml"],
-              let containerXML = String(data: containerData, encoding: .utf8) else {
+        guard let containerData = entries["META-INF/container.xml"] else {
             throw ExtractionError.parsingFailed("Missing META-INF/container.xml")
         }
 
-        guard let opfPath = parseContainerForOPFPath(containerXML) else {
-            throw ExtractionError.parsingFailed("Could not find OPF path in container.xml")
-        }
+        let containerOPFPath = try Self.parseContainerForOPFPath(containerData)
+        let opfPath = try Self.resolveArchivePath(containerOPFPath, relativeTo: "")
 
-        guard let opfData = entries[opfPath],
-              let opfXML = String(data: opfData, encoding: .utf8) else {
+        guard let opfData = entries[opfPath] else {
             throw ExtractionError.parsingFailed("Could not read OPF file at \(opfPath)")
         }
 
-        let opfDir: String
-        if let lastSlash = opfPath.lastIndex(of: "/") {
-            opfDir = String(opfPath[opfPath.startIndex...lastSlash])
-        } else {
-            opfDir = ""
+        let opfDirectory = opfPath.split(separator: "/").dropLast().joined(separator: "/")
+        let package = try Self.parseOPFPackage(opfData)
+        guard !package.spineIDs.isEmpty else {
+            throw ExtractionError.parsingFailed("OPF spine contains no chapters")
         }
 
-        let metadata = parseOPFMetadata(opfXML)
-        let spineHrefs = parseOPFSpineHrefs(opfXML)
-
         var chapters: [String] = []
-        for href in spineHrefs {
-            let decoded = href.removingPercentEncoding ?? href
-            let fullPath = opfDir + decoded
-            if let fileData = entries[fullPath],
-               let xhtml = String(data: fileData, encoding: .utf8) {
-                let text = Self.stripHTML(xhtml)
-                if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    chapters.append(text)
+        for spineID in package.spineIDs {
+            let href: String
+            if let manifestHref = package.manifest[spineID] {
+                href = manifestHref
+            } else {
+                // Some malformed-but-recoverable books put the chapter href directly
+                // in idref. Recover only when that exact resolved entry exists.
+                let recoveredPath = try Self.resolveArchivePath(spineID, relativeTo: opfDirectory)
+                guard entries[recoveredPath] != nil else {
+                    throw ExtractionError.parsingFailed(
+                        "Spine item '\(spineID)' is missing from the manifest"
+                    )
                 }
+                href = spineID
             }
+
+            let chapterPath = try Self.resolveArchivePath(href, relativeTo: opfDirectory)
+            guard let fileData = entries[chapterPath] else {
+                throw ExtractionError.parsingFailed("Missing spine chapter at \(chapterPath)")
+            }
+            guard let xhtml = Self.decodeXMLText(fileData) else {
+                throw ExtractionError.parsingFailed("Could not decode spine chapter at \(chapterPath)")
+            }
+            chapters.append(Self.stripHTML(xhtml))
         }
 
         let fullText = chapters.joined(separator: "\n\n")
 
         return ExtractionResult(
             text: fullText,
-            title: metadata.title,
-            author: metadata.author
+            title: package.title,
+            author: package.author
         )
     }
 
@@ -216,66 +223,196 @@ struct EPUBExtractor: TextExtractor {
 
     // MARK: - EPUB XML Parsing
 
-    private func parseContainerForOPFPath(_ xml: String) -> String? {
-        guard let range = xml.range(of: "full-path=\"[^\"]+\"", options: .regularExpression) else { return nil }
-        let match = String(xml[range])
-        return match.replacingOccurrences(of: "full-path=\"", with: "").replacingOccurrences(of: "\"", with: "")
-    }
-
-    private struct EPUBMetadata {
+    private struct EPUBPackage {
         let title: String?
         let author: String?
+        let manifest: [String: String]
+        let spineIDs: [String]
     }
 
-    private func parseOPFMetadata(_ xml: String) -> EPUBMetadata {
-        let title = extractTagContent(from: xml, tag: "dc:title")
-        let author = extractTagContent(from: xml, tag: "dc:creator")
-        return EPUBMetadata(title: title, author: author)
+    private static func parseContainerForOPFPath(_ data: Data) throws -> String {
+        let delegate = ContainerXMLDelegate()
+        let parser = XMLParser(data: data)
+        parser.delegate = delegate
+        parser.shouldResolveExternalEntities = false
+        guard parser.parse(), let path = delegate.opfPath, !path.isEmpty else {
+            throw ExtractionError.parsingFailed("Could not find OPF path in container.xml")
+        }
+        return path
     }
 
-    private func parseOPFSpineHrefs(_ xml: String) -> [String] {
-        var manifest: [String: String] = [:]
-        let manifestPattern = "<item\\s+[^>]*id=\"([^\"]+)\"[^>]*href=\"([^\"]+)\"[^>]*(?:/>|>[^<]*</item>)"
-        if let regex = try? NSRegularExpression(pattern: manifestPattern, options: .dotMatchesLineSeparators) {
-            let matches = regex.matches(in: xml, range: NSRange(xml.startIndex..., in: xml))
-            for match in matches {
-                if let idRange = Range(match.range(at: 1), in: xml),
-                   let hrefRange = Range(match.range(at: 2), in: xml) {
-                    manifest[String(xml[idRange])] = String(xml[hrefRange])
+    private static func parseOPFPackage(_ data: Data) throws -> EPUBPackage {
+        let delegate = OPFXMLDelegate()
+        let parser = XMLParser(data: data)
+        parser.delegate = delegate
+        parser.shouldResolveExternalEntities = false
+        guard parser.parse() else {
+            throw ExtractionError.parsingFailed("Could not parse OPF file")
+        }
+        return EPUBPackage(
+            title: delegate.title,
+            author: delegate.author,
+            manifest: delegate.manifest,
+            spineIDs: delegate.spineIDs
+        )
+    }
+
+    private static func resolveArchivePath(_ reference: String, relativeTo directory: String) throws -> String {
+        let resourceReference = reference
+            .split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)[0]
+            .split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)[0]
+        guard let decoded = String(resourceReference).removingPercentEncoding else {
+            throw ExtractionError.parsingFailed("Invalid percent encoding in EPUB path '\(reference)'")
+        }
+
+        var components = decoded.hasPrefix("/")
+            ? []
+            : directory.split(separator: "/").map(String.init)
+
+        for component in decoded.split(separator: "/", omittingEmptySubsequences: false) {
+            switch component {
+            case "", ".":
+                continue
+            case "..":
+                guard !components.isEmpty else {
+                    throw ExtractionError.parsingFailed("EPUB path escapes archive root: \(reference)")
                 }
+                components.removeLast()
+            default:
+                components.append(String(component))
             }
         }
 
-        let manifestPattern2 = "<item\\s+[^>]*href=\"([^\"]+)\"[^>]*id=\"([^\"]+)\"[^>]*(?:/>|>[^<]*</item>)"
-        if let regex = try? NSRegularExpression(pattern: manifestPattern2, options: .dotMatchesLineSeparators) {
-            let matches = regex.matches(in: xml, range: NSRange(xml.startIndex..., in: xml))
-            for match in matches {
-                if let hrefRange = Range(match.range(at: 1), in: xml),
-                   let idRange = Range(match.range(at: 2), in: xml) {
-                    manifest[String(xml[idRange])] = String(xml[hrefRange])
-                }
-            }
+        guard !components.isEmpty else {
+            throw ExtractionError.parsingFailed("EPUB path resolves to archive root: \(reference)")
         }
-
-        var spineIDs: [String] = []
-        let spinePattern = "<itemref\\s+idref=\"([^\"]+)\""
-        if let regex = try? NSRegularExpression(pattern: spinePattern) {
-            let matches = regex.matches(in: xml, range: NSRange(xml.startIndex..., in: xml))
-            for match in matches {
-                if let idRange = Range(match.range(at: 1), in: xml) {
-                    spineIDs.append(String(xml[idRange]))
-                }
-            }
-        }
-
-        return spineIDs.compactMap { manifest[$0] }
+        return components.joined(separator: "/")
     }
 
-    private func extractTagContent(from xml: String, tag: String) -> String? {
-        let pattern = "<\(tag)[^>]*>([^<]+)</\(tag)>"
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-              let match = regex.firstMatch(in: xml, range: NSRange(xml.startIndex..., in: xml)),
-              let range = Range(match.range(at: 1), in: xml) else { return nil }
-        return String(xml[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+    private static func decodeXMLText(_ data: Data) -> String? {
+        if let declaredName = declaredXMLEncoding(in: data) {
+            guard let encoding = stringEncoding(named: declaredName) else { return nil }
+            return String(data: data, encoding: encoding)?.replacingOccurrences(of: "\u{FEFF}", with: "")
+        }
+
+        let fallbackEncodings: [String.Encoding] = [.utf8, .utf16, .isoLatin1, .macOSRoman]
+        for encoding in fallbackEncodings {
+            if let decoded = String(data: data, encoding: encoding) {
+                return decoded.replacingOccurrences(of: "\u{FEFF}", with: "")
+            }
+        }
+        return nil
+    }
+
+    private static func declaredXMLEncoding(in data: Data) -> String? {
+        let projectedASCII = data.prefix(512).map { byte in
+            byte == 0 ? UInt8(ascii: " ") : (byte < 0x80 ? byte : UInt8(ascii: " "))
+        }
+        let prolog = String(decoding: projectedASCII, as: UTF8.self)
+        let pattern = #"<\?xml[^>]*encoding\s*=\s*['\"]([^'\"]+)['\"]"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+              let match = regex.firstMatch(in: prolog, range: NSRange(prolog.startIndex..., in: prolog)),
+              let range = Range(match.range(at: 1), in: prolog) else {
+            return nil
+        }
+        return String(prolog[range])
+    }
+
+    private static func stringEncoding(named name: String) -> String.Encoding? {
+        switch name.lowercased().replacingOccurrences(of: "_", with: "-") {
+        case "utf-8", "utf8":
+            return .utf8
+        case "utf-16", "utf16":
+            return .utf16
+        case "utf-16le", "utf16le":
+            return .utf16LittleEndian
+        case "utf-16be", "utf16be":
+            return .utf16BigEndian
+        case "iso-8859-1", "iso8859-1", "latin1", "iso-latin-1":
+            return .isoLatin1
+        case "windows-1252", "cp1252":
+            return .windowsCP1252
+        case "macintosh", "macroman", "mac-roman", "x-mac-roman":
+            return .macOSRoman
+        case "us-ascii", "ascii":
+            return .ascii
+        default:
+            return nil
+        }
+    }
+}
+
+private final class ContainerXMLDelegate: NSObject, XMLParserDelegate {
+    private(set) var opfPath: String?
+
+    func parser(
+        _ parser: XMLParser,
+        didStartElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?,
+        attributes attributeDict: [String: String] = [:]
+    ) {
+        guard elementName.split(separator: ":").last == "rootfile",
+              opfPath == nil else { return }
+        opfPath = attributeDict["full-path"]
+    }
+}
+
+private final class OPFXMLDelegate: NSObject, XMLParserDelegate {
+    private(set) var title: String?
+    private(set) var author: String?
+    private(set) var manifest: [String: String] = [:]
+    private(set) var spineIDs: [String] = []
+    private var capturedMetadataElement: String?
+    private var capturedCharacters = ""
+
+    func parser(
+        _ parser: XMLParser,
+        didStartElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?,
+        attributes attributeDict: [String: String] = [:]
+    ) {
+        let localName = String(elementName.split(separator: ":").last ?? Substring(elementName))
+        switch localName {
+        case "item":
+            if let id = attributeDict["id"], let href = attributeDict["href"] {
+                manifest[id] = href
+            }
+        case "itemref":
+            if let idref = attributeDict["idref"] {
+                spineIDs.append(idref)
+            }
+        case "title", "creator":
+            capturedMetadataElement = localName
+            capturedCharacters = ""
+        default:
+            break
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        guard capturedMetadataElement != nil else { return }
+        capturedCharacters += string
+    }
+
+    func parser(
+        _ parser: XMLParser,
+        didEndElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?
+    ) {
+        let localName = String(elementName.split(separator: ":").last ?? Substring(elementName))
+        guard localName == capturedMetadataElement else { return }
+        let value = capturedCharacters.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !value.isEmpty {
+            if localName == "title", title == nil {
+                title = value
+            } else if localName == "creator", author == nil {
+                author = value
+            }
+        }
+        capturedMetadataElement = nil
+        capturedCharacters = ""
     }
 }

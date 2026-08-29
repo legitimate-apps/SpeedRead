@@ -156,8 +156,13 @@ struct EPUBExtractorTests {
             ]
         )
 
-        #expect(throws: ExtractionError.self) {
-            try EPUBExtractor().extractText(from: epubData)
+        do {
+            let partialResult = try EPUBExtractor().extractText(from: epubData)
+            Issue.record("Expected a missing-chapter error, got partial text: \(partialResult.text)")
+        } catch let error as ExtractionError {
+            #expect(error == .parsingFailed("Missing spine chapter at missing.xhtml"))
+        } catch {
+            Issue.record("Expected ExtractionError, got \(error)")
         }
     }
 
@@ -221,8 +226,13 @@ struct EPUBExtractorTests {
             ]
         )
 
-        #expect(throws: ExtractionError.self) {
-            try EPUBExtractor().extractText(from: epubData)
+        do {
+            let partialResult = try EPUBExtractor().extractText(from: epubData)
+            Issue.record("Expected a decoding error, got partial text: \(partialResult.text)")
+        } catch let error as ExtractionError {
+            #expect(error == .parsingFailed("Could not decode spine chapter at chapter2.xhtml"))
+        } catch {
+            Issue.record("Expected ExtractionError, got \(error)")
         }
     }
 
