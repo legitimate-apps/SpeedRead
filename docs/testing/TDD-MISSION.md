@@ -294,3 +294,37 @@ pre-existing defect leg 2 walked past.
 This sits directly against the *reasoning* behind CORPUS §4.5 ("tappable words are `Button`s —
 Voice Control, focus and keyboard navigation depend on it"). The invariant is written for reader
 words; the argument applies identically here. Roadmap I16–I19 already carry a11y work. Queue it.
+
+## 13. Leg 3 — EPUB silent chapter loss (Sol's report; manager verification pending)
+
+Nine commits, red-first throughout, all five predicted drop paths reproduced then fixed. Sol found
+**two more** en route that I had not predicted: an unsupported *declared* encoding silently returned
+text as if decoding had worked, and a BOM-less UTF-16BE chapter garbled after the first decoder
+implementation (recorded red in `7be39f3`, fixed in `77a4130`).
+
+Structural upgrades beyond the brief:
+- **Regex OPF parsing replaced with `XMLParser`.** The old manifest regexes were sensitive to quote
+  style and attribute order; the container XML was likewise parsed by assuming `full-path="..."`.
+- **Extraction now throws instead of returning a short book.** `DocumentImporter` calls the extractor
+  *before* constructing or inserting a `Book`, so a partial book cannot be persisted. Both existing
+  user-facing error surfaces (local import alert, OPDS download error) carry it.
+- **Empty chapters are retained in spine order** rather than conditionally dropped, so a whitespace
+  `stripHTML` result can no longer masquerade as a missing chapter.
+- **ZIP now indexes from the Central Directory**, with the old local-header scan kept as the
+  documented fallback for archives that genuinely lack one.
+
+Sol reports iOS 42.91% → **44.75%**, `EPUBExtractor.swift` 71.96% → **87.92%**, 198 iOS tests.
+**Not yet independently reproduced by me** — the machine is running the watch lane for the crown bug.
+
+**The assertion-audit tool earned its place immediately:** it flagged three new EPUB tests as
+assertion-free because their assertions lived in a shared helper rather than in the named test. Sol
+restructured them so each test owns its assertions. That is exactly the "looks covered, names
+nothing" shape the harness exists to catch, caught on its first real outing.
+
+**Outstanding:** `Scripts/coverage.sh` still gates on *combined headline* coverage. Per operator
+decision §10.1 it must gate on **attributable**. Sol tripped over this — it invoked the script with
+`42` meaning the iOS number and got a failure against the combined figure. Fix in the next leg.
+
+**Housekeeping:** a `speedread-tests-2` DerivedData lease is still registered. Sol could not release
+it because an unrelated `peer-ci` process has held the global `dd-lease` registry lock for
+26+ minutes; `dd-lease list` still hangs as of 14:04. Correctly left alone rather than killed.
