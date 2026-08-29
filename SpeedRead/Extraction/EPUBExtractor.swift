@@ -498,8 +498,9 @@ struct EPUBExtractor: TextExtractor {
     }
 
     private static func declaredXMLEncoding(in data: Data) -> String? {
-        let projectedASCII = data.prefix(512).map { byte in
-            byte == 0 ? UInt8(ascii: " ") : (byte < 0x80 ? byte : UInt8(ascii: " "))
+        let projectedASCII = data.prefix(512).compactMap { byte -> UInt8? in
+            if byte == 0 { return nil }
+            return byte < 0x80 ? byte : UInt8(ascii: " ")
         }
         let prolog = String(decoding: projectedASCII, as: UTF8.self)
         let pattern = #"<\?xml[^>]*encoding\s*=\s*['\"]([^'\"]+)['\"]"#
