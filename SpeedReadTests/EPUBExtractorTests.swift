@@ -182,6 +182,22 @@ struct EPUBExtractorTests {
         #expect(result.text.contains("Café déjà lu."))
     }
 
+    @Test func decodesBOMlessUTF16BEChapterFromXMLDeclaration() throws {
+        let chapterText = """
+        <?xml version="1.0" encoding="UTF-16BE"?>
+        <html xmlns="http://www.w3.org/1999/xhtml"><body><p>UTF sixteen chapter sentinel.</p></body></html>
+        """
+        let chapter = try #require(chapterText.data(using: .utf16BigEndian))
+        let epubData = makeEPUB(
+            opfXML: standardOPF(hrefs: [("ch1", "chapter1.xhtml")]),
+            chapters: [("chapter1.xhtml", chapter)]
+        )
+
+        let result = try EPUBExtractor().extractText(from: epubData)
+
+        #expect(result.text.contains("UTF sixteen chapter sentinel."))
+    }
+
     @Test func parsesSingleQuotedManifestAndSpineAttributes() throws {
         let epubData = makeEPUB(
             opfXML: """
