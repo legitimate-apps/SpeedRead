@@ -53,6 +53,37 @@ struct ReadingViewRenderingTests {
         #expect(host.view.bounds.height == 844)
     }
 
+    @Test("RSVP exposes play and pause as an assistive-technology control")
+    func rsvpPlaybackAffordanceRemainsAccessibleInBothStates() async throws {
+        let (container, book) = try makeStoredBook(text: "zero one two", index: 1)
+        let engine = RSVPEngine()
+        let root = RSVPView(book: book, engine: engine)
+            .modelContainer(container)
+            .environmentObject(WatchSyncService.shared)
+        let host = UIHostingController(rootView: root)
+        let window = try hostInWindow(host)
+        defer { window.isHidden = true }
+
+        await waitUntil { engine.totalWords == 3 }
+        host.view.layoutIfNeeded()
+        let playControl = try #require(
+            accessibilityElement(withIdentifier: "rsvp-playback-toggle", in: host.view)
+        )
+        #expect(playControl.accessibilityLabel == "Play")
+        #expect(playControl.accessibilityTraits.contains(.button))
+
+        engine.play()
+        await Task.yield()
+        host.view.setNeedsLayout()
+        host.view.layoutIfNeeded()
+        let pauseControl = try #require(
+            accessibilityElement(withIdentifier: "rsvp-playback-toggle", in: host.view)
+        )
+        #expect(pauseControl.accessibilityLabel == "Pause")
+        #expect(pauseControl.accessibilityTraits.contains(.button))
+        engine.pause()
+    }
+
     @Test func behaviorConstantsStayInternallyCoherent() {
         #expect(ReaderConfig.Classic.fontSizeRange.contains(ReaderConfig.Classic.defaultFontSize))
         #expect(ReaderConfig.Classic.lineSpacingRange.contains(ReaderConfig.Classic.defaultLineSpacing))
@@ -150,6 +181,33 @@ struct ReadingViewRenderingTests {
             }
         }
         return signatures
+    }
+
+    private func accessibilityElement(
+        withIdentifier identifier: String,
+        in view: UIView
+    ) -> NSObject? {
+        if view.accessibilityIdentifier == identifier {
+            return view
+        }
+        if let elements = view.accessibilityElements {
+            for element in elements {
+                if let view = element as? UIView,
+                   let match = accessibilityElement(withIdentifier: identifier, in: view) {
+                    return match
+                }
+                if let element = element as? UIAccessibilityElement,
+                   element.accessibilityIdentifier == identifier {
+                    return element
+                }
+            }
+        }
+        for subview in view.subviews {
+            if let match = accessibilityElement(withIdentifier: identifier, in: subview) {
+                return match
+            }
+        }
+        return nil
     }
 
     private func waitUntil(
