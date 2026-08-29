@@ -1,0 +1,69 @@
+name: CI
+
+# Runs on the operator's own Mac via a self-hosted runner. Never on GitHub-hosted macOS —
+# that bills at a 10x multiplier and was ~92% of one project's Actions spend.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Rapid pushes must not pile Xcode builds onto a machine that also runs the operator's
+# other work. Newest push wins; older runs are cancelled.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DERIVED_DATA: /Volumes/Crucial X8/DerivedData/speedread-ci
+  SPM_CACHE: /Volumes/Crucial X8/dev-caches/spm-clones
+
+jobs:
+  hermetic:
+    name: Hermetic lanes + honesty gates
+    runs-on: [self-hosted, macOS, speedread]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cheap gates first — they need no simulator and fail in seconds rather than minutes.
+      - name: No assertion-free tests
+        run: python3 Scripts/assertion-audit.py .
+
+      # A wedged CoreSimulator hangs every iOS build with NO error output, including
+      # device and archive builds, because compiling an asset catalog needs a device-type
+      # lookup. Empty output here means stop, not proceed.
+      - name: Simulator preflight
+        run: |
+          set -euo pipefail
+          types=$(xcrun simctl list devicetypes | head -20)
+          if [ -z "$types" ]; then
+            echo "::error::CoreSimulator is wedged — no device types. Aborting before the build hangs."
+            exit 1
+          fi
+          echo "$types" | head -3
+
+      - name: iOS hermetic lane
+        run: |
+          xcodebuild test \
+            -project SpeedRead.xcodeproj \
+            -scheme SpeedRead \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+            -derivedDataPath "$DERIVED_DATA" \
+            -clonedSourcePackagesDirPath "$SPM_CACHE" \
+            -parallel-testing-enabled NO \
+            -resultBundlePath "$RUNNER_TEMP/ios.xcresult"
+
+      - name: Coverage honesty report
+        run: |
+          xcrun xccov view --report --json "$RUNNER_TEMP/ios.xcresult" > "$RUNNER_TEMP/cov.json"
+          python3 Scripts/attributable-coverage.py "$RUNNER_TEMP/cov.json" "$GITHUB_WORKSPACE"
+
+      - name: Watch hermetic lane
+        run: |
+          xcodebuild test \
+            -project SpeedRead.xcodeproj \
+            -scheme 'SpeedReadWatch Watch App' \
+            -destination 'platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)' \
+            -derivedDataPath "$DERIVED_DATA" \
+            -parallel-testing-enabled NO
