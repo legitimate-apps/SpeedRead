@@ -20,9 +20,7 @@ struct WatchSettingsView: View {
                     .foregroundStyle(Color.parchment.opacity(0.6))
 
                 Button("Done") {
-                    let newWPM = Int(wpmValue)
-                    engine.wpm = newWPM
-                    persistedWPM = newWPM
+                    persistedWPM = WatchSettingsLogic.apply(wpmValue, to: engine)
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
@@ -40,13 +38,13 @@ struct WatchSettingsView: View {
             isHapticFeedbackEnabled: true
         )
         .onChange(of: wpmValue) { _, newValue in
-            let snapped = (newValue / 10).rounded() * 10
+            let snapped = Double(WatchSettingsLogic.snappedWPM(newValue))
             if snapped != newValue {
                 wpmValue = snapped
             }
         }
         .onAppear {
-            wpmValue = (Double(engine.wpm) / 10).rounded() * 10
+            wpmValue = Double(WatchSettingsLogic.snappedWPM(Double(engine.wpm)))
         }
     }
 }

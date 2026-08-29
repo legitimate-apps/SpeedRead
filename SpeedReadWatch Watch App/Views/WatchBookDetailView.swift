@@ -72,12 +72,12 @@ struct WatchBookDetailView: View {
                 .padding(.horizontal)
 
                 Button {
-                    syncService.library.setCurrentBook(id: book.id)
+                    WatchBookDetailLogic.select(book, in: &syncService.library)
                     syncService.persistLibrary()
                     WKInterfaceDevice.current().play(.success)
                     dismiss()
                 } label: {
-                    Text(latestBook.lastReadIndex > 0 ? "Continue Reading" : "Read")
+                    Text(WatchBookDetailLogic.readingActionTitle(lastReadIndex: latestBook.lastReadIndex))
                         .font(.system(size: 15, weight: .semibold, design: .serif))
                         .frame(maxWidth: .infinity)
                 }
@@ -94,7 +94,7 @@ struct WatchBookDetailView: View {
                 .buttonStyle(.plain)
                 .confirmationDialog("Remove this book?", isPresented: $showDeleteConfirmation) {
                     Button("Remove", role: .destructive) {
-                        syncService.library.removeBook(id: book.id)
+                        WatchBookDetailLogic.remove(book, from: &syncService.library)
                         syncService.persistLibrary()
                         dismiss()
                     }

@@ -4,12 +4,13 @@ struct WatchRSVPView: View {
     @EnvironmentObject var syncService: WatchSyncService
     @Environment(\.dismiss) private var dismiss
 
-    @State private var engine = RSVPEngine()
+    @State private var session = WatchRSVPSession()
     @State private var showSettings = false
     @State private var crownValue: Double = 0
     @AppStorage("rsvpLastWPM") private var persistedWPM: Int = 300
 
     private var currentBook: WatchBook? { syncService.currentBook }
+    private var engine: RSVPEngine { session.engine }
 
     private var words: [String] {
         currentBook?.words ?? []
@@ -20,9 +21,9 @@ struct WatchRSVPView: View {
             Color.rsvpBackground
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
-                .onTapGesture { togglePlayPause() }
+                .onTapGesture { session.togglePlayback() }
                 .onLongPressGesture {
-                    if engine.state == .playing { engine.pause() }
+                    session.prepareForSettings()
                     showSettings = true
                 }
 
@@ -33,14 +34,7 @@ struct WatchRSVPView: View {
                 VStack(spacing: 0) {
                     HStack {
                         Button {
-                            if let book = currentBook {
-                                syncService.syncReadingPosition(
-                                    bookId: book.id,
-                                    bookTitle: book.title,
-                                    wordIndex: engine.currentIndex
-                                )
-                            }
-                            engine.stop()
+                            sync(session.close(book: currentBook))
                             dismiss()
                         } label: {
                             Image(systemName: "xmark")
@@ -96,36 +90,25 @@ struct WatchRSVPView: View {
             isHapticFeedbackEnabled: true
         )
         .onChange(of: crownValue) { _, newValue in
-            if engine.state != .playing {
-                engine.seek(to: CrownSeek.wordIndex(forCrownValue: newValue, wordCount: words.count))
-            }
+            session.seek(toCrownValue: newValue, wordCount: words.count)
         }
         .onAppear {
-            guard let book = currentBook else { return }
-            engine.load(words: book.words, startingAt: book.lastReadIndex)
-            engine.wpm = persistedWPM
-            crownValue = CrownSeek.crownValue(forWordIndex: book.lastReadIndex, wordCount: book.words.count)
+            crownValue = session.load(book: currentBook, wpm: persistedWPM)
         }
         .onDisappear {
-            if let book = currentBook {
-                syncService.syncReadingPosition(
-                    bookId: book.id,
-                    bookTitle: book.title,
-                    wordIndex: engine.currentIndex
-                )
-            }
-            engine.stop()
+            sync(session.handleDisappear(book: currentBook))
         }
         .sheet(isPresented: $showSettings) {
             WatchSettingsView(engine: engine)
         }
     }
 
-    private func togglePlayPause() {
-        if engine.state == .playing {
-            engine.pause()
-        } else {
-            engine.play()
-        }
+    private func sync(_ commit: WatchRSVPPositionCommit?) {
+        guard let commit else { return }
+        syncService.syncReadingPosition(
+            bookId: commit.bookId,
+            bookTitle: commit.bookTitle,
+            wordIndex: commit.wordIndex
+        )
     }
 }

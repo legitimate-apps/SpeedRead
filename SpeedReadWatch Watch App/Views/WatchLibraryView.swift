@@ -10,11 +10,15 @@ struct WatchLibraryView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if syncService.isReceiving {
+                switch WatchLibraryLogic.state(
+                    isReceiving: syncService.isReceiving,
+                    library: syncService.library
+                ) {
+                case .receiving:
                     receivingState
-                } else if syncService.library.books.isEmpty {
+                case .empty:
                     emptyState
-                } else {
+                case .books:
                     bookList
                 }
             }
@@ -168,10 +172,7 @@ struct WatchLibraryView: View {
     // MARK: - Actions
 
     private func deleteBooks(at offsets: IndexSet) {
-        let sorted = syncService.library.sortedBooks
-        for index in offsets {
-            syncService.library.removeBook(id: sorted[index].id)
-        }
+        WatchLibraryLogic.removeBooks(at: offsets, from: &syncService.library)
         syncService.persistLibrary()
     }
 }
