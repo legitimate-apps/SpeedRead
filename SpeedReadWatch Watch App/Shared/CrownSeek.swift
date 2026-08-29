@@ -20,11 +20,15 @@ enum CrownSeek {
     }
 
     /// Crown value -> word index.
+    ///
+    /// Inverted on purpose. The crown's bound value rises as the crown turns the way that reads
+    /// as *backwards* through a book, so a higher crown value maps to an earlier word. Reported by
+    /// the operator 2026-08-29 against the previous direct mapping.
     static func wordIndex(forCrownValue value: Double, wordCount: Int) -> Int {
         let top = maxIndex(wordCount: wordCount)
         guard top > 0 else { return 0 }
         let raw = value.isFinite ? Int(value.rounded()) : 0
-        return min(max(raw, 0), top)
+        return top - min(max(raw, 0), top)
     }
 
     /// Word index -> crown value. Must be the exact inverse of `wordIndex(forCrownValue:wordCount:)`
@@ -32,6 +36,6 @@ enum CrownSeek {
     static func crownValue(forWordIndex index: Int, wordCount: Int) -> Double {
         let top = maxIndex(wordCount: wordCount)
         guard top > 0 else { return 0 }
-        return Double(min(max(index, 0), top))
+        return Double(top - min(max(index, 0), top))
     }
 }
