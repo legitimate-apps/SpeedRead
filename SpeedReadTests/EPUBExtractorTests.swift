@@ -101,6 +101,178 @@ struct EPUBExtractorTests {
         #expect(result.text.contains("Chapter One"))
     }
 
+    @Test func recoversSpineIDRefThatNamesExistingChapter() throws {
+        let epubData = makeEPUB(
+            opfPath: "OEBPS/content.opf",
+            opfXML: """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+              <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                <dc:title>Recoverable Spine</dc:title>
+              </metadata>
+              <manifest>
+                <item id="ch1" href="Text/ch1.xhtml" media-type="application/xhtml+xml"/>
+              </manifest>
+              <spine>
+                <itemref idref="ch1"/>
+                <itemref idref="Text/ch2.xhtml"/>
+              </spine>
+            </package>
+            """,
+            chapters: [
+                ("OEBPS/Text/ch1.xhtml", utf8Chapter("First chapter sentinel.")),
+                ("OEBPS/Text/ch2.xhtml", utf8Chapter("Recovered second chapter sentinel.")),
+            ]
+        )
+
+        let result = try EPUBExtractor().extractText(from: epubData)
+
+        #expect(result.text.contains("First chapter sentinel."))
+        #expect(result.text.contains("Recovered second chapter sentinel."))
+    }
+
+    @Test func resolvesParentAndCurrentDirectorySegmentsInChapterHref() throws {
+        let epubData = makeEPUB(
+            opfPath: "OPS/Package/content.opf",
+            opfXML: standardOPF(hrefs: [("ch1", "../Text/./ch1.xhtml")]),
+            chapters: [
+                ("OPS/Text/ch1.xhtml", utf8Chapter("Normalized path chapter sentinel.")),
+            ]
+        )
+
+        let result = try EPUBExtractor().extractText(from: epubData)
+
+        #expect(result.text.contains("Normalized path chapter sentinel."))
+    }
+
+    @Test func missingSpineChapterEntryThrowsInsteadOfReturningPartialBook() {
+        let epubData = makeEPUB(
+            opfXML: standardOPF(hrefs: [
+                ("ch1", "chapter1.xhtml"),
+                ("ch2", "missing.xhtml"),
+            ]),
+            chapters: [
+                ("chapter1.xhtml", utf8Chapter("Only the first chapter is present.")),
+            ]
+        )
+
+        #expect(throws: ExtractionError.self) {
+            try EPUBExtractor().extractText(from: epubData)
+        }
+    }
+
+    @Test func decodesChapterUsingDeclaredISO88591Encoding() throws {
+        let chapter = """
+        <?xml version="1.0" encoding="ISO-8859-1"?>
+        <html xmlns="http://www.w3.org/1999/xhtml"><body><p>Café déjà lu.</p></body></html>
+        """.data(using: .isoLatin1)!
+        let epubData = makeEPUB(
+            opfXML: standardOPF(hrefs: [("ch1", "chapter1.xhtml")]),
+            chapters: [("chapter1.xhtml", chapter)]
+        )
+
+        let result = try EPUBExtractor().extractText(from: epubData)
+
+        #expect(result.text.contains("Café déjà lu."))
+    }
+
+    @Test func parsesSingleQuotedManifestAndSpineAttributes() throws {
+        let epubData = makeEPUB(
+            opfXML: """
+            <?xml version='1.0' encoding='UTF-8'?>
+            <package xmlns='http://www.idpf.org/2007/opf' version='3.0'>
+              <metadata xmlns:dc='http://purl.org/dc/elements/1.1/'>
+                <dc:title>Single Quotes</dc:title>
+                <dc:creator>Quoted Author</dc:creator>
+              </metadata>
+              <manifest>
+                <item media-type='application/xhtml+xml' href='chapter1.xhtml' id='ch1'/>
+              </manifest>
+              <spine>
+                <itemref linear='yes' idref='ch1'/>
+              </spine>
+            </package>
+            """,
+            chapters: [
+                ("chapter1.xhtml", utf8Chapter("Single-quoted attribute sentinel.")),
+            ]
+        )
+
+        let result = try EPUBExtractor().extractText(from: epubData)
+
+        #expect(result.title == "Single Quotes")
+        #expect(result.author == "Quoted Author")
+        #expect(result.text.contains("Single-quoted attribute sentinel."))
+    }
+
+    @Test func unsupportedDeclaredChapterEncodingThrowsInsteadOfReturningPartialBook() {
+        let unsupportedChapter = Data("""
+        <?xml version="1.0" encoding="x-speedread-unsupported"?>
+        <html><body><p>This must never disappear silently.</p></body></html>
+        """.utf8)
+        let epubData = makeEPUB(
+            opfXML: standardOPF(hrefs: [
+                ("ch1", "chapter1.xhtml"),
+                ("ch2", "chapter2.xhtml"),
+            ]),
+            chapters: [
+                ("chapter1.xhtml", utf8Chapter("First chapter remains decodable.")),
+                ("chapter2.xhtml", unsupportedChapter),
+            ]
+        )
+
+        #expect(throws: ExtractionError.self) {
+            try EPUBExtractor().extractText(from: epubData)
+        }
+    }
+
+    private func makeEPUB(
+        opfPath: String = "content.opf",
+        opfXML: String,
+        chapters: [(name: String, data: Data)]
+    ) -> Data {
+        let containerXML = Data("""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+          <rootfiles>
+            <rootfile full-path="\(opfPath)" media-type="application/oebps-package+xml"/>
+          </rootfiles>
+        </container>
+        """.utf8)
+        let files: [(name: String, data: Data)] = [
+            ("mimetype", Data("application/epub+zip".utf8)),
+            ("META-INF/container.xml", containerXML),
+            (opfPath, Data(opfXML.utf8)),
+        ] + chapters
+        return buildStoredZIP(files: files)
+    }
+
+    private func standardOPF(hrefs: [(id: String, href: String)]) -> String {
+        let manifest = hrefs.map {
+            "<item id=\"\($0.id)\" href=\"\($0.href)\" media-type=\"application/xhtml+xml\"/>"
+        }.joined(separator: "\n")
+        let spine = hrefs.map {
+            "<itemref idref=\"\($0.id)\"/>"
+        }.joined(separator: "\n")
+        return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+          <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+            <dc:title>Fixture Book</dc:title>
+          </metadata>
+          <manifest>\(manifest)</manifest>
+          <spine>\(spine)</spine>
+        </package>
+        """
+    }
+
+    private func utf8Chapter(_ text: String) -> Data {
+        Data("""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <html xmlns="http://www.w3.org/1999/xhtml"><body><p>\(text)</p></body></html>
+        """.utf8)
+    }
+
     /// Builds a minimal ZIP archive using stored (no compression) method.
     private func buildStoredZIP(files: [(name: String, data: Data)]) -> Data {
         var archive = Data()
