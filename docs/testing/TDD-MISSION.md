@@ -232,3 +232,65 @@ sees a shorter book and is told nothing.
 passing tests, and a silent data-loss path in the single most important thing the app does. Coverage
 found none of it; *reading the failure branches* found all of it. Any future push toward 100% that
 does not ask "what happens on the else branch that isn't written" will reproduce exactly this.
+
+## 10. Operator decisions (2026-08-29) — these are settled, do not re-litigate
+
+1. **The gate is ATTRIBUTABLE, not HEADLINE.** Drive ATTRIBUTABLE and REACH to ~100%; report
+   HEADLINE honestly alongside but do not gate on it. Rationale accepted: "covered" must mean *a
+   test would fail if it broke*, and a literal 100% headline on a SwiftUI app is dominated at the
+   margin by assertion-free renders of declarative markup — the laundering the mandate exists to
+   prevent. **GHOST lines are reported and never count as progress.**
+   → `Scripts/coverage.sh` must move its threshold from combined headline to attributable.
+2. **CI: add a self-hosted `speedread-mac` runner** for `legitimate-apps/SpeedRead` — 5th per-repo
+   runner on this Mac, alongside `orrery-mac`, `faceoff-mac`, `command-mac`, `ntfyng-mac`. Private
+   repo, so self-hosted is safe. Must have `concurrency: cancel-in-progress`, per-job
+   `timeout-minutes`, and a row in `~/.claude/STANDING-AUTOMATION.md` with an off-switch. Never
+   GitHub-hosted macOS (10× multiplier).
+3. **Release: quality now, ship on the operator's word.** 1.2 stays staged and ready; do not
+   archive, submit, or touch version numbers. Note the release will have real substance whenever
+   it is called — B4 (RSVP scrub jump) and B15 (swipe registers as tap) are both live defects on
+   the shipping 1.1.
+
+## 11. Leg 2 result — VERIFIED INDEPENDENTLY 2026-08-29
+
+Reproduced by the manager with a bare `xcodebuild test` (no `-testPlan`, no `-only-testing`):
+`environmentDescription: Hermetic`, **182 tests, 0 skipped, 0 failed**.
+
+| | baseline | after leg 2 |
+|---|---|---|
+| HEADLINE | 17.77% (1486/8362) | **42.91%** (3700/8623) |
+| ATTRIBUTABLE | 72.50% | **81.42%** (3282/4031) |
+| REACH | 19.3% | **46.7%** — more than doubled |
+| GHOST | 318 lines / 4 files | 418 lines / 5 files |
+
+**The gain is attributable, not ghost** — that was the thing worth checking, and it held.
+`ReaderView` 0% → 85.82%, `RSVPView` 0% → 86.39%, both new session types at 100%. The denominator
+*grew* (8362 → 8623) rather than shrinking, so nothing was hidden.
+
+**Red-first discipline is verifiable in history**, not just claimed: every `test(...) red` commit
+precedes its `feat`/`fix` counterpart, and the red commits carry an intentionally inert production
+scaffold whose comment says so. The B4 fix (`f063ad6`) is 5 insertions: `lastDragTime = nil` added
+to the gesture reset, plus threshold classification for B15.
+
+**My B4 hypothesis was right and the roadmap was wrong.** The roadmap blamed the `lastDragX` reset;
+that reset is *required*, because `DragGesture.Value.translation` restarts at zero each gesture. The
+real defect was the missing `lastDragTime` reset, which let a new drag inherit the previous
+gesture's timestamp and compute ~1600 pt/s of phantom velocity — dropping effective resolution from
+8 pt/word to 2.5 and jumping six words instead of two.
+
+**Deviation accepted:** Sol declined roadmap I4 (split the RSVP tap zone into top/bottom halves),
+arguing one recognizer distinguishes tap from scrub by distance threshold without making users learn
+spatial zones or shrinking either action's surface. That is the better design and B15 is genuinely
+fixed. I4 should be closed as "won't do", not left pending.
+
+## 12. Open finding — RSVP play/pause is unreachable by assistive technology
+
+`RSVPView` has no accessible play/pause control. The only way to start or stop the stream is
+tapping the word display, which is a bare `DragGesture(minimumDistance: 0)` (previously
+`.onTapGesture` — equally invisible). VoiceOver, Voice Control, Switch Control and keyboard cannot
+reach the **primary interaction of the app's flagship mode**. Not a regression from leg 2; a
+pre-existing defect leg 2 walked past.
+
+This sits directly against the *reasoning* behind CORPUS §4.5 ("tappable words are `Button`s —
+Voice Control, focus and keyboard navigation depend on it"). The invariant is written for reader
+words; the argument applies identically here. Roadmap I16–I19 already carry a11y work. Queue it.

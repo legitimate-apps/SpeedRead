@@ -27,7 +27,7 @@ This document is the source of truth for known issues, planned improvements, and
 | B1 | High | Perf | `SpeedRead/Models/Book.swift:17-20,42-44,77-90`; `SpeedRead/Views/RSVPView.swift:127-131` | `Book.words` re-tokenizes on every access; RSVPView calls it 3× | fixed |
 | B2 | High | EPUB | `EPUBExtractor.swift:65-147` | ZIP reader does O(n²) byte scans; no Central Directory fallback; full byte copy in memory | pending |
 | B3 | High | EPUB | `EPUBExtractor.swift:236-272` | Spine href resolution doesn't normalize `..` paths; chapters can be silently dropped | pending |
-| B4 | Med | Gesture | `RSVPView.swift:262-298` | `lastDragX` reset on `.onEnded`; first sample after drag-start has full translation as delta → visual jump | pending |
+| B4 | Med | Gesture | `RSVPPresentationSession.swift` (was `RSVPView.swift:262-298`) | **Root cause was misdiagnosed in this row.** Resetting `lastDragX` is *required* — `DragGesture.Value.translation` restarts at zero each gesture. The actual defect was the **missing `lastDragTime` reset**, so a new drag inherited the previous gesture's timestamp, computed ~1600 pt/s of phantom velocity, and dropped effective resolution from 8 pt/word to 2.5 — jumping six words instead of two. Fixed red-first in `f063ad6`; the test drives samples *across* a gesture boundary, which is the only way this class of bug is visible. | fixed |
 | B5 | Med | Engine | `SpeedRead/Engine/RSVPEngine.swift:22-25,47-50,147-153` | At end-of-book, progress < 1.0 because index = count - 1 | fixed |
 | B6 | Med | RSVP dismiss | `SpeedRead/Engine/RSVPEngine.swift:83-95`; `SpeedRead/Views/RSVPView.swift:81-85` | Pause-then-read may capture a tick that already advanced; read currentIndex before pausing | fixed |
 | B7 | Med | Reader scroll | `SpeedRead/Views/ReaderView.swift:48-61` | `asyncAfter(0.05)` hack to scroll after layout — race-prone | fixed |
@@ -38,10 +38,10 @@ This document is the source of truth for known issues, planned improvements, and
 | B12 | Low | Animation | `LibraryView.swift:84` | `.animation(value: bool)` doesn't animate enum-state transitions | pending |
 | B13 | Low | Library | `SpeedRead/Views/LibraryView.swift:18,42-45` | `loadSampleBooksIfNeeded` runs on every appear; should run once at app launch | fixed |
 | B14 | Low | A11y | `SpeedRead/Views/ReaderView.swift:156-184` | `onTapGesture` instead of `Button` breaks Voice Control / focus / keyboard | fixed |
-| B15 | Low | Gesture | `RSVPView.swift:50-54` | Tap and scrub on same view conflict; quick swipes register as taps | pending |
+| B15 | Low | Gesture | `RSVPView.swift` / `RSVPPresentationSession.swift` | Tap and scrub were two independent recognizers on one surface. Now a single `DragGesture(minimumDistance: 0)` whose completed movement is classified against `ReaderConfig.RSVP.scrubActivationDistance` — below it is play/pause, at or above is scrub-only. Fixed red-first in `f063ad6`. | fixed |
 | B16 | Low | UI dup | `ReaderView.swift:418-495` vs `BookmarkListView`/`HighlightListView` | Two divergent list implementations for the same model | pending |
 | B17 | High | iPad layout | `SpeedRead/Views/LibraryView.swift:21-27,172-203`; `SpeedRead/Views/BookshelfRowView.swift:13-20,26-50`; `SpeedRead/Views/BookSpineView.swift:12-15,44-56,74` | iPad library is phone-scale and top-heavy: fixed four-book chunks, model-only rows with no viewport fill, fixed 60×120-180 pt spines, fixed 9/7 pt type, leading-edge packing plus one trailing `Spacer`, a full-width plank masking narrow content, no adaptive grid/size-class branch, and no vertical-fill policy. Estimated fix: ~25-50 lines across `LibraryView` / `BookshelfRowView` / `BookSpineView`. | fixed |
-| B18 | Med | Swift 6 / SwiftData | `SpeedReadTests/OPDSLiveIntegrationTests.swift:112-113` | Three warning groups become errors in Swift 6 mode: unavailable `Book: Sendable`, non-Sendable `ModelContext` captured by an `@Sendable` closure, and non-Sendable `Book` captured by the generated `#expect` closure. | pending |
+| B18 | Med | Swift 6 / SwiftData | `SpeedReadIntegrationTests/OPDSLiveIntegrationTests.swift` (moved out of the hermetic target 2026-08-29 — **re-check whether the warnings survived the move before working this**) | Three warning groups become errors in Swift 6 mode: unavailable `Book: Sendable`, non-Sendable `ModelContext` captured by an `@Sendable` closure, and non-Sendable `Book` captured by the generated `#expect` closure. | pending |
 | B19 | Low | watchOS assets | `SpeedRead/Assets.xcassets` (Xcode 26.6 watch build diagnostic; no source line) | Asset catalog warns: `Could not get trait set for device Watch7,18 with version 26.5`. | pending |
 
 ## B. Improvements (code quality, polish)
@@ -50,8 +50,8 @@ This document is the source of truth for known issues, planned improvements, and
 |----|------|-------------|--------|
 | I1 | Perf | Move tokenization off main actor for very large books | pending |
 | I2 | Architecture | Persist tokenized words at import time, not per-open (`SpeedRead/Models/Book.swift:17-20,42-44`; `SpeedRead/Services/DocumentImporter.swift:50-58`) | fixed |
-| I3 | Architecture | Extract `ReaderSession` view-model from `ReaderView` | pending |
-| I4 | UX | Split RSVP tap-zone (top half play/pause, bottom half scrub) | pending |
+| I3 | Architecture | Extract `ReaderSession` view-model from `ReaderView` | fixed — `ReaderSession.swift` at 100% line coverage; `ReaderView.swift` fell 542 → 349 lines and is now presentation over an injected session |
+| I4 | UX | Split RSVP tap-zone (top half play/pause, bottom half scrub) | **won't do** — superseded by B15's fix. One recognizer distinguishes tap from scrub by distance threshold, so the zone split would make users learn spatial regions and shrink each action's effective surface for no gain. Deliberate design decision, 2026-08-29. |
 | I5 | UX | Flash tapped word red briefly before RSVP slides up (`SpeedRead/Views/ReaderView.swift:160-178,293-310`) | fixed |
 | I6 | UX | Reader header shows "X min remaining" at current WPM (`SpeedRead/Views/ReaderView.swift:71-80,271-283`) | fixed |
 | I7 | UX | Long-press word → context menu (define, copy, highlight, bookmark) | pending |
@@ -74,9 +74,9 @@ This document is the source of truth for known issues, planned improvements, and
 | I24 | Test | Real `.epub` integration test against bundled fixtures | pending |
 | I25 | Test | Fuzz `WordFlowLayout` width edge cases (0, .infinity) | pending |
 | I26 | Code | Add `RSVPEngine.isLoaded` flag; don't infer from `totalWords > 0` | done (R1) |
-| I27 | Code | Split `ReaderView.swift` (palette, settings sheet, pickers into own files) | pending |
+| I27 | Code | Split `ReaderView.swift` (palette, settings sheet, pickers into own files) | fixed — split into `ReaderTheme.swift`, `ReaderSheets.swift`, `ReaderSession.swift`, `ReaderConfig.swift` |
 | I28 | Code | Unify reader theme + shelf theme into one system | pending |
-| I29 | Code | Constants → `ReaderConfig` namespace | pending |
+| I29 | Code | Constants → `ReaderConfig` namespace | fixed — `ReaderConfig.swift` holds reader + RSVP behaviour constants, and tests assert against it, so changing a threshold is a visible diff rather than a buried modifier argument |
 | I30 | DX | SwiftUI `#Preview` for `ReaderView` | pending |
 | I31 | Test | **STANDING GOAL (operator):** automated Apple Watch and phone↔watch sync coverage, LANDED 2026-08-13 (15 tests: codec, reconciliation, fallback routing, watchlibrary.json recovery) AND verified end-to-end on a paired iPhone+Watch simulator: watch-sent index 137 persisted to the phone's SwiftData store (0->137, timestamp exact), a 1h-stale context was rejected (stayed 137), and a newer context applied (137->88) as a positive control proving delivery was live. Evidence is direct sqlite reads of the phone's default.store. Covers transfer, persistence, update, failure, and recovery paths | pending |
 | I32 | Integration | **STANDING GOAL (operator):** “see my Calibre library in SpeedRead” remote-library integration; remain generic-OPDS-first, with Calibre-Web-NextGen as the recommended path | pending |
@@ -161,3 +161,18 @@ Each round is its own session/PR. This doc gets the Changelog updated.
 - **2026-08-13** — Round 6 health and backlog truth sweep: Xcode 26.6, 134/134 unit tests passing, watch target building clean. Reclassified B1-B16 and I1-I19 from current source; added B17-B19 plus standing/gated improvements I31-I33. Project thesis and standing-goal authority moved to root `CORPUS.md`.
 - **2026-08-13** — Round 7 landed: B17 (iPad adaptive bookcase layout — width-derived shelf capacity, equal centered slots, vertical fill, regular-width furniture and 112x224-300pt spines; compact width unchanged) and I15 (landscape, subsumed). Watch position sync fixed in both directions — it worked in neither — with a WCSession-free seam and 15 new tests (I31 partial). Security: server credentials removed from source and from Release binaries, verified by before/after binary inspection. 150 unit tests in 22 suites + 15 UI tests passing.
 - **2026-08-13** — Watch<->phone position sync verified END-TO-END on a paired simulator (not just unit-tested): apply, stale-reject, and a positive-delivery control, all read directly from the phone's SwiftData store. Closes the caveat recorded on commit `77da524`.
+- **2026-08-29** — Round 8, TDD mandate. Coverage had **never been measured** on this project: no
+  `.xctestplan` existed and neither shared scheme set `codeCoverageEnabled`. Honest baseline was
+  **17.77%** (1486/8362 iOS lines), with the entire SwiftUI view layer at 0% — 74% of the code.
+  Landed: four test-plan lanes (`Hermetic` as scheme default and offline, `Integration` in its own
+  target, `UI`, `WatchHermetic`), so the default lane went from 150 tests with 5 silent env-gated
+  skips to 144 with none; `Scripts/coverage.sh` with a visible and deliberately empty exclusion
+  list; the watch lane executing for the first time (0% → 7.06%, tests that already existed);
+  `ReaderSession` and `RSVPPresentationSession` extracted at 100% coverage each, with `ReaderView`
+  0% → 85.82% and `RSVPView` 0% → 86.39%; B4 and B15 fixed red-first; all five CORPUS §4.6
+  `DispatchQueue.main.asyncAfter` violations replaced with cancellable `.task(id:)`; three
+  invariants that existed only as code comments now pinned by tests, one with a negative control.
+  A duplicate-commit defect not on this roadmap was found and fixed en route: RSVP Close committed
+  the snapshot and then `onDisappear` committed and synced it again.
+  Coverage after: **42.91%** headline, **81.42%** attributable, reach 19.3% → 46.7%. Verified
+  independently by the manager, not taken from the implementer's report.
