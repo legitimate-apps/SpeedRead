@@ -70,87 +70,280 @@ struct EPUBExtractor: TextExtractor {
     /// Reads all entries from a ZIP archive into memory.
     /// Supports Store (method 0) and Deflate (method 8).
     static func unzipEntries(from data: Data) throws -> [String: Data] {
+        let bytes = [UInt8](data)
+        guard !bytes.isEmpty else { throw ExtractionError.invalidData }
+
+        let entries: [String: Data]
+        if let centralDirectory = try readCentralDirectory(in: bytes) {
+            entries = try extractCentralDirectoryEntries(centralDirectory, from: bytes)
+        } else {
+            entries = try extractLocalHeaderEntries(from: bytes)
+        }
+
+        guard !entries.isEmpty else { throw ExtractionError.invalidData }
+        return entries
+    }
+
+    private struct ZIPCentralEntry {
+        let name: String
+        let flags: UInt16
+        let method: UInt16
+        let checksum: UInt32
+        let compressedSize: Int
+        let uncompressedSize: Int
+        let localHeaderOffset: Int
+    }
+
+    private static func readCentralDirectory(in bytes: [UInt8]) throws -> [ZIPCentralEntry]? {
+        guard bytes.count >= 22 else { return nil }
+
+        let earliestEOCD = max(0, bytes.count - 22 - Int(UInt16.max))
+        var endOffset = bytes.count - 22
+        var eocdOffset: Int?
+        while endOffset >= earliestEOCD {
+            if readUInt32(bytes, at: endOffset) == 0x06054b50 {
+                let commentLength = Int(readUInt16(bytes, at: endOffset + 20))
+                if endOffset + 22 + commentLength <= bytes.count {
+                    eocdOffset = endOffset
+                    break
+                }
+            }
+            endOffset -= 1
+        }
+
+        guard let eocdOffset else { return nil }
+        let diskNumber = readUInt16(bytes, at: eocdOffset + 4)
+        let directoryDisk = readUInt16(bytes, at: eocdOffset + 6)
+        let entriesOnDisk = readUInt16(bytes, at: eocdOffset + 8)
+        let totalEntries = readUInt16(bytes, at: eocdOffset + 10)
+        guard diskNumber == 0,
+              directoryDisk == 0,
+              entriesOnDisk == totalEntries,
+              totalEntries != UInt16.max else {
+            throw ExtractionError.invalidData
+        }
+
+        let directorySize = Int(readUInt32(bytes, at: eocdOffset + 12))
+        let directoryOffset = Int(readUInt32(bytes, at: eocdOffset + 16))
+        guard directoryOffset <= bytes.count,
+              directorySize <= bytes.count - directoryOffset,
+              directoryOffset + directorySize <= eocdOffset else {
+            throw ExtractionError.invalidData
+        }
+
+        var entries: [ZIPCentralEntry] = []
+        entries.reserveCapacity(Int(totalEntries))
+        var offset = directoryOffset
+        for _ in 0..<totalEntries {
+            guard offset + 46 <= bytes.count,
+                  readUInt32(bytes, at: offset) == 0x02014b50 else {
+                throw ExtractionError.invalidData
+            }
+
+            let flags = readUInt16(bytes, at: offset + 8)
+            let method = readUInt16(bytes, at: offset + 10)
+            let checksum = readUInt32(bytes, at: offset + 16)
+            let compressedSize32 = readUInt32(bytes, at: offset + 20)
+            let uncompressedSize32 = readUInt32(bytes, at: offset + 24)
+            let nameLength = Int(readUInt16(bytes, at: offset + 28))
+            let extraLength = Int(readUInt16(bytes, at: offset + 30))
+            let commentLength = Int(readUInt16(bytes, at: offset + 32))
+            let localHeaderOffset32 = readUInt32(bytes, at: offset + 42)
+            guard compressedSize32 != UInt32.max,
+                  uncompressedSize32 != UInt32.max,
+                  localHeaderOffset32 != UInt32.max else {
+                throw ExtractionError.invalidData
+            }
+
+            let nameStart = offset + 46
+            let recordEnd = nameStart + nameLength + extraLength + commentLength
+            guard recordEnd <= bytes.count else { throw ExtractionError.invalidData }
+            let name = try decodeZIPEntryName(
+                bytes[nameStart..<(nameStart + nameLength)],
+                isUTF8: flags & 0x0800 != 0
+            )
+
+            entries.append(ZIPCentralEntry(
+                name: name,
+                flags: flags,
+                method: method,
+                checksum: checksum,
+                compressedSize: Int(compressedSize32),
+                uncompressedSize: Int(uncompressedSize32),
+                localHeaderOffset: Int(localHeaderOffset32)
+            ))
+            offset = recordEnd
+        }
+
+        guard offset == directoryOffset + directorySize else {
+            throw ExtractionError.invalidData
+        }
+        return entries
+    }
+
+    private static func extractCentralDirectoryEntries(
+        _ directory: [ZIPCentralEntry],
+        from bytes: [UInt8]
+    ) throws -> [String: Data] {
+        var entries: [String: Data] = [:]
+        entries.reserveCapacity(directory.count)
+
+        for entry in directory {
+            guard entry.flags & 0x0001 == 0,
+                  entry.localHeaderOffset + 30 <= bytes.count,
+                  readUInt32(bytes, at: entry.localHeaderOffset) == 0x04034b50 else {
+                throw ExtractionError.invalidData
+            }
+
+            let localNameLength = Int(readUInt16(bytes, at: entry.localHeaderOffset + 26))
+            let localExtraLength = Int(readUInt16(bytes, at: entry.localHeaderOffset + 28))
+            let dataStart = entry.localHeaderOffset + 30 + localNameLength + localExtraLength
+            guard dataStart <= bytes.count,
+                  entry.compressedSize <= bytes.count - dataStart else {
+                throw ExtractionError.invalidData
+            }
+
+            if entry.name.hasSuffix("/") { continue }
+            let compressedData = Data(bytes[dataStart..<(dataStart + entry.compressedSize)])
+            let extracted = try extractZIPPayload(
+                compressedData,
+                method: entry.method,
+                expectedSize: entry.uncompressedSize
+            )
+            guard extracted.count == entry.uncompressedSize,
+                  crc32(extracted) == entry.checksum,
+                  entries.updateValue(extracted, forKey: entry.name) == nil else {
+                throw ExtractionError.invalidData
+            }
+        }
+        return entries
+    }
+
+    private static func extractLocalHeaderEntries(from bytes: [UInt8]) throws -> [String: Data] {
         var entries: [String: Data] = [:]
         var offset = 0
-        let bytes = [UInt8](data)
-        let count = bytes.count
 
-        while offset + 30 <= count {
-            // Local file header signature = 0x04034b50
-            let sig = readUInt32(bytes, at: offset)
-            guard sig == 0x04034b50 else { break }
-
-            let generalFlag = readUInt16(bytes, at: offset + 6)
-            let hasDataDescriptor = (generalFlag & 0x0008) != 0
+        while offset + 30 <= bytes.count {
+            guard readUInt32(bytes, at: offset) == 0x04034b50 else { break }
+            let flags = readUInt16(bytes, at: offset + 6)
             let method = readUInt16(bytes, at: offset + 8)
+            var checksum = readUInt32(bytes, at: offset + 14)
             var compressedSize = Int(readUInt32(bytes, at: offset + 18))
             var uncompressedSize = Int(readUInt32(bytes, at: offset + 22))
             let nameLength = Int(readUInt16(bytes, at: offset + 26))
             let extraLength = Int(readUInt16(bytes, at: offset + 28))
-
             let nameStart = offset + 30
-            guard nameStart + nameLength <= count else { throw ExtractionError.invalidData }
-            let nameData = Data(bytes[nameStart..<nameStart + nameLength])
-            let name = String(data: nameData, encoding: .utf8) ?? ""
-
             let dataStart = nameStart + nameLength + extraLength
-
-            // Handle data descriptor (bit 3): sizes may be zero in local header
-            if hasDataDescriptor && compressedSize == 0 && uncompressedSize == 0 {
-                // Scan forward for data descriptor signature 0x08074b50
-                var scanOffset = dataStart
-                var found = false
-                while scanOffset + 16 <= count {
-                    if readUInt32(bytes, at: scanOffset) == 0x08074b50 {
-                        // Data descriptor: signature(4) + crc32(4) + compressedSize(4) + uncompressedSize(4)
-                        compressedSize = Int(readUInt32(bytes, at: scanOffset + 8))
-                        uncompressedSize = Int(readUInt32(bytes, at: scanOffset + 12))
-                        found = true
-                        break
-                    }
-                    scanOffset += 1
-                }
-                if !found {
-                    offset = dataStart
-                    continue
-                }
+            guard flags & 0x0001 == 0,
+                  nameStart + nameLength <= bytes.count,
+                  dataStart <= bytes.count else {
+                throw ExtractionError.invalidData
             }
 
-            let dataEnd = dataStart + compressedSize
-            guard dataEnd <= count else { throw ExtractionError.invalidData }
-
-            let compressedData = Data(bytes[dataStart..<dataEnd])
-
-            if !name.hasSuffix("/") && uncompressedSize > 0 {
-                if method == 0 {
-                    // Stored
-                    entries[name] = compressedData
-                } else if method == 8 {
-                    // Deflate — use Compression framework (raw deflate)
-                    if let decompressed = Self.inflateRaw(compressedData, expectedSize: uncompressedSize) {
-                        entries[name] = decompressed
-                    }
+            let name = try decodeZIPEntryName(
+                bytes[nameStart..<(nameStart + nameLength)],
+                isUTF8: flags & 0x0800 != 0
+            )
+            let hasDescriptor = flags & 0x0008 != 0
+            var descriptorLength = 0
+            if hasDescriptor && compressedSize == 0 && uncompressedSize == 0 {
+                guard let descriptorOffset = firstSignature(
+                    0x08074b50,
+                    in: bytes,
+                    startingAt: dataStart
+                ), descriptorOffset + 16 <= bytes.count else {
+                    throw ExtractionError.invalidData
                 }
+                checksum = readUInt32(bytes, at: descriptorOffset + 4)
+                compressedSize = Int(readUInt32(bytes, at: descriptorOffset + 8))
+                uncompressedSize = Int(readUInt32(bytes, at: descriptorOffset + 12))
+                guard dataStart + compressedSize == descriptorOffset else {
+                    throw ExtractionError.invalidData
+                }
+                descriptorLength = 16
+            } else if hasDescriptor {
+                descriptorLength = dataStart + compressedSize + 4 <= bytes.count
+                    && readUInt32(bytes, at: dataStart + compressedSize) == 0x08074b50
+                    ? 16 : 12
             }
 
-            // Advance past data descriptor if present
-            if hasDataDescriptor {
-                // Check for signature-based descriptor (16 bytes) or without signature (12 bytes)
-                if dataEnd + 4 <= count && readUInt32(bytes, at: dataEnd) == 0x08074b50 {
-                    offset = dataEnd + 16
-                } else {
-                    offset = dataEnd + 12
-                }
-            } else {
-                offset = dataEnd
+            guard compressedSize <= bytes.count - dataStart else {
+                throw ExtractionError.invalidData
             }
+            if !name.hasSuffix("/") {
+                let compressedData = Data(bytes[dataStart..<(dataStart + compressedSize)])
+                let extracted = try extractZIPPayload(
+                    compressedData,
+                    method: method,
+                    expectedSize: uncompressedSize
+                )
+                guard extracted.count == uncompressedSize,
+                      crc32(extracted) == checksum,
+                      entries.updateValue(extracted, forKey: name) == nil else {
+                    throw ExtractionError.invalidData
+                }
+            }
+            offset = dataStart + compressedSize + descriptorLength
         }
+        return entries
+    }
 
-        if entries.isEmpty && count > 0 {
+    private static func decodeZIPEntryName(
+        _ bytes: ArraySlice<UInt8>,
+        isUTF8: Bool
+    ) throws -> String {
+        let data = Data(bytes)
+        if let utf8 = String(data: data, encoding: .utf8) {
+            return utf8
+        }
+        guard !isUTF8, let legacy = String(data: data, encoding: .isoLatin1) else {
             throw ExtractionError.invalidData
         }
+        return legacy
+    }
 
-        return entries
+    private static func extractZIPPayload(
+        _ compressedData: Data,
+        method: UInt16,
+        expectedSize: Int
+    ) throws -> Data {
+        switch method {
+        case 0:
+            return compressedData
+        case 8:
+            if expectedSize == 0 { return Data() }
+            guard let inflated = inflateRaw(compressedData, expectedSize: expectedSize) else {
+                throw ExtractionError.invalidData
+            }
+            return inflated
+        default:
+            throw ExtractionError.invalidData
+        }
+    }
+
+    private static func firstSignature(
+        _ signature: UInt32,
+        in bytes: [UInt8],
+        startingAt start: Int
+    ) -> Int? {
+        guard start <= bytes.count - 4 else { return nil }
+        for offset in start...(bytes.count - 4) where readUInt32(bytes, at: offset) == signature {
+            return offset
+        }
+        return nil
+    }
+
+    private static func crc32(_ data: Data) -> UInt32 {
+        var checksum: UInt32 = 0xFFFF_FFFF
+        for byte in data {
+            checksum ^= UInt32(byte)
+            for _ in 0..<8 {
+                checksum = checksum & 1 == 0
+                    ? checksum >> 1
+                    : (checksum >> 1) ^ 0xEDB8_8320
+            }
+        }
+        return checksum ^ 0xFFFF_FFFF
     }
 
     private static func readUInt16(_ bytes: [UInt8], at offset: Int) -> UInt16 {
