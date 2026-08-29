@@ -89,7 +89,7 @@ struct WatchRSVPView: View {
         .digitalCrownRotation(
             $crownValue,
             from: 0,
-            through: max(1, Double(words.count - 1)),
+            through: CrownSeek.crownUpperBound(wordCount: words.count),
             by: 1,
             sensitivity: .medium,
             isContinuous: false,
@@ -97,14 +97,14 @@ struct WatchRSVPView: View {
         )
         .onChange(of: crownValue) { _, newValue in
             if engine.state != .playing {
-                engine.seek(to: Int(newValue))
+                engine.seek(to: CrownSeek.wordIndex(forCrownValue: newValue, wordCount: words.count))
             }
         }
         .onAppear {
             guard let book = currentBook else { return }
             engine.load(words: book.words, startingAt: book.lastReadIndex)
             engine.wpm = persistedWPM
-            crownValue = Double(book.lastReadIndex)
+            crownValue = CrownSeek.crownValue(forWordIndex: book.lastReadIndex, wordCount: book.words.count)
         }
         .onDisappear {
             if let book = currentBook {
