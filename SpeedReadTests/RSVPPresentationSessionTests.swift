@@ -83,6 +83,24 @@ struct RSVPPresentationSessionTests {
         #expect(engine.totalWords == 0)
     }
 
+    @Test func closeIsNotPersistedAgainWhenDisappearFollows() {
+        let book = makeBook(text: "zero one two")
+        let engine = RSVPEngine()
+        let session = RSVPPresentationSession()
+        let saver = RSVPSaver()
+        let sync = RSVPSync()
+        session.load(book: book, engine: engine, wpm: 300)
+        engine.seek(to: 2)
+
+        _ = session.close(engine: engine, book: book, saver: saver, sync: sync)
+        let duplicate = session.handleDisappear(engine: engine, book: book, saver: saver, sync: sync)
+
+        #expect(duplicate == nil)
+        #expect(saver.saveCount == 1)
+        #expect(sync.indices == [2])
+        #expect(engine.state == .idle)
+    }
+
     @Test func disappearDoesNotPersistAnUnloadedEngine() {
         let session = RSVPPresentationSession()
         let engine = RSVPEngine()
