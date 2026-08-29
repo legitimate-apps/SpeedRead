@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import Compression
 @testable import SpeedRead
 
 @Suite("EPUB Extractor Tests")
@@ -236,6 +237,54 @@ struct EPUBExtractorTests {
         }
     }
 
+    // MARK: - ZIP reader characterisation
+
+    @Test func unzipReadsStoredEntriesWithoutCentralDirectory() throws {
+        let first = Data("first stored payload".utf8)
+        let second = Data("second stored payload".utf8)
+        let archive = buildStoredZIP(
+            files: [("first.txt", first), ("nested/second.txt", second)],
+            includeCentralDirectory: false
+        )
+
+        let entries = try EPUBExtractor.unzipEntries(from: archive)
+
+        #expect(entries.count == 2)
+        #expect(entries["first.txt"] == first)
+        #expect(entries["nested/second.txt"] == second)
+    }
+
+    @Test func unzipReadsStoredEntryWithSignedDataDescriptor() throws {
+        let original = Data("descriptor-backed payload".utf8)
+        let archive = buildSingleEntryZIP(
+            name: "descriptor.txt",
+            originalData: original,
+            compressedData: original,
+            method: 0,
+            usesDataDescriptor: true
+        )
+
+        let entries = try EPUBExtractor.unzipEntries(from: archive)
+
+        #expect(entries == ["descriptor.txt": original])
+    }
+
+    @Test func unzipInflatesDeflatedEntry() throws {
+        let original = Data(String(repeating: "compressible chapter words ", count: 80).utf8)
+        let compressed = try #require(deflateRaw(original))
+        let archive = buildSingleEntryZIP(
+            name: "chapter.xhtml",
+            originalData: original,
+            compressedData: compressed,
+            method: 8,
+            usesDataDescriptor: false
+        )
+
+        let entries = try EPUBExtractor.unzipEntries(from: archive)
+
+        #expect(entries == ["chapter.xhtml": original])
+    }
+
     private func makeEPUB(
         opfPath: String = "content.opf",
         opfXML: String,
@@ -284,7 +333,10 @@ struct EPUBExtractorTests {
     }
 
     /// Builds a minimal ZIP archive using stored (no compression) method.
-    private func buildStoredZIP(files: [(name: String, data: Data)]) -> Data {
+    private func buildStoredZIP(
+        files: [(name: String, data: Data)],
+        includeCentralDirectory: Bool = true
+    ) -> Data {
         var archive = Data()
         var centralDirectory = Data()
         var centralEntryCount: UInt16 = 0
@@ -334,6 +386,8 @@ struct EPUBExtractorTests {
             centralEntryCount += 1
         }
 
+        guard includeCentralDirectory else { return archive }
+
         let cdOffset = UInt32(archive.count)
         archive.append(centralDirectory)
         let cdSize = UInt32(centralDirectory.count)
@@ -351,6 +405,94 @@ struct EPUBExtractorTests {
         archive.append(eocd)
 
         return archive
+    }
+
+    private func buildSingleEntryZIP(
+        name: String,
+        originalData: Data,
+        compressedData: Data,
+        method: UInt16,
+        usesDataDescriptor: Bool
+    ) -> Data {
+        let nameData = Data(name.utf8)
+        let checksum = crc32(originalData)
+        let flags: UInt16 = usesDataDescriptor ? 0x0008 : 0
+
+        var archive = Data()
+        archive.appendUInt32(0x04034b50)
+        archive.appendUInt16(20)
+        archive.appendUInt16(flags)
+        archive.appendUInt16(method)
+        archive.appendUInt16(0)
+        archive.appendUInt16(0)
+        archive.appendUInt32(usesDataDescriptor ? 0 : checksum)
+        archive.appendUInt32(usesDataDescriptor ? 0 : UInt32(compressedData.count))
+        archive.appendUInt32(usesDataDescriptor ? 0 : UInt32(originalData.count))
+        archive.appendUInt16(UInt16(nameData.count))
+        archive.appendUInt16(0)
+        archive.append(nameData)
+        archive.append(compressedData)
+
+        if usesDataDescriptor {
+            archive.appendUInt32(0x08074b50)
+            archive.appendUInt32(checksum)
+            archive.appendUInt32(UInt32(compressedData.count))
+            archive.appendUInt32(UInt32(originalData.count))
+        }
+
+        let centralDirectoryOffset = UInt32(archive.count)
+        var centralDirectory = Data()
+        centralDirectory.appendUInt32(0x02014b50)
+        centralDirectory.appendUInt16(20)
+        centralDirectory.appendUInt16(20)
+        centralDirectory.appendUInt16(flags)
+        centralDirectory.appendUInt16(method)
+        centralDirectory.appendUInt16(0)
+        centralDirectory.appendUInt16(0)
+        centralDirectory.appendUInt32(checksum)
+        centralDirectory.appendUInt32(UInt32(compressedData.count))
+        centralDirectory.appendUInt32(UInt32(originalData.count))
+        centralDirectory.appendUInt16(UInt16(nameData.count))
+        centralDirectory.appendUInt16(0)
+        centralDirectory.appendUInt16(0)
+        centralDirectory.appendUInt16(0)
+        centralDirectory.appendUInt16(0)
+        centralDirectory.appendUInt32(0)
+        centralDirectory.appendUInt32(0)
+        centralDirectory.append(nameData)
+        archive.append(centralDirectory)
+
+        archive.appendUInt32(0x06054b50)
+        archive.appendUInt16(0)
+        archive.appendUInt16(0)
+        archive.appendUInt16(1)
+        archive.appendUInt16(1)
+        archive.appendUInt32(UInt32(centralDirectory.count))
+        archive.appendUInt32(centralDirectoryOffset)
+        archive.appendUInt16(0)
+        return archive
+    }
+
+    private func deflateRaw(_ data: Data) -> Data? {
+        let destinationCapacity = max(64, data.count * 2)
+        let destination = UnsafeMutablePointer<UInt8>.allocate(capacity: destinationCapacity)
+        defer { destination.deallocate() }
+
+        let encodedCount = data.withUnsafeBytes { rawBuffer -> Int in
+            guard let source = rawBuffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
+                return 0
+            }
+            return compression_encode_buffer(
+                destination,
+                destinationCapacity,
+                source,
+                data.count,
+                nil,
+                COMPRESSION_ZLIB
+            )
+        }
+        guard encodedCount > 0 else { return nil }
+        return Data(bytes: destination, count: encodedCount)
     }
 
     /// Simple CRC-32 implementation for test use.
