@@ -169,8 +169,6 @@ struct RSVPView: View {
             wpmControls
 
             actionButtons
-                .opacity(engine.state != .playing ? 1 : 0)
-                .allowsHitTesting(engine.state != .playing)
 
             progressSection
         }
@@ -213,13 +211,11 @@ struct RSVPView: View {
 
     private var actionButtons: some View {
         HStack(spacing: 16) {
-            Button {
-                engine.play()
-            } label: {
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 44))
-                    .foregroundStyle(Color.crimsonSoft)
+            RSVPPlaybackControl(isPlaying: engine.state == .playing) {
+                togglePlayback()
             }
+            .font(.system(size: 44))
+            .foregroundStyle(Color.crimsonSoft)
             .frame(minWidth: 44, minHeight: 44)
 
             Button {
@@ -232,6 +228,8 @@ struct RSVPView: View {
                     .background(Color.walnut.opacity(0.6), in: Circle())
             }
             .frame(minWidth: 44, minHeight: 44)
+            .opacity(engine.state != .playing ? 1 : 0)
+            .allowsHitTesting(engine.state != .playing)
 
             Button {
                 toggleHighlight()
@@ -250,6 +248,8 @@ struct RSVPView: View {
                 )
             }
             .frame(minHeight: 44)
+            .opacity(engine.state != .playing ? 1 : 0)
+            .allowsHitTesting(engine.state != .playing)
         }
     }
 
@@ -304,13 +304,17 @@ struct RSVPView: View {
             }
             .onEnded { _ in
                 if presentation.endGesture() == .togglePlayback {
-                    engine.togglePlayPause()
-                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                    togglePlayback()
                 }
             }
     }
 
     // MARK: - Actions
+
+    private func togglePlayback() {
+        engine.togglePlayPause()
+        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+    }
 
     private func addBookmark() {
         let draft = presentation.bookmarkDraft(at: engine.currentIndex)
