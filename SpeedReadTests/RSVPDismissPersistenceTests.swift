@@ -26,12 +26,28 @@ struct RSVPDismissPersistenceTests {
         #expect(engine.isLoaded)
     }
 
-    @Test func stopClearsState() {
+    @Test func snapshotIndexAndPauseAtomicallyPausesAPlayingEngineWithoutChangingItsIndex() {
+        let engine = RSVPEngine()
+        engine.load(words: ["a", "b", "c", "d"], startingAt: 2)
+        engine.play()
+
+        let snapshot = engine.snapshotIndexAndPause()
+
+        #expect(snapshot == 2)
+        #expect(engine.state == .paused)
+        #expect(engine.currentIndex == 2)
+        #expect(engine.currentWord == "c")
+        #expect(engine.isLoaded)
+    }
+
+    @Test func negativeControlStopDoesZeroTheVisibleIndex() {
         let engine = RSVPEngine()
         engine.load(words: ["alpha", "beta"], startingAt: 1)
         engine.stop()
         #expect(engine.currentIndex == 0)
         #expect(engine.totalWords == 0)
+        #expect(engine.state == .idle)
+        #expect(!engine.isLoaded)
     }
 
     @Test func loadAtIndexClampsAndExposesWord() {

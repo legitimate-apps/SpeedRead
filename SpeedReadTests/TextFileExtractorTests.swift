@@ -64,6 +64,13 @@ struct TextFileExtractorTests {
         #expect(result.title == "Pride and Prejudice")
     }
 
+    @Test func detectTitleAlwaysTrustsAnExplicitGutenbergHeader() {
+        let result = TextFileExtractor.detectTitle(in: "Title: CHAPTER ONE\n\nBody text")
+
+        #expect(result.title == "CHAPTER ONE")
+        #expect(result.body == "Title: CHAPTER ONE\n\nBody text")
+    }
+
     @Test func fallsBackFromInvalidUTF8() throws {
         // Latin-1 encoded "café"
         let bytes: [UInt8] = [0x63, 0x61, 0x66, 0xE9]

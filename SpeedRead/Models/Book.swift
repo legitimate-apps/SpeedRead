@@ -2,6 +2,17 @@
 import Foundation
 import SwiftData
 
+enum BookTokenCache {
+    static func ensure(tokens: inout [String], wordCount: inout Int, extractedText: String) {
+        guard tokens.isEmpty else { return }
+        let migratedTokens = Book.tokenize(extractedText)
+        tokens = migratedTokens
+        if wordCount != migratedTokens.count {
+            wordCount = migratedTokens.count
+        }
+    }
+}
+
 @Model
 final class Book {
     var id: UUID
@@ -84,10 +95,11 @@ final class Book {
     /// One-shot migration helper for books imported before `tokenizedWords` existed.
     /// Idempotent and safe to call from any view's `.task`.
     func ensureTokensCached() {
-        guard tokenizedWords.isEmpty else { return }
-        let tokens = Book.tokenize(extractedText)
-        tokenizedWords = tokens
-        if wordCount != tokens.count { wordCount = tokens.count }
+        BookTokenCache.ensure(
+            tokens: &tokenizedWords,
+            wordCount: &wordCount,
+            extractedText: extractedText
+        )
     }
 
     var progress: Double {

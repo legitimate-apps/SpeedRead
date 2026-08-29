@@ -121,4 +121,52 @@ struct BookTests {
         #expect(book.wordCount == 5)
         #expect(book.words.count == 5)
     }
+
+    @Test func ensureTokensCachedIsIdempotentForAnAlreadyMigratedBook() {
+        let book = Book(
+            title: "T",
+            author: "A",
+            extractedText: "persisted token coordinates",
+            sourceFileName: "t.txt"
+        )
+        let originalWords = book.words
+        let originalCount = book.wordCount
+        book.extractedText = "different source text must not replace persisted coordinates"
+
+        book.ensureTokensCached()
+        book.ensureTokensCached()
+
+        #expect(book.words == originalWords)
+        #expect(book.wordCount == originalCount)
+    }
+
+    @Test func legacyTokenCacheMigrationUsesTheCanonicalTokenizer() {
+        var legacyTokens: [String] = []
+        var staleWordCount = 99
+        let text = "self-awareness stays aligned"
+
+        BookTokenCache.ensure(
+            tokens: &legacyTokens,
+            wordCount: &staleWordCount,
+            extractedText: text
+        )
+
+        #expect(legacyTokens == Book.tokenize(text))
+        #expect(legacyTokens == ["self-", "awareness", "stays", "aligned"])
+        #expect(staleWordCount == 4)
+    }
+
+    @Test func tokenCacheHelperDoesNotRecomputePersistedTokens() {
+        var persistedTokens = ["persisted", "coordinate"]
+        var persistedWordCount = 2
+
+        BookTokenCache.ensure(
+            tokens: &persistedTokens,
+            wordCount: &persistedWordCount,
+            extractedText: "replacement text"
+        )
+
+        #expect(persistedTokens == ["persisted", "coordinate"])
+        #expect(persistedWordCount == 2)
+    }
 }
