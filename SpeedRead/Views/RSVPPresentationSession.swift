@@ -15,14 +15,80 @@ struct RSVPScrubUpdate: Equatable {
     let shouldProduceHaptic: Bool
 }
 
+enum RSVPFeedbackKind: Equatable {
+    case bookmark
+    case highlight
+}
+
+struct RSVPFeedbackFlash: Equatable, Identifiable {
+    let id: Int
+    let kind: RSVPFeedbackKind
+}
+
+struct RSVPBookmarkDraft: Equatable {
+    let wordIndex: Int
+    let previewText: String
+}
+
+struct RSVPHighlightDraft: Equatable {
+    let startIndex: Int
+    let endIndex: Int
+    let text: String
+}
+
 @Observable
 @MainActor
 final class RSVPPresentationSession {
+    private(set) var cachedWords: [String] = []
+    private(set) var highlightStartIndex: Int?
+    private(set) var feedbackFlash: RSVPFeedbackFlash?
+
     private var lastDragX: CGFloat = 0
     private var dragAccumulator: CGFloat = 0
     private var lastDragTime: Date?
     private var dragVelocity: CGFloat = 0
     private var maximumTranslation: CGFloat = 0
+    private var nextFeedbackID = 0
+
+    func load(book: Book, engine: RSVPEngine, wpm: Int) {
+        // Deliberately inert TDD scaffold. The behavior lands after its tests.
+    }
+
+    func close(
+        engine: RSVPEngine,
+        book: Book,
+        saver: any ReadingPositionSaving,
+        sync: (any ReadingPositionSyncing)? = nil,
+        now: Date = Date()
+    ) -> ReadingPositionCommit {
+        engine.stop()
+        return ReadingPositionCommit(index: 0, timestamp: now, didSave: false)
+    }
+
+    func handleDisappear(
+        engine: RSVPEngine,
+        book: Book,
+        saver: any ReadingPositionSaving,
+        sync: (any ReadingPositionSyncing)? = nil,
+        now: Date = Date()
+    ) -> ReadingPositionCommit? {
+        engine.stop()
+        return nil
+    }
+
+    func bookmarkDraft(at index: Int) -> RSVPBookmarkDraft {
+        RSVPBookmarkDraft(wordIndex: 0, previewText: "")
+    }
+
+    func toggleHighlight(at index: Int) -> RSVPHighlightDraft? {
+        nil
+    }
+
+    func requestFeedback(_ kind: RSVPFeedbackKind) -> RSVPFeedbackFlash {
+        RSVPFeedbackFlash(id: 0, kind: kind)
+    }
+
+    func clearFeedback(_ flash: RSVPFeedbackFlash) {}
 
     func updateGesture(
         translationX: CGFloat,
