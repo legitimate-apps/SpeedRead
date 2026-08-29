@@ -7,6 +7,28 @@ import os
 import WatchKit
 #endif
 
+protocol WatchConnectivitySession: AnyObject {
+    associatedtype Transfer
+
+    var activationState: WCSessionActivationState { get }
+    var isReachable: Bool { get }
+    #if os(iOS)
+    var isPaired: Bool { get }
+    #endif
+    var delegate: (any WCSessionDelegate)? { get set }
+
+    func activate()
+    func sendMessage(
+        _ message: [String: Any],
+        replyHandler: (([String: Any]) -> Void)?,
+        errorHandler: ((any Error) -> Void)?
+    )
+    func transferFile(_ fileURL: URL, metadata: [String: Any]?) -> Transfer
+    func updateApplicationContext(_ applicationContext: [String: Any]) throws
+}
+
+extension WCSession: WatchConnectivitySession {}
+
 struct WatchSyncLogic {
     struct BookPayload: Equatable {
         let id: UUID
@@ -117,6 +139,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     static let shared = WatchSyncService()
 
     private static let logger = Logger(subsystem: "com.legitimateapps.SpeedRead", category: "WatchSync")
+    private let connectivitySession: any WatchConnectivitySession
 
     #if os(watchOS)
     @Published var library: WatchLibrary = .empty
@@ -142,7 +165,8 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     private var modelContext: ModelContext?
     #endif
 
-    private override init() {
+    init(session: any WatchConnectivitySession = WCSession.default) {
+        connectivitySession = session
         super.init()
     }
 
@@ -155,8 +179,8 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             return
         }
         Self.logger.info("Activating WCSession")
-        WCSession.default.delegate = self
-        WCSession.default.activate()
+        connectivitySession.delegate = self
+        connectivitySession.activate()
         #if os(watchOS) && DEBUG
         scheduleDebugPositionSyncIfRequested()
         #endif
@@ -204,7 +228,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func sendBook(id: UUID, title: String, author: String, text: String, wordCount: Int) {
-        guard WCSession.default.activationState == .activated else {
+        guard connectivitySession.activationState == .activated else {
             sendState = .failed("Watch not connected")
             scheduleSendStateClear()
             return
@@ -213,10 +237,10 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         let payload = BookPayload(id: id, title: title, author: author, text: text, wordCount: wordCount)
         sendState = .sending(title)
 
-        Self.logger.info("Sending '\(title, privacy: .public)' — reachable=\(WCSession.default.isReachable) paired=\(WCSession.default.isPaired)")
+        Self.logger.info("Sending '\(title, privacy: .public)' — reachable=\(self.connectivitySession.isReachable) paired=\(self.connectivitySession.isPaired)")
 
-        if WatchSyncLogic.initialBookDeliveryRoute(isReachable: WCSession.default.isReachable) == .message {
-            WCSession.default.sendMessage(payload.dictionary, replyHandler: { [weak self] reply in
+        if WatchSyncLogic.initialBookDeliveryRoute(isReachable: connectivitySession.isReachable) == .message {
+            connectivitySession.sendMessage(payload.dictionary, replyHandler: { [weak self] reply in
                 Self.logger.debug("sendMessage reply: \(reply)")
                 Task { @MainActor [weak self] in
                     self?.sendState = .sent(title)
@@ -239,7 +263,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             .appendingPathComponent("\(UUID().uuidString).txt")
         do {
             try payload.text.write(to: tempURL, atomically: true, encoding: .utf8)
-            WCSession.default.transferFile(tempURL, metadata: payload.fileMetadata)
+            connectivitySession.transferFile(tempURL, metadata: payload.fileMetadata)
         } catch {
             Self.logger.error("transferFile prep failed: \(error.localizedDescription)")
             sendState = .failed("Failed to prepare book")
@@ -264,14 +288,14 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         library.updatePosition(bookId: bookId, index: wordIndex, timestamp: timestamp)
         persistLibrary()
         #endif
-        guard WCSession.default.activationState == .activated else { return }
+        guard connectivitySession.activationState == .activated else { return }
         let payload = WatchSyncLogic.PositionPayload(
             bookId: bookId,
             bookTitle: bookTitle,
             wordIndex: wordIndex,
             timestamp: timestamp
         )
-        try? WCSession.default.updateApplicationContext(payload.dictionary)
+        try? connectivitySession.updateApplicationContext(payload.dictionary)
     }
 
     // MARK: - watchOS Persistence
@@ -355,7 +379,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     #if os(iOS)
     func sessionDidBecomeInactive(_ session: WCSession) {}
     func sessionDidDeactivate(_ session: WCSession) {
-        WCSession.default.activate()
+        connectivitySession.activate()
     }
 
     func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
