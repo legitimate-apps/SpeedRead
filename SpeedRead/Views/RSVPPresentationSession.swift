@@ -23,7 +23,6 @@ final class RSVPPresentationSession {
     private var lastDragTime: Date?
     private var dragVelocity: CGFloat = 0
     private var maximumTranslation: CGFloat = 0
-    private var didScrub = false
 
     func updateGesture(
         translationX: CGFloat,
@@ -39,7 +38,6 @@ final class RSVPPresentationSession {
             return nil
         }
 
-        didScrub = true
         let deltaX = -(translationX - lastDragX)
         if let lastDragTime {
             let deltaTime = now.timeIntervalSince(lastDragTime)
@@ -73,13 +71,14 @@ final class RSVPPresentationSession {
     }
 
     func endGesture() -> RSVPDisplayInteraction {
+        let interaction: RSVPDisplayInteraction = maximumTranslation >= ReaderConfig.RSVP.scrubActivationDistance
+            ? .scrubbed
+            : .togglePlayback
         lastDragX = 0
         dragAccumulator = 0
+        lastDragTime = nil
         dragVelocity = 0
         maximumTranslation = 0
-        didScrub = false
-        // Preserves both reported gesture defects until the red tests exist.
-        // `lastDragTime` remains stale and the independent tap always toggles.
-        return .togglePlayback
+        return interaction
     }
 }
