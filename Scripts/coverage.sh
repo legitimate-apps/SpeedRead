@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: Scripts/coverage.sh <minimum-combined-line-coverage-percent>" >&2
+  echo "Usage: Scripts/coverage.sh <minimum-combined-attributable-coverage-percent>" >&2
   echo "Example: Scripts/coverage.sh 80" >&2
 }
 
@@ -19,7 +19,7 @@ if [[ ! "$threshold" =~ ^([0-9]+([.][0-9]+)?|[.][0-9]+)$ ]] \
   exit 64
 fi
 
-for tool in xcodebuild xcrun awk sort mktemp; do
+for tool in xcodebuild xcrun awk sort mktemp python3; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "error: required tool '$tool' was not found" >&2
     exit 69
@@ -228,6 +228,52 @@ watch_target="SpeedReadWatch Watch App.app"
 render_target "$ios_json" "$ios_target"
 render_target "$watch_json" "$watch_target"
 
+ios_attributable_json="$work_dir/ios-attributable.json"
+watch_attributable_json="$work_dir/watch-attributable.json"
+
+python3 "$script_dir/attributable-coverage.py" "$ios_json" "$repo_root"
+python3 "$script_dir/attributable-coverage.py" --format json "$ios_json" "$repo_root" \
+  >"$ios_attributable_json"
+python3 "$script_dir/attributable-coverage.py" "$watch_json" "$repo_root"
+python3 "$script_dir/attributable-coverage.py" --format json "$watch_json" "$repo_root" \
+  >"$watch_attributable_json"
+
+attributable_totals() {
+  local metrics_json="$1"
+  local target_name="$2"
+
+  /usr/bin/jq -r \
+    --arg target "$target_name" '
+      .targets[]
+      | select(.name == $target)
+      | [.attributable.covered, .attributable.executable] | @tsv
+    ' "$metrics_json"
+}
+
+ios_attributable_totals="$(attributable_totals "$ios_attributable_json" "$ios_target")"
+watch_attributable_totals="$(attributable_totals "$watch_attributable_json" "$watch_target")"
+if [[ -z "$ios_attributable_totals" || -z "$watch_attributable_totals" ]]; then
+  echo "error: attributable coverage report omitted a shipping target" >&2
+  exit 66
+fi
+IFS=$'\t' read -r ios_attributable_covered ios_attributable_executable <<<"$ios_attributable_totals"
+IFS=$'\t' read -r watch_attributable_covered watch_attributable_executable <<<"$watch_attributable_totals"
+
+assert_attributable_lane_ran() {
+  local target_name="$1"
+  local covered="$2"
+  local executable="$3"
+
+  if (( executable > 0 && covered == 0 )); then
+    echo "FAIL: $target_name has $executable attributable lines but 0 covered lines; "\
+"the test lane is not exercising its named production files" >&2
+    exit 1
+  fi
+}
+
+assert_attributable_lane_ran "$ios_target" "$ios_attributable_covered" "$ios_attributable_executable"
+assert_attributable_lane_ran "$watch_target" "$watch_attributable_covered" "$watch_attributable_executable"
+
 ios_totals="$(target_totals "$ios_json" "$ios_target")"
 watch_totals="$(target_totals "$watch_json" "$watch_target")"
 IFS=$'\t' read -r ios_covered ios_executable <<<"$ios_totals"
@@ -237,14 +283,38 @@ combined_executable=$((ios_executable + watch_executable))
 combined_percentage="$(awk -v covered="$combined_covered" -v executable="$combined_executable" \
   'BEGIN { if (executable == 0) print "0.00"; else printf "%.2f", covered * 100 / executable }')"
 
-echo
-echo "Combined shipping code: ${combined_percentage}% (${combined_covered}/${combined_executable})"
-echo "Required threshold: ${threshold}%"
+combined_attributable_covered=$((ios_attributable_covered + watch_attributable_covered))
+combined_attributable_executable=$((ios_attributable_executable + watch_attributable_executable))
+combined_attributable_percentage="$(awk \
+  -v covered="$combined_attributable_covered" \
+  -v executable="$combined_attributable_executable" \
+  'BEGIN { if (executable == 0) print "0.00"; else printf "%.2f", covered * 100 / executable }')"
 
-if awk -v covered="$combined_covered" -v executable="$combined_executable" -v required="$threshold" \
-  'BEGIN { exit !(covered * 100 / executable < required + 0) }'; then
-  echo "FAIL: combined line coverage is below ${threshold}%" >&2
+combined_reach_percentage="$(awk \
+  -v attributable="$combined_attributable_executable" \
+  -v headline="$combined_executable" \
+  'BEGIN { if (headline == 0) print "0.00"; else printf "%.2f", attributable * 100 / headline }')"
+
+echo
+echo "Combined HEADLINE:     ${combined_percentage}% (${combined_covered}/${combined_executable})"
+echo "Combined ATTRIBUTABLE: ${combined_attributable_percentage}% "\
+"(${combined_attributable_covered}/${combined_attributable_executable})"
+echo "Combined REACH:        ${combined_reach_percentage}% "\
+"(${combined_attributable_executable}/${combined_executable} executable lines)"
+echo "Required ATTRIBUTABLE threshold: ${threshold}%"
+
+if (( combined_attributable_executable == 0 )); then
+  echo "FAIL: combined attributable coverage has no executable lines" >&2
   exit 1
 fi
 
-echo "PASS: combined line coverage meets ${threshold}%"
+if awk \
+  -v covered="$combined_attributable_covered" \
+  -v executable="$combined_attributable_executable" \
+  -v required="$threshold" \
+  'BEGIN { exit !(covered * 100 / executable < required + 0) }'; then
+  echo "FAIL: combined attributable coverage is below ${threshold}%" >&2
+  exit 1
+fi
+
+echo "PASS: combined attributable coverage meets ${threshold}%"
