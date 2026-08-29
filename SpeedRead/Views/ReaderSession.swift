@@ -67,7 +67,7 @@ final class ReaderSession {
         _ index: Int,
         book: Book,
         saver: any ReadingPositionSaving,
-        sync: any ReadingPositionSyncing = WatchSyncService.shared,
+        sync: (any ReadingPositionSyncing)? = nil,
         now: Date = Date()
     ) -> ReadingPositionCommit {
         let clamped = clampedIndex(index)
@@ -82,7 +82,8 @@ final class ReaderSession {
             didSave = false
         }
 
-        sync.syncReadingPosition(
+        let positionSync = sync ?? WatchSyncService.shared
+        positionSync.syncReadingPosition(
             bookId: book.id,
             bookTitle: book.title,
             wordIndex: clamped,
@@ -95,7 +96,7 @@ final class ReaderSession {
         at index: Int,
         book: Book,
         saver: any ReadingPositionSaving,
-        sync: any ReadingPositionSyncing = WatchSyncService.shared,
+        sync: (any ReadingPositionSyncing)? = nil,
         now: Date = Date()
     ) -> ReaderTapOutcome {
         let commit = commitReadingPosition(

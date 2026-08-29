@@ -1,8 +1,9 @@
 //  ReaderView.swift
-import SwiftUI
 import SwiftData
+import SwiftUI
 import os
 
+@MainActor
 struct ReaderView: View {
     private static let logger = Logger(subsystem: "com.legitimateapps.SpeedRead", category: "Reader")
 
@@ -10,19 +11,22 @@ struct ReaderView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var syncService: WatchSyncService
 
-    @AppStorage("readerFontSize") private var fontSize: Double = 18
-    @AppStorage("readerLineSpacing") private var lineSpacingPref: Double = 6
+    @AppStorage("readerFontSize") private var fontSize: Double = ReaderConfig.Classic.defaultFontSize
+    @AppStorage("readerLineSpacing") private var lineSpacingPref: Double = ReaderConfig.Classic.defaultLineSpacing
     @AppStorage("readerThemeMode") private var themeMode: String = ReaderThemeMode.parchment.rawValue
-    @AppStorage("rsvpLastWPM") private var lastWPM: Int = 300
+    @AppStorage("rsvpLastWPM") private var lastWPM: Int = ReaderConfig.RSVP.defaultWPM
 
+    @State private var session: ReaderSession
     @State private var showRSVP = false
     @State private var showBookmarks = false
     @State private var showHighlights = false
     @State private var showSettings = false
-    @State private var pendingScrollIndex: Int?
-    @State private var cachedWords: [String] = []
-    @State private var paragraphs: [ReaderParagraph] = []
-    @State private var flashedWordIndex: Int?
+    @State private var rsvpDismissGeneration = 0
+
+    init(book: Book, session: ReaderSession? = nil) {
+        self.book = book
+        _session = State(initialValue: session ?? ReaderSession())
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -33,7 +37,7 @@ struct ReaderView: View {
                     VStack(alignment: .leading, spacing: 24) {
                         header
 
-                        if !cachedWords.isEmpty {
+                        if !session.cachedWords.isEmpty {
                             paragraphList
                         } else {
                             ProgressView()
@@ -41,24 +45,24 @@ struct ReaderView: View {
                                 .frame(maxWidth: .infinity)
                         }
 
-                        Color.clear.frame(height: 140)
+                        Color.clear.frame(height: ReaderConfig.Classic.bottomContentInset)
                     }
                     .padding(.horizontal, horizontalPadding)
                     .padding(.top, 12)
                 }
-                .onChange(of: pendingScrollIndex) { _, newValue in
+                .onChange(of: session.pendingScrollIndex) { _, newValue in
                     guard let target = newValue else { return }
-                    withAnimation(.easeInOut(duration: 0.35)) {
-                        scrollProxy.scrollTo(scrollAnchorID(for: target), anchor: .center)
+                    withAnimation(.easeInOut(duration: ReaderConfig.Classic.scrollAnimationDuration)) {
+                        scrollProxy.scrollTo(session.scrollAnchorID(for: target), anchor: .center)
                     }
-                    pendingScrollIndex = nil
+                    _ = session.consumePendingScroll()
                 }
                 // Once paragraphs have been laid out, scroll to the last-read word.
                 // Triggered by the cachedWords flip from empty → loaded, which
                 // happens after the layout pass — no asyncAfter race.
-                .task(id: cachedWords.count) {
-                    guard !cachedWords.isEmpty else { return }
-                    pendingScrollIndex = clampedLastReadIndex
+                .task(id: session.cachedWords.count) {
+                    guard !session.cachedWords.isEmpty else { return }
+                    session.requestInitialScroll(for: book)
                 }
             }
 
@@ -99,21 +103,47 @@ struct ReaderView: View {
             }
         }
         .task {
-            await loadWordsIfNeeded()
+            session.load(book: book)
         }
-        .fullScreenCover(isPresented: $showRSVP, onDismiss: handleRSVPDismiss) {
+        .task(id: session.wordFlash?.id) {
+            guard let flash = session.wordFlash else { return }
+            do {
+                try await Task.sleep(for: ReaderConfig.Classic.rsvpTransitionDelay)
+            } catch {
+                return
+            }
+            guard session.wordFlash == flash else { return }
+            showRSVP = true
+        }
+        .task(id: session.wordFlash?.id) {
+            guard let flash = session.wordFlash else { return }
+            do {
+                try await Task.sleep(for: ReaderConfig.Classic.wordFlashDuration)
+            } catch {
+                return
+            }
+            session.clearWordFlash(flash)
+        }
+        .task(id: rsvpDismissGeneration) {
+            guard rsvpDismissGeneration > 0 else { return }
+            await Task.yield()
+            session.reconcileRSVPDismiss(for: book)
+        }
+        .fullScreenCover(isPresented: $showRSVP, onDismiss: {
+            rsvpDismissGeneration += 1
+        }) {
             RSVPView(book: book)
         }
         .sheet(isPresented: $showBookmarks) {
             ReaderBookmarkPicker(book: book) { index in
                 commitReadingPosition(index)
-                pendingScrollIndex = index
+                session.reconcileRSVPDismiss(for: book)
             }
         }
         .sheet(isPresented: $showHighlights) {
             ReaderHighlightPicker(book: book) { index in
                 commitReadingPosition(index)
-                pendingScrollIndex = index
+                session.reconcileRSVPDismiss(for: book)
             }
         }
         .sheet(isPresented: $showSettings) {
@@ -147,7 +177,7 @@ struct ReaderView: View {
 
     private var paragraphList: some View {
         LazyVStack(alignment: .leading, spacing: lineSpacingPref + 8) {
-            ForEach(paragraphs) { paragraph in
+            ForEach(session.paragraphs) { paragraph in
                 paragraphView(paragraph)
                     .id(paragraph.id)
             }
@@ -159,7 +189,7 @@ struct ReaderView: View {
             ForEach(Array(paragraph.words.enumerated()), id: \.offset) { offset, word in
                 let absoluteIndex = paragraph.startIndex + offset
                 let isLastRead = absoluteIndex == clampedLastReadIndex
-                let isFlashed = absoluteIndex == flashedWordIndex
+                let isFlashed = absoluteIndex == session.wordFlash?.wordIndex
                 let highlighted = isLastRead || isFlashed
                 let displayText = word + " "
                 Button {
@@ -179,7 +209,7 @@ struct ReaderView: View {
                         .animation(.spring(response: 0.28, dampingFraction: 0.7), value: isFlashed)
                 }
                 .buttonStyle(.plain)
-                .id(scrollAnchorID(for: absoluteIndex))
+                .id(session.scrollAnchorID(for: absoluteIndex))
                 .accessibilityLabel(Text(word))
                 .accessibilityHint(Text("Start RSVP from this word"))
             }
@@ -189,11 +219,11 @@ struct ReaderView: View {
     private var bottomBar: some View {
         HStack(spacing: 4) {
             iconBarButton(systemName: "textformat.size.smaller", label: "Decrease font size") {
-                fontSize = max(12, fontSize - 2)
+                fontSize = max(ReaderConfig.Classic.fontSizeRange.lowerBound, fontSize - ReaderConfig.Classic.fontSizeStep)
                 UISelectionFeedbackGenerator().selectionChanged()
             }
             iconBarButton(systemName: "textformat.size.larger", label: "Increase font size") {
-                fontSize = min(34, fontSize + 2)
+                fontSize = min(ReaderConfig.Classic.fontSizeRange.upperBound, fontSize + ReaderConfig.Classic.fontSizeStep)
                 UISelectionFeedbackGenerator().selectionChanged()
             }
             iconBarButton(systemName: "moon.stars", label: "Cycle reading theme") {
@@ -204,7 +234,7 @@ struct ReaderView: View {
 
             Button {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                pendingScrollIndex = clampedLastReadIndex
+                session.reconcileRSVPDismiss(for: book)
             } label: {
                 Image(systemName: "scope")
                     .font(.system(size: 14, weight: .semibold))
@@ -258,21 +288,22 @@ struct ReaderView: View {
 
     private var horizontalPadding: CGFloat {
         #if os(iOS)
-        UIDevice.current.userInterfaceIdiom == .pad ? 64 : 22
+        UIDevice.current.userInterfaceIdiom == .pad
+            ? ReaderConfig.Classic.padHorizontalPadding
+            : ReaderConfig.Classic.phoneHorizontalPadding
         #else
-        22
+        ReaderConfig.Classic.phoneHorizontalPadding
         #endif
     }
 
     private var clampedLastReadIndex: Int {
-        guard !cachedWords.isEmpty else { return 0 }
-        return min(max(0, book.lastReadWordIndex), cachedWords.count - 1)
+        session.clampedIndex(book.lastReadWordIndex)
     }
 
     private var headerSubtitle: String {
         let percent = Int(book.progress * 100)
         let remainingWords = max(0, book.wordCount - book.lastReadWordIndex)
-        let wpm = max(60, lastWPM)
+        let wpm = max(ReaderConfig.RSVP.minimumEstimateWPM, lastWPM)
         let minutes = Int((Double(remainingWords) / Double(wpm)).rounded())
         if remainingWords == 0 {
             return "\(percent)% · finished"
@@ -287,256 +318,33 @@ struct ReaderView: View {
         ReaderThemeMode(rawValue: themeMode)?.palette ?? ReaderThemeMode.parchment.palette
     }
 
-    private func scrollAnchorID(for index: Int) -> String {
-        "word-\(index)"
-    }
-
     private func handleWordTap(at index: Int) {
-        let clamped = max(0, min(index, max(0, cachedWords.count - 1)))
-        commitReadingPosition(clamped)
+        let outcome = session.handleWordTap(
+            at: index,
+            book: book,
+            saver: modelContext,
+            sync: syncService
+        )
+        if !outcome.commit.didSave {
+            Self.logger.error("Failed to persist lastReadWordIndex")
+        }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-
-        flashedWordIndex = clamped
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            showRSVP = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            if flashedWordIndex == clamped {
-                flashedWordIndex = nil
-            }
-        }
     }
 
     private func commitReadingPosition(_ index: Int) {
-        let timestamp = Date()
-        book.lastReadWordIndex = index
-        book.lastReadDate = timestamp
-        do {
-            try modelContext.save()
-        } catch {
-            Self.logger.error("Failed to persist lastReadWordIndex: \(error.localizedDescription, privacy: .public)")
-        }
-        syncService.syncReadingPosition(
-            bookId: book.id,
-            bookTitle: book.title,
-            wordIndex: index,
-            timestamp: timestamp
+        let result = session.commitReadingPosition(
+            index,
+            book: book,
+            saver: modelContext,
+            sync: syncService
         )
-    }
-
-    private func handleRSVPDismiss() {
-        // RSVP already wrote `lastReadWordIndex` on close. Trigger a scroll so the
-        // newly-highlighted word is centered when the reader reappears.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            pendingScrollIndex = clampedLastReadIndex
+        if !result.didSave {
+            Self.logger.error("Failed to persist lastReadWordIndex")
         }
     }
 
     private func cycleTheme() {
-        let modes = ReaderThemeMode.allCases
-        let current = ReaderThemeMode(rawValue: themeMode) ?? .parchment
-        let next = modes[(modes.firstIndex(of: current).map { ($0 + 1) % modes.count }) ?? 0]
-        themeMode = next.rawValue
+        themeMode = session.cycleTheme(from: themeMode)
         UISelectionFeedbackGenerator().selectionChanged()
-    }
-
-    private func loadWordsIfNeeded() async {
-        guard cachedWords.isEmpty else { return }
-        book.ensureTokensCached()
-        let extractedText = book.extractedText
-        let words = book.words
-        let para = ReaderParagraphizer.paragraphs(from: extractedText, allWords: words)
-        await MainActor.run {
-            self.cachedWords = words
-            self.paragraphs = para
-        }
-    }
-}
-
-// MARK: - Reader theme palettes
-
-enum ReaderThemeMode: String, CaseIterable {
-    case parchment
-    case sepia
-    case night
-
-    var palette: ReaderPalette {
-        switch self {
-        case .parchment:
-            return ReaderPalette(
-                background: Color.parchment,
-                titleText: Color.inkBlack,
-                bodyText: Color.inkBlack.opacity(0.92),
-                headerText: Color.inkBlack.opacity(0.85),
-                accent: Color.crimsonSoft,
-                barBackground: Color.parchment.opacity(0.92),
-                barText: Color.inkBlack.opacity(0.78),
-                toolbarColorScheme: .light
-            )
-        case .sepia:
-            return ReaderPalette(
-                background: Color(red: 0xF7 / 255, green: 0xEB / 255, blue: 0xCF / 255),
-                titleText: Color(red: 0x42 / 255, green: 0x2A / 255, blue: 0x12 / 255),
-                bodyText: Color(red: 0x42 / 255, green: 0x2A / 255, blue: 0x12 / 255).opacity(0.92),
-                headerText: Color(red: 0x42 / 255, green: 0x2A / 255, blue: 0x12 / 255).opacity(0.85),
-                accent: Color.crimsonSoft,
-                barBackground: Color(red: 0xF1 / 255, green: 0xE3 / 255, blue: 0xC2 / 255).opacity(0.94),
-                barText: Color(red: 0x42 / 255, green: 0x2A / 255, blue: 0x12 / 255).opacity(0.8),
-                toolbarColorScheme: .light
-            )
-        case .night:
-            return ReaderPalette(
-                background: Color(red: 0x10 / 255, green: 0x10 / 255, blue: 0x12 / 255),
-                titleText: Color(red: 0xF1 / 255, green: 0xEC / 255, blue: 0xDD / 255),
-                bodyText: Color(red: 0xE7 / 255, green: 0xE2 / 255, blue: 0xD2 / 255).opacity(0.92),
-                headerText: Color(red: 0xE7 / 255, green: 0xE2 / 255, blue: 0xD2 / 255).opacity(0.85),
-                accent: Color.crimsonSoft,
-                barBackground: Color(red: 0x18 / 255, green: 0x18 / 255, blue: 0x1B / 255).opacity(0.94),
-                barText: Color(red: 0xE7 / 255, green: 0xE2 / 255, blue: 0xD2 / 255).opacity(0.85),
-                toolbarColorScheme: .dark
-            )
-        }
-    }
-}
-
-struct ReaderPalette {
-    let background: Color
-    let titleText: Color
-    let bodyText: Color
-    let headerText: Color
-    let accent: Color
-    let barBackground: Color
-    let barText: Color
-    let toolbarColorScheme: ColorScheme
-}
-
-// MARK: - Settings sheet
-
-private struct ReaderSettingsSheet: View {
-    @Binding var fontSize: Double
-    @Binding var lineSpacing: Double
-    @Binding var themeMode: String
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Typography") {
-                    HStack {
-                        Text("Font size")
-                        Spacer()
-                        Text("\(Int(fontSize)) pt")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                    Slider(value: $fontSize, in: 12...34, step: 1)
-
-                    HStack {
-                        Text("Line spacing")
-                        Spacer()
-                        Text("\(Int(lineSpacing)) pt")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                    Slider(value: $lineSpacing, in: 2...18, step: 1)
-                }
-
-                Section("Theme") {
-                    Picker("Reading theme", selection: $themeMode) {
-                        ForEach(ReaderThemeMode.allCases, id: \.rawValue) { mode in
-                            Text(mode.rawValue.capitalized).tag(mode.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
-            }
-            .navigationTitle("Reader Settings")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-        .presentationDetents([.medium])
-    }
-}
-
-private struct ReaderBookmarkPicker: View {
-    let book: Book
-    let onSelect: (Int) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            List {
-                if book.bookmarks.isEmpty {
-                    Text("No bookmarks yet.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(book.bookmarks.sorted(by: { $0.wordIndex < $1.wordIndex }), id: \.id) { bookmark in
-                        Button {
-                            onSelect(bookmark.wordIndex)
-                            dismiss()
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(bookmark.previewText)
-                                    .font(.system(size: 15, design: .serif))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(2)
-                                Text("Word \(bookmark.wordIndex + 1)")
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Bookmarks")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
-            }
-        }
-    }
-}
-
-private struct ReaderHighlightPicker: View {
-    let book: Book
-    let onSelect: (Int) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            List {
-                if book.highlights.isEmpty {
-                    Text("No highlights yet.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(book.highlights.sorted(by: { $0.startWordIndex < $1.startWordIndex }), id: \.id) { highlight in
-                        Button {
-                            onSelect(highlight.startWordIndex)
-                            dismiss()
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(highlight.highlightedText)
-                                    .font(.system(size: 15, design: .serif))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(3)
-                                Text("Words \(highlight.startWordIndex + 1)–\(highlight.endWordIndex + 1)")
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Highlights")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
-            }
-        }
     }
 }
