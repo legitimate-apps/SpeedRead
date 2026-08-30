@@ -53,8 +53,14 @@ These are testable statements. Breaking one is a defect regardless of what it en
 2. **Tokens are persisted, never recomputed per access** (`Book.tokenizedWords`).
 3. **RSVP close is atomic**: `snapshotIndexAndPause()` → save → dismiss. `stop()` zeros
    `currentIndex` and must never precede a read-for-persistence.
-4. **Position is last-write-wins across devices** via `updateApplicationContext`; book payloads go
-   `sendMessage` with a `transferFile` fallback.
+4. **Position is three markers in one coordinate space, not one number.** `lastReadWordIndex`
+   (reading; syncs; last-write-wins on timestamp), `browseWordIndex` (crown/chapter/scrub;
+   **device-local, never syncs**) and `furthestReadWordIndex` (syncs; **merges by `max`**, so
+   clock skew and out-of-order delivery cannot corrupt a high-water mark). **Reading commits;
+   browsing does not.** A single number doing all three jobs is why browsing on the watch used to
+   destroy the phone's reading position. Book payloads go `sendMessage` with a `transferFile`
+   fallback; watch→phone position arrives as an *offer* the reader accepts, phone→watch applies
+   silently.
 5. **Tappable words are `Button`s**, never `onTapGesture` — Voice Control, focus and keyboard
    navigation depend on it.
 6. **Layout timing is expressed with `.task(id:)`**, never `DispatchQueue.main.asyncAfter`.
@@ -67,7 +73,14 @@ These are the operator's named priorities. They outrank backlog items.
    actively maintained — not a demo that rots between releases. Concretely: the watch library, RSVP
    via the Digital Crown, and the phone↔watch sync path each carry real automated coverage, and a
    watch regression blocks a release the same way a phone regression does.
-   *Current state (2026-08-13): coverage went from effectively zero — one assertion-free generated test — to 15 real tests plus an end-to-end paired-simulator verification of the position path (apply, stale-reject, and a delivery control). The `--debug-sync-position-index/-timestamp` DEBUG hooks exist so that run stays repeatable.*
+   *Current state (2026-08-30): the watch is now genuinely measured, which it had never been.
+   Coverage on the watch app went **0.00% → 55.77%** — the first step was not writing tests but
+   discovering that a `WatchHermetic` lane had never run, so tests that already existed and named
+   real types had been reporting zero the whole time. `WatchLibraryView`, `WatchRSVPView`,
+   `WatchSettingsView` and the `WCSessionDelegate` half of `WatchSyncService` are now driven by
+   tests through a seam rather than being untestable singletons. The end-to-end paired-simulator
+   verification of the position path (apply, stale-reject, and a positive delivery control) still
+   stands, and the `--debug-sync-position-index/-timestamp` DEBUG hooks keep it repeatable.*
 
 2. **Read your own Calibre library from SpeedRead.** The headline outcome is simple: open SpeedRead,
    see your library, read it. Build this **generically against OPDS / Calibre-Web** so it works for
