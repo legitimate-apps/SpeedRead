@@ -37,6 +37,42 @@ struct WatchRSVPSessionTests {
         #expect(session.engine.state == .paused)
     }
 
+    @Test func pressingPlayEmitsAReadingCommit() throws {
+        let book = makeBook(text: "zero one two", index: 0)
+        let session = WatchRSVPSession()
+        _ = session.load(book: book, wpm: 300)
+        session.engine.seek(to: 2)
+
+        let commit = try #require(session.togglePlayback(
+            book: book,
+            now: Date(timeIntervalSince1970: 100)
+        ))
+
+        #expect(commit.wordIndex == 2)
+        #expect(session.engine.state == .playing)
+    }
+
+    @Test func playbackAdvanceIsThrottledThenEmitsACommit() throws {
+        let book = makeBook(text: "zero one two three", index: 0)
+        let session = WatchRSVPSession()
+        let start = Date(timeIntervalSince1970: 1_000)
+        _ = session.load(book: book, wpm: 300)
+        _ = session.togglePlayback(book: book, now: start)
+        session.engine.seek(to: 1)
+
+        let early = session.commitPlaybackAdvanceIfNeeded(
+            book: book,
+            now: start.addingTimeInterval(4.9)
+        )
+        let due = try #require(session.commitPlaybackAdvanceIfNeeded(
+            book: book,
+            now: start.addingTimeInterval(5)
+        ))
+
+        #expect(early == nil)
+        #expect(due.wordIndex == 1)
+    }
+
     @Test func openingSettingsPausesPlayback() {
         let session = WatchRSVPSession()
         _ = session.load(book: makeBook(text: "zero one"), wpm: 300)
@@ -57,6 +93,17 @@ struct WatchRSVPSessionTests {
         session.seek(toCrownValue: 3, wordCount: 4)
         #expect(session.engine.currentIndex == 3)
         session.togglePlayback()
+    }
+
+    @Test("stale crown: first detent after playback continues from the visible word")
+    func firstCrownDetentAfterPlaybackDoesNotSnapBack() {
+        let session = WatchRSVPSession()
+        let staleCrownValue = session.load(book: makeBook(text: "zero one two three four five six eight", index: 2), wpm: 300)
+        session.engine.seek(to: 6)
+
+        session.seek(toCrownValue: staleCrownValue - 1, wordCount: 8)
+
+        #expect(session.engine.currentIndex == 7)
     }
 
     @Test func closeSnapshotsTheVisibleIndexBeforeStopping() throws {
@@ -87,15 +134,15 @@ struct WatchRSVPSessionTests {
         #expect(duplicate == nil)
     }
 
-    @Test func disappearCommitsAVisibleLoadedPositionThenStops() throws {
+    @Test func disappearWithoutPlaybackDoesNotCommitBrowsing() {
         let book = makeBook(text: "zero one two")
         let session = WatchRSVPSession()
         _ = session.load(book: book, wpm: 300)
         session.engine.seek(to: 1)
 
-        let commit = try #require(session.handleDisappear(book: book))
+        let commit = session.handleDisappear(book: book)
 
-        #expect(commit.wordIndex == 1)
+        #expect(commit == nil)
         #expect(session.engine.state == .idle)
     }
 
@@ -176,6 +223,10 @@ struct WatchPresentationCharacterizationTests {
     func settingsSnap() {
         #expect(WatchSettingsLogic.snappedWPM(344) == 340)
         #expect(WatchSettingsLogic.snappedWPM(346) == 350)
+    }
+
+    @Test func settingsListContainsRecallAndSpeedButNoChapterRow() {
+        #expect(WatchSettingsLogic.rows == [.backToReadingPosition, .speed])
     }
 
     @Test("Characterization: applying watch settings updates the engine")

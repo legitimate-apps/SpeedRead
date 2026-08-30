@@ -36,6 +36,18 @@ final class WatchRSVPSession {
         engine.togglePlayPause()
     }
 
+    func togglePlayback(book: WatchBook?, now: Date = Date()) -> WatchRSVPPositionCommit? {
+        engine.togglePlayPause()
+        return nil
+    }
+
+    func commitPlaybackAdvanceIfNeeded(
+        book: WatchBook?,
+        now: Date = Date()
+    ) -> WatchRSVPPositionCommit? {
+        nil
+    }
+
     func prepareForSettings() {
         if engine.state == .playing {
             engine.pause()
@@ -109,6 +121,16 @@ enum WatchLibraryLogic {
 }
 
 enum WatchSettingsLogic {
+    enum Row: Equatable {
+        case backToReadingPosition
+        case speed
+    }
+
+    static var rows: [Row] {
+        // Red-phase scaffold. The recall row lands after the red test is observed.
+        [.speed]
+    }
+
     static func snappedWPM(_ value: Double) -> Int {
         Int((value / 10).rounded() * 10)
     }

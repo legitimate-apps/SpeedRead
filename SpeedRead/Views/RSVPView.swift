@@ -84,7 +84,7 @@ struct RSVPView: View {
                             saver: modelContext,
                             sync: syncService
                         )
-                        if !result.didSave {
+                        if result?.didSave == false {
                             Self.logger.error("Failed to persist lastReadWordIndex on close")
                         }
                         dismiss()

@@ -82,6 +82,7 @@ struct ReaderSessionTests {
         #expect(first.flash.id != second.flash.id)
         #expect(session.wordFlash == second.flash)
         #expect(book.lastReadWordIndex == 2)
+        #expect(book.furthestReadWordIndex == 2)
         #expect(book.lastReadDate == secondDate)
         #expect(saver.saveCount == 2)
         #expect(sync.events.map(\.wordIndex) == [2, 2])
@@ -121,6 +122,7 @@ struct ReaderSessionTests {
         #expect(result == ReadingPositionCommit(index: 1, timestamp: now, didSave: false))
         #expect(book.lastReadWordIndex == 1)
         #expect(book.lastReadDate == now)
+        #expect(book.furthestReadWordIndex == 1)
         #expect(saver.saveCount == 1)
         #expect(sync.events == [.init(bookID: book.id, title: book.title, wordIndex: 1, timestamp: now)])
     }

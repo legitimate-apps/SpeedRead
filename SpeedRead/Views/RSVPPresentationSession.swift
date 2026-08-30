@@ -59,13 +59,43 @@ final class RSVPPresentationSession {
         engine.load(words: cachedWords, startingAt: book.lastReadWordIndex)
     }
 
+    func togglePlayback(
+        engine: RSVPEngine,
+        book: Book,
+        saver: any ReadingPositionSaving,
+        sync: (any ReadingPositionSyncing)? = nil,
+        now: Date = Date()
+    ) -> ReadingPositionCommit? {
+        engine.togglePlayPause()
+        return nil
+    }
+
+    func commitPlaybackAdvanceIfNeeded(
+        engine: RSVPEngine,
+        book: Book,
+        saver: any ReadingPositionSaving,
+        sync: (any ReadingPositionSyncing)? = nil,
+        now: Date = Date()
+    ) -> ReadingPositionCommit? {
+        nil
+    }
+
+    @discardableResult
+    func recordBrowsePosition(
+        _ index: Int,
+        book: Book,
+        saver: any ReadingPositionSaving
+    ) -> Bool {
+        false
+    }
+
     func close(
         engine: RSVPEngine,
         book: Book,
         saver: any ReadingPositionSaving,
         sync: (any ReadingPositionSyncing)? = nil,
         now: Date = Date()
-    ) -> ReadingPositionCommit {
+    ) -> ReadingPositionCommit? {
         let index = engine.snapshotIndexAndPause()
         let commit = ReadingPositionCoordinator.commit(
             index,

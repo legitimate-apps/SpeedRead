@@ -13,6 +13,16 @@ enum BookTokenCache {
     }
 }
 
+enum BookPositionMigration {
+    static func ensure(
+        browseWordIndex: inout Int,
+        furthestReadWordIndex: inout Int,
+        lastReadWordIndex: Int
+    ) {
+        // Red-phase scaffold. The migration behavior is implemented after its tests fail.
+    }
+}
+
 @Model
 final class Book {
     var id: UUID
@@ -23,6 +33,8 @@ final class Book {
     var dateAdded: Date
     var lastReadWordIndex: Int
     var lastReadDate: Date?
+    var browseWordIndex: Int = 0
+    var furthestReadWordIndex: Int = 0
     var wordCount: Int
 
     /// Tokens persisted at import so RSVP and reader don't re-tokenize the entire
@@ -50,6 +62,8 @@ final class Book {
         self.dateAdded = Date()
         self.lastReadWordIndex = 0
         self.lastReadDate = nil
+        self.browseWordIndex = 0
+        self.furthestReadWordIndex = 0
         let tokens = Book.tokenize(extractedText)
         self.tokenizedWords = tokens
         self.wordCount = tokens.count
@@ -99,6 +113,14 @@ final class Book {
             tokens: &tokenizedWords,
             wordCount: &wordCount,
             extractedText: extractedText
+        )
+    }
+
+    func ensurePositionMarkersInitialized() {
+        BookPositionMigration.ensure(
+            browseWordIndex: &browseWordIndex,
+            furthestReadWordIndex: &furthestReadWordIndex,
+            lastReadWordIndex: lastReadWordIndex
         )
     }
 

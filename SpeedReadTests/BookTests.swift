@@ -14,6 +14,8 @@ struct BookTests {
         #expect(book.title == "Test Book")
         #expect(book.author == "Test Author")
         #expect(book.lastReadWordIndex == 0)
+        #expect(book.browseWordIndex == 0)
+        #expect(book.furthestReadWordIndex == 0)
         #expect(book.sourceFileName == "test.epub")
         #expect(book.wordCount == 6)
     }
@@ -168,5 +170,33 @@ struct BookTests {
 
         #expect(persistedTokens == ["persisted", "coordinate"])
         #expect(persistedWordCount == 2)
+    }
+
+    @Test func legacyPositionMarkersMigrateFromTheExistingReadingPosition() {
+        var browseWordIndex = -1
+        var furthestReadWordIndex = -1
+
+        BookPositionMigration.ensure(
+            browseWordIndex: &browseWordIndex,
+            furthestReadWordIndex: &furthestReadWordIndex,
+            lastReadWordIndex: 37
+        )
+
+        #expect(browseWordIndex == 37)
+        #expect(furthestReadWordIndex == 37)
+    }
+
+    @Test func positionMarkerMigrationNeverOverwritesPersistedMarkers() {
+        var browseWordIndex = 12
+        var furthestReadWordIndex = 44
+
+        BookPositionMigration.ensure(
+            browseWordIndex: &browseWordIndex,
+            furthestReadWordIndex: &furthestReadWordIndex,
+            lastReadWordIndex: 20
+        )
+
+        #expect(browseWordIndex == 12)
+        #expect(furthestReadWordIndex == 44)
     }
 }

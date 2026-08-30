@@ -32,6 +32,91 @@ struct RSVPPresentationSessionTests {
         #expect(engine.currentWord.isEmpty)
     }
 
+    @Test func pressingPlayCommitsTheVisiblePositionAndHighWaterMark() throws {
+        let book = makeBook(text: "zero one two three")
+        let engine = RSVPEngine()
+        let session = RSVPPresentationSession()
+        let saver = RSVPSaver()
+        let sync = RSVPSync()
+        let now = Date(timeIntervalSince1970: 100)
+        session.load(book: book, engine: engine, wpm: 300)
+        engine.seek(to: 2)
+
+        let commit = try #require(session.togglePlayback(
+            engine: engine, book: book, saver: saver, sync: sync, now: now
+        ))
+
+        #expect(commit.index == 2)
+        #expect(book.lastReadWordIndex == 2)
+        #expect(book.furthestReadWordIndex == 2)
+        #expect(engine.state == .playing)
+        #expect(saver.saveCount == 1)
+        #expect(sync.indices == [2])
+    }
+
+    @Test func playbackAdvancementIsThrottledThenCommits() throws {
+        let book = makeBook(text: "zero one two three four")
+        let engine = RSVPEngine()
+        let session = RSVPPresentationSession()
+        let saver = RSVPSaver()
+        let sync = RSVPSync()
+        let start = Date(timeIntervalSince1970: 1_000)
+        session.load(book: book, engine: engine, wpm: 300)
+        _ = session.togglePlayback(
+            engine: engine, book: book, saver: saver, sync: sync, now: start
+        )
+        engine.seek(to: 1)
+
+        let early = session.commitPlaybackAdvanceIfNeeded(
+            engine: engine, book: book, saver: saver, sync: sync,
+            now: start.addingTimeInterval(4.9)
+        )
+        let due = try #require(session.commitPlaybackAdvanceIfNeeded(
+            engine: engine, book: book, saver: saver, sync: sync,
+            now: start.addingTimeInterval(5)
+        ))
+
+        #expect(early == nil)
+        #expect(due.index == 1)
+        #expect(saver.saveCount == 2)
+        #expect(sync.indices == [0, 1])
+    }
+
+    @Test func scrubUpdatesOnlyTheLocalBrowseMarker() {
+        let book = makeBook(text: "zero one two three")
+        book.lastReadWordIndex = 1
+        book.lastReadDate = Date(timeIntervalSince1970: 50)
+        book.furthestReadWordIndex = 2
+        let session = RSVPPresentationSession()
+        let saver = RSVPSaver()
+
+        let didSave = session.recordBrowsePosition(3, book: book, saver: saver)
+
+        #expect(didSave)
+        #expect(book.browseWordIndex == 3)
+        #expect(book.lastReadWordIndex == 1)
+        #expect(book.lastReadDate == Date(timeIntervalSince1970: 50))
+        #expect(book.furthestReadWordIndex == 2)
+        #expect(saver.saveCount == 1)
+    }
+
+    @Test func closingWithoutEverPlayingDoesNotCommitBrowsing() {
+        let book = makeBook(text: "zero one two")
+        let engine = RSVPEngine()
+        let session = RSVPPresentationSession()
+        let saver = RSVPSaver()
+        let sync = RSVPSync()
+        session.load(book: book, engine: engine, wpm: 300)
+        engine.seek(to: 2)
+
+        let commit = session.close(engine: engine, book: book, saver: saver, sync: sync)
+
+        #expect(commit == nil)
+        #expect(book.lastReadWordIndex == 0)
+        #expect(book.furthestReadWordIndex == 0)
+        #expect(sync.indices.isEmpty)
+    }
+
     @Test func closeSnapshotsBeforePauseAndPersistsTheVisibleIndex() {
         let book = makeBook(text: "zero one two three")
         let engine = RSVPEngine()

@@ -76,6 +76,21 @@ struct WatchSyncLogic {
         let bookTitle: String
         let wordIndex: Int
         let timestamp: Date
+        let furthestReadWordIndex: Int
+
+        init(
+            bookId: UUID,
+            bookTitle: String,
+            wordIndex: Int,
+            timestamp: Date,
+            furthestReadWordIndex: Int = 0
+        ) {
+            self.bookId = bookId
+            self.bookTitle = bookTitle
+            self.wordIndex = wordIndex
+            self.timestamp = timestamp
+            self.furthestReadWordIndex = furthestReadWordIndex
+        }
 
         var dictionary: [String: Any] {
             [
@@ -121,6 +136,21 @@ struct WatchSyncLogic {
         return incoming.timestamp > lastReadDate ? .apply : .ignoreStale
     }
 
+    static func mergedFurthestRead(local: Int, incoming: Int) -> Int {
+        // Red-phase scaffold: last arrival incorrectly wins.
+        incoming
+    }
+
+    static func shouldOfferWatchPosition(
+        incoming: PositionPayload,
+        localIndex: Int,
+        localDate: Date?,
+        wordCount: Int
+    ) -> Bool {
+        // Red-phase scaffold. The offer policy is implemented after its tests fail.
+        false
+    }
+
     enum BookDeliveryRoute: Equatable {
         case message
         case file
@@ -153,6 +183,15 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     #endif
 
     #if os(iOS)
+    struct PositionOffer: Equatable, Identifiable {
+        var id: UUID { bookId }
+        let bookId: UUID
+        let bookTitle: String
+        let wordIndex: Int
+        let wordCount: Int
+        let timestamp: Date
+    }
+
     enum SendState: Equatable {
         case idle
         case sending(String)
@@ -161,6 +200,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     @Published var sendState: SendState = .idle
+    @Published private(set) var pendingWatchPositionOffer: PositionOffer?
     private var sendStateClearTask: Task<Void, Never>?
     private var modelContext: ModelContext?
     #endif

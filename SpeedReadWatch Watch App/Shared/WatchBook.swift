@@ -8,6 +8,8 @@ struct WatchBook: Codable, Identifiable, Hashable {
     let text: String
     var lastReadIndex: Int
     var lastReadDate: Date?
+    var browseWordIndex: Int = 0
+    var furthestReadWordIndex: Int = 0
     let wordCount: Int
     let dateAdded: Date
 
@@ -56,6 +58,12 @@ struct WatchLibrary: Codable, Equatable {
         books[i].lastReadIndex = min(max(0, index), max(0, books[i].wordCount - 1))
         books[i].lastReadDate = timestamp
         return true
+    }
+
+    @discardableResult
+    mutating func updateBrowsePosition(bookId: UUID, index: Int) -> Bool {
+        // Red-phase scaffold: this incorrectly changes the synced reading marker.
+        updatePosition(bookId: bookId, index: index)
     }
 
     mutating func setCurrentBook(id: UUID) {

@@ -126,7 +126,7 @@ struct WatchSyncServiceTests {
         #expect(replies[1]["status"] as? String == "ok")
     }
 
-    @Test func delegateApplicationContextAppliesNewerPositionAndClampsItToTheBook() async throws {
+    @Test func delegateApplicationContextOffersNewerPositionWithoutApplyingIt() async throws {
         let connection = FakeWatchConnectivitySession()
         let service = WatchSyncService(session: connection)
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
@@ -141,6 +141,7 @@ struct WatchSyncServiceTests {
             sourceFileName: "stored.txt"
         )
         book.lastReadDate = Date(timeIntervalSince1970: 100)
+        book.furthestReadWordIndex = 1
         container.mainContext.insert(book)
         try container.mainContext.save()
         service.configure(modelContext: container.mainContext)
@@ -148,16 +149,19 @@ struct WatchSyncServiceTests {
             bookId: book.id,
             bookTitle: book.title,
             wordIndex: 99,
-            timestamp: Date(timeIntervalSince1970: 200)
+            timestamp: Date(timeIntervalSince1970: 200),
+            furthestReadWordIndex: 2
         )
 
         service.session(.default, didReceiveApplicationContext: payload.dictionary)
-        for _ in 0..<20 where book.lastReadDate != payload.timestamp {
+        for _ in 0..<20 where service.pendingWatchPositionOffer == nil {
             await Task.yield()
         }
 
-        #expect(book.lastReadWordIndex == 2)
-        #expect(book.lastReadDate == payload.timestamp)
+        #expect(book.lastReadWordIndex == 0)
+        #expect(book.lastReadDate == Date(timeIntervalSince1970: 100))
+        #expect(book.furthestReadWordIndex == 2)
+        #expect(service.pendingWatchPositionOffer?.wordIndex == 2)
     }
 }
 

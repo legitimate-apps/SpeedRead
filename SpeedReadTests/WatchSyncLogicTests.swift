@@ -34,11 +34,67 @@ struct WatchSyncLogicTests {
             bookId: UUID(),
             bookTitle: "Title",
             wordIndex: 42,
-            timestamp: Date(timeIntervalSince1970: 1_800_000_000)
+            timestamp: Date(timeIntervalSince1970: 1_800_000_000),
+            furthestReadWordIndex: 84
         )
 
         let decoded = try #require(WatchSyncLogic.PositionPayload.decode(from: original.dictionary))
         #expect(decoded == original)
+    }
+
+    @Test("Characterization: reading position is timestamp LWW, not max")
+    func readingPositionUsesTimestampNotMagnitude() {
+        let newerLower = WatchSyncLogic.PositionPayload(
+            bookId: UUID(), bookTitle: "Book", wordIndex: 4,
+            timestamp: Date(timeIntervalSince1970: 300)
+        )
+        let olderHigher = WatchSyncLogic.PositionPayload(
+            bookId: newerLower.bookId, bookTitle: "Book", wordIndex: 90,
+            timestamp: Date(timeIntervalSince1970: 100)
+        )
+
+        #expect(WatchSyncLogic.reconcile(
+            incoming: newerLower,
+            bookExists: true,
+            lastReadDate: Date(timeIntervalSince1970: 200)
+        ) == .apply)
+        #expect(WatchSyncLogic.reconcile(
+            incoming: olderHigher,
+            bookExists: true,
+            lastReadDate: Date(timeIntervalSince1970: 200)
+        ) == .ignoreStale)
+    }
+
+    @Test func furthestReadMergesByMaxRegardlessOfArrivalOrder() {
+        #expect(WatchSyncLogic.mergedFurthestRead(local: 80, incoming: 20) == 80)
+        #expect(WatchSyncLogic.mergedFurthestRead(local: 20, incoming: 80) == 80)
+        #expect(WatchSyncLogic.mergedFurthestRead(local: 80, incoming: 80) == 80)
+    }
+
+    @Test func watchOfferRequiresNewerMateriallyDifferentReadingPosition() {
+        let localDate = Date(timeIntervalSince1970: 200)
+        let material = WatchSyncLogic.PositionPayload(
+            bookId: UUID(), bookTitle: "Book", wordIndex: 30,
+            timestamp: Date(timeIntervalSince1970: 300)
+        )
+        let trivial = WatchSyncLogic.PositionPayload(
+            bookId: material.bookId, bookTitle: "Book", wordIndex: 12,
+            timestamp: Date(timeIntervalSince1970: 300)
+        )
+        let stale = WatchSyncLogic.PositionPayload(
+            bookId: material.bookId, bookTitle: "Book", wordIndex: 90,
+            timestamp: Date(timeIntervalSince1970: 100)
+        )
+
+        #expect(WatchSyncLogic.shouldOfferWatchPosition(
+            incoming: material, localIndex: 10, localDate: localDate, wordCount: 1_000
+        ))
+        #expect(!WatchSyncLogic.shouldOfferWatchPosition(
+            incoming: trivial, localIndex: 10, localDate: localDate, wordCount: 1_000
+        ))
+        #expect(!WatchSyncLogic.shouldOfferWatchPosition(
+            incoming: stale, localIndex: 10, localDate: localDate, wordCount: 1_000
+        ))
     }
 
     @Test func newerPositionWins() {

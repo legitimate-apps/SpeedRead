@@ -51,6 +51,25 @@ struct WatchLibraryTests {
         #expect(library == .empty)
     }
 
+    @Test func browsePositionIsDeviceLocalAndCannotChangeTheReadingMarkers() {
+        let readingDate = Date(timeIntervalSince1970: 500)
+        let book = WatchBook(
+            id: UUID(), title: "Book", author: "Author", text: "zero one two three",
+            lastReadIndex: 1, lastReadDate: readingDate, browseWordIndex: 1,
+            furthestReadWordIndex: 3, wordCount: 4,
+            dateAdded: Date(timeIntervalSince1970: 100)
+        )
+        var library = WatchLibrary(books: [book], currentBookId: book.id)
+
+        let updated = library.updateBrowsePosition(bookId: book.id, index: 3)
+
+        #expect(updated)
+        #expect(library.currentBook?.browseWordIndex == 3)
+        #expect(library.currentBook?.lastReadIndex == 1)
+        #expect(library.currentBook?.lastReadDate == readingDate)
+        #expect(library.currentBook?.furthestReadWordIndex == 3)
+    }
+
     private func fixtureStore() throws -> (store: WatchLibraryStore, directory: URL) {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("WatchLibraryTests-\(UUID().uuidString)", isDirectory: true)
