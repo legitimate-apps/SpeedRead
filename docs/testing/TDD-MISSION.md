@@ -381,3 +381,59 @@ Operator decisions taken so far (architectural path, brainstorming skill):
 Awaiting: approval of the design, and of one rename — "Go to Phone Position" →
 "Back to where I was reading" (same number when synced; the local one also works with the phone in
 another room and does not lie about what it does).
+
+## 16. Legs 4 and 5 — VERIFIED INDEPENDENTLY 2026-08-30
+
+Leg 4 completed just before the 08-29 fleet reboot and **its report was lost with `/tmp`** — only
+the commits survived (`0fcd21a..f200bb7`). It was verified from the code and a clean run rather than
+from any claim, which is the posture that made the loss survivable. Leg 5 followed.
+
+| | baseline | after leg 3 | after leg 5 |
+|---|---|---|---|
+| combined HEADLINE | 15.76% | 38.03% | **48.51%** (5596/11535) |
+| combined ATTRIBUTABLE | — | — | **83.99%** (4763/5671) |
+| iOS attributable | 72.50% | 82.83% | **85.42%** |
+| **watch headline** | **0.00%** | 7.06% | **55.77%** (1281/2297) |
+| tests | 150 (5 silent skips) | 216 | **276**, 0 assertion-free |
+
+The watch number is the standing goal in CORPUS §5.1 finally becoming true: it went 0% → 7.06% by
+*wiring a lane that had never run*, then 7.06% → 55.77% by actually testing the surface.
+
+**The gate now measures what the project is held to** (operator decision §10.1): `Scripts/coverage.sh`
+gates ATTRIBUTABLE and reports headline/attributable/reach plus the ghost list. It also fails a target
+whose attributable lines are covered zero — the exact shape that hid the watch lane for months, where
+"no coverage yet" and "your lane is not wired" were indistinguishable.
+
+### What leg 5 built (the approved three-marker design, phase 1)
+
+Each marker's merge rule is pinned by a test that **fails under either of the other two rules** —
+that was an explicit requirement, because a `max`-merged marker that passes a last-write-wins test
+pins nothing. The furthest-read test covers `local 80 / incoming 20 → 80` *and*
+`local 20 / incoming 80 → 80`; last-arrival-wins fails the first, device-local fails the second.
+
+**Browsing on the watch provably cannot alter the phone's reading position**, proven by asserting
+that crown browsing publishes *no* `WCSession` application context at all — an absence, not an
+argument. Sol additionally mutation-checked its own browse test by swapping local assignment for
+`max` and quoting the failure.
+
+**One product decision Sol made that the design had not specified**, correctly flagged as ASSUMED:
+"materially different" for the Continue-from-Watch prompt is `max(5 words, 1% of the book)`. Isolated
+in a pure predicate and pinned by tests, so it is a one-line change.
+
+**One honest ASSUMED worth keeping visible:** no physical Digital Crown rotation was injected. That
+the crown scrolls the settings `List` follows from using a native watchOS `List` plus an accessibility
+tree reporting it scrollable — it is not an observed hardware input. Owed: a manager pass that
+exercises it directly.
+
+### Migration hazard — audited, contained
+
+The two new `Book` fields default to `-1` sentinels for pre-existing stores, replaced with
+`max(0, lastReadWordIndex)` by `ensurePositionMarkersInitialized()`. Every read of the markers in
+the views and in `applyIncomingPosition` calls that first, and results are clamped to
+`max(0, wordCount - 1)`.
+
+⚠️ **One spot is safe by invariant rather than by construction:** `continueFromWatch` reads
+`furthestReadWordIndex` without migrating first. It cannot actually see a sentinel, because an offer
+only exists if `applyIncomingPosition` already migrated that same book, and offers are in-memory so
+cannot survive a restart. Consequence if the invariant ever broke is small (a `-1` max-merges
+harmlessly), but the reasoning is non-local. Harden when next in that file.
