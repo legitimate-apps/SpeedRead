@@ -117,6 +117,7 @@ struct ReadingViewRenderingTests {
             sourceFileName: "rendered.txt"
         )
         book.lastReadWordIndex = index
+        book.browseWordIndex = index
         container.mainContext.insert(book)
         try container.mainContext.save()
         return (container, book)

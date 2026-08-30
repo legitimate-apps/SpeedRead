@@ -8,6 +8,7 @@ struct RSVPPresentationSessionTests {
     @Test func loadsPersistedTokensAtTheSavedPositionAndSpeed() {
         let book = makeBook(text: "zero one two")
         book.lastReadWordIndex = 2
+        book.browseWordIndex = 2
         let engine = RSVPEngine()
         let session = RSVPPresentationSession()
 
@@ -89,6 +90,7 @@ struct RSVPPresentationSessionTests {
         book.furthestReadWordIndex = 2
         let session = RSVPPresentationSession()
         let saver = RSVPSaver()
+        session.load(book: book, engine: RSVPEngine(), wpm: 300)
 
         let didSave = session.recordBrowsePosition(3, book: book, saver: saver)
 
@@ -126,7 +128,13 @@ struct RSVPPresentationSessionTests {
         let now = Date(timeIntervalSince1970: 4_000)
         session.load(book: book, engine: engine, wpm: 300)
         engine.seek(to: 2)
-        engine.play()
+        _ = session.togglePlayback(
+            engine: engine,
+            book: book,
+            saver: saver,
+            sync: sync,
+            now: now.addingTimeInterval(-1)
+        )
 
         let commit = session.close(
             engine: engine,
@@ -140,8 +148,8 @@ struct RSVPPresentationSessionTests {
         #expect(engine.state == .paused)
         #expect(engine.currentIndex == 2)
         #expect(book.lastReadWordIndex == 2)
-        #expect(saver.saveCount == 1)
-        #expect(sync.indices == [2])
+        #expect(saver.saveCount == 2)
+        #expect(sync.indices == [2, 2])
     }
 
     @Test func disappearCommitsLoadedPositionBeforeStopping() throws {
@@ -152,6 +160,13 @@ struct RSVPPresentationSessionTests {
         let sync = RSVPSync()
         session.load(book: book, engine: engine, wpm: 300)
         engine.seek(to: 2)
+        _ = session.togglePlayback(
+            engine: engine,
+            book: book,
+            saver: saver,
+            sync: sync,
+            now: Date(timeIntervalSince1970: 100)
+        )
 
         let commit = try #require(session.handleDisappear(
             engine: engine,
@@ -162,7 +177,7 @@ struct RSVPPresentationSessionTests {
 
         #expect(commit.index == 2)
         #expect(book.lastReadWordIndex == 2)
-        #expect(sync.indices == [2])
+        #expect(sync.indices == [2, 2])
         #expect(engine.state == .idle)
         #expect(engine.currentIndex == 0)
         #expect(engine.totalWords == 0)
@@ -176,13 +191,14 @@ struct RSVPPresentationSessionTests {
         let sync = RSVPSync()
         session.load(book: book, engine: engine, wpm: 300)
         engine.seek(to: 2)
+        _ = session.togglePlayback(engine: engine, book: book, saver: saver, sync: sync)
 
         _ = session.close(engine: engine, book: book, saver: saver, sync: sync)
         let duplicate = session.handleDisappear(engine: engine, book: book, saver: saver, sync: sync)
 
         #expect(duplicate == nil)
-        #expect(saver.saveCount == 1)
-        #expect(sync.indices == [2])
+        #expect(saver.saveCount == 2)
+        #expect(sync.indices == [2, 2])
         #expect(engine.state == .idle)
     }
 
@@ -426,7 +442,13 @@ private final class RSVPSaver: ReadingPositionSaving {
 private final class RSVPSync: ReadingPositionSyncing {
     private(set) var indices: [Int] = []
 
-    func syncReadingPosition(bookId: UUID, bookTitle: String, wordIndex: Int, timestamp: Date) {
+    func syncReadingPosition(
+        bookId: UUID,
+        bookTitle: String,
+        wordIndex: Int,
+        timestamp: Date,
+        furthestReadWordIndex: Int
+    ) {
         indices.append(wordIndex)
     }
 }

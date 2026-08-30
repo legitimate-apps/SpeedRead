@@ -19,7 +19,7 @@ struct WatchRSVPView: View {
     var body: some View {
         WatchRSVPSurface(
             engine: engine,
-            onTogglePlayback: { session.togglePlayback() },
+            onTogglePlayback: { sync(session.togglePlayback(book: currentBook)) },
             onClose: {
                 sync(session.close(book: currentBook))
                 dismiss()
@@ -40,7 +40,22 @@ struct WatchRSVPView: View {
             isHapticFeedbackEnabled: true
         )
         .onChange(of: crownValue) { _, newValue in
-            session.seek(toCrownValue: newValue, wordCount: words.count)
+            let normalized = session.seek(toCrownValue: newValue, wordCount: words.count)
+            if normalized != newValue {
+                crownValue = normalized
+            }
+            if engine.state != .playing {
+                persistBrowsePosition()
+            }
+        }
+        .onChange(of: engine.currentIndex) { _, _ in
+            let normalized = session.synchronizeCrownValue(wordCount: words.count)
+            if crownValue != normalized {
+                crownValue = normalized
+            }
+            if engine.state == .playing {
+                sync(session.commitPlaybackAdvanceIfNeeded(book: currentBook))
+            }
         }
         .onAppear {
             crownValue = session.load(book: currentBook, wpm: persistedWPM)
@@ -49,7 +64,11 @@ struct WatchRSVPView: View {
             sync(session.handleDisappear(book: currentBook))
         }
         .sheet(isPresented: $showSettings) {
-            WatchSettingsView(engine: engine)
+            WatchSettingsView(engine: engine) {
+                guard let currentBook else { return }
+                crownValue = session.restoreReadingPosition(book: currentBook)
+                persistBrowsePosition()
+            }
         }
     }
 
@@ -60,5 +79,14 @@ struct WatchRSVPView: View {
             bookTitle: commit.bookTitle,
             wordIndex: commit.wordIndex
         )
+    }
+
+    private func persistBrowsePosition() {
+        guard let currentBook else { return }
+        guard syncService.library.updateBrowsePosition(
+            bookId: currentBook.id,
+            index: engine.currentIndex
+        ) else { return }
+        syncService.persistLibrary()
     }
 }

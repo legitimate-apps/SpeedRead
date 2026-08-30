@@ -126,7 +126,17 @@ struct LibraryView: View {
                     SendToast(icon: "exclamationmark.triangle.fill", message: error, color: Color.crimsonSoft)
                 }
             }
+            .overlay(alignment: .top) {
+                if let offer = syncService.pendingWatchPositionOffer {
+                    WatchPositionOfferBanner(
+                        offer: offer,
+                        onContinue: { syncService.continueFromWatch(offer) },
+                        onDismiss: { syncService.dismissWatchPositionOffer() }
+                    )
+                }
+            }
             .animation(.easeInOut, value: syncService.sendState != .idle)
+            .animation(.easeInOut, value: syncService.pendingWatchPositionOffer)
             .sheet(isPresented: $showThemePicker) {
                 ThemePickerView()
             }
@@ -267,6 +277,38 @@ struct LibraryView: View {
             importError = error.localizedDescription
             showError = true
         }
+    }
+}
+
+struct WatchPositionOfferBanner: View {
+    let offer: WatchSyncService.PositionOffer
+    let onContinue: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(offer.displayText)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color.parchment)
+
+            HStack(spacing: 12) {
+                Button("Continue", action: onContinue)
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.crimsonSoft)
+                    .accessibilityIdentifier("watch-position-offer-continue")
+
+                Button("Dismiss", action: onDismiss)
+                    .buttonStyle(.bordered)
+                    .tint(Color.parchment)
+                    .accessibilityIdentifier("watch-position-offer-dismiss")
+            }
+        }
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .accessibilityIdentifier("watch-position-offer")
     }
 }
 

@@ -12,6 +12,8 @@ struct WatchRSVPPositionCommit: Equatable {
 final class WatchRSVPSession {
     let engine: RSVPEngine
     private var didCommitDismiss = false
+    private var positionCommitPolicy = PlaybackPositionCommitPolicy()
+    private var lastCrownValue: Double = 0
 
     init() {
         engine = RSVPEngine()
@@ -23,13 +25,19 @@ final class WatchRSVPSession {
 
     func load(book: WatchBook?, wpm: Int) -> Double {
         didCommitDismiss = false
+        positionCommitPolicy.reset()
         guard let book else {
             engine.stop()
             return 0
         }
-        engine.load(words: book.words, startingAt: book.lastReadIndex)
+        engine.load(words: book.words, startingAt: book.browseWordIndex)
         engine.wpm = wpm
-        return CrownSeek.crownValue(forWordIndex: book.lastReadIndex, wordCount: book.words.count)
+        let crownValue = CrownSeek.crownValue(
+            forWordIndex: book.browseWordIndex,
+            wordCount: book.words.count
+        )
+        lastCrownValue = crownValue
+        return crownValue
     }
 
     func togglePlayback() {
@@ -37,15 +45,27 @@ final class WatchRSVPSession {
     }
 
     func togglePlayback(book: WatchBook?, now: Date = Date()) -> WatchRSVPPositionCommit? {
-        engine.togglePlayPause()
-        return nil
+        if engine.state == .playing {
+            engine.pause()
+            return nil
+        }
+        guard let book, engine.isLoaded else { return nil }
+        let index = engine.currentIndex
+        engine.play()
+        positionCommitPolicy.pressedPlay(at: index, now: now)
+        return makePositionCommit(book: book, index: index)
     }
 
     func commitPlaybackAdvanceIfNeeded(
         book: WatchBook?,
         now: Date = Date()
     ) -> WatchRSVPPositionCommit? {
-        nil
+        guard let book,
+              engine.state == .playing,
+              positionCommitPolicy.shouldCommitAdvance(at: engine.currentIndex, now: now) else {
+            return nil
+        }
+        return makePositionCommit(book: book, index: engine.currentIndex)
     }
 
     func prepareForSettings() {
@@ -54,9 +74,28 @@ final class WatchRSVPSession {
         }
     }
 
-    func seek(toCrownValue crownValue: Double, wordCount: Int) {
-        guard engine.state != .playing else { return }
-        engine.seek(to: CrownSeek.wordIndex(forCrownValue: crownValue, wordCount: wordCount))
+    @discardableResult
+    func seek(toCrownValue crownValue: Double, wordCount: Int) -> Double {
+        guard engine.state != .playing else { return lastCrownValue }
+        let crownDelta = crownValue - lastCrownValue
+        let target = engine.currentIndex - Int(crownDelta.rounded())
+        engine.seek(to: target)
+        return synchronizeCrownValue(wordCount: wordCount)
+    }
+
+    func synchronizeCrownValue(wordCount: Int) -> Double {
+        let crownValue = CrownSeek.crownValue(
+            forWordIndex: engine.currentIndex,
+            wordCount: wordCount
+        )
+        lastCrownValue = crownValue
+        return crownValue
+    }
+
+    func restoreReadingPosition(book: WatchBook) -> Double {
+        engine.pause()
+        engine.seek(to: book.lastReadIndex)
+        return synchronizeCrownValue(wordCount: book.words.count)
     }
 
     func close(book: WatchBook?) -> WatchRSVPPositionCommit? {
@@ -78,11 +117,13 @@ final class WatchRSVPSession {
 
     private func positionCommit(book: WatchBook?) -> WatchRSVPPositionCommit? {
         guard let book, engine.isLoaded else { return nil }
-        return WatchRSVPPositionCommit(
-            bookId: book.id,
-            bookTitle: book.title,
-            wordIndex: engine.snapshotIndexAndPause()
-        )
+        let index = engine.snapshotIndexAndPause()
+        guard positionCommitPolicy.hasPlayed else { return nil }
+        return makePositionCommit(book: book, index: index)
+    }
+
+    private func makePositionCommit(book: WatchBook, index: Int) -> WatchRSVPPositionCommit {
+        WatchRSVPPositionCommit(bookId: book.id, bookTitle: book.title, wordIndex: index)
     }
 }
 
@@ -127,8 +168,7 @@ enum WatchSettingsLogic {
     }
 
     static var rows: [Row] {
-        // Red-phase scaffold. The recall row lands after the red test is observed.
-        [.speed]
+        [.backToReadingPosition, .speed]
     }
 
     static func snappedWPM(_ value: Double) -> Int {

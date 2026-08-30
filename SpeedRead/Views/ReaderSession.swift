@@ -11,7 +11,13 @@ extension ModelContext: ReadingPositionSaving {}
 
 @MainActor
 protocol ReadingPositionSyncing {
-    func syncReadingPosition(bookId: UUID, bookTitle: String, wordIndex: Int, timestamp: Date)
+    func syncReadingPosition(
+        bookId: UUID,
+        bookTitle: String,
+        wordIndex: Int,
+        timestamp: Date,
+        furthestReadWordIndex: Int
+    )
 }
 
 extension WatchSyncService: ReadingPositionSyncing {}
@@ -48,8 +54,11 @@ enum ReadingPositionCoordinator {
         now: Date = Date()
     ) -> ReadingPositionCommit {
         let clamped = clampedIndex(index, wordCount: wordCount)
+        book.ensurePositionMarkersInitialized()
         book.lastReadWordIndex = clamped
         book.lastReadDate = now
+        book.browseWordIndex = clamped
+        book.furthestReadWordIndex = max(book.furthestReadWordIndex, clamped)
 
         let didSave: Bool
         do {
@@ -64,7 +73,8 @@ enum ReadingPositionCoordinator {
             bookId: book.id,
             bookTitle: book.title,
             wordIndex: clamped,
-            timestamp: now
+            timestamp: now,
+            furthestReadWordIndex: book.furthestReadWordIndex
         )
         return ReadingPositionCommit(index: clamped, timestamp: now, didSave: didSave)
     }
@@ -85,6 +95,7 @@ final class ReaderSession {
         guard !hasLoaded else { return }
         hasLoaded = true
         book.ensureTokensCached()
+        book.ensurePositionMarkersInitialized()
         cachedWords = book.words
         paragraphs = ReaderParagraphizer.paragraphs(
             from: book.extractedText,

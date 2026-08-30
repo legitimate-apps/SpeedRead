@@ -50,13 +50,16 @@ final class RSVPPresentationSession {
     private var maximumTranslation: CGFloat = 0
     private var nextFeedbackID = 0
     private var didCommitClose = false
+    private var positionCommitPolicy = PlaybackPositionCommitPolicy()
 
     func load(book: Book, engine: RSVPEngine, wpm: Int) {
         book.ensureTokensCached()
+        book.ensurePositionMarkersInitialized()
         cachedWords = book.words
         didCommitClose = false
+        positionCommitPolicy.reset()
         engine.wpm = wpm
-        engine.load(words: cachedWords, startingAt: book.lastReadWordIndex)
+        engine.load(words: cachedWords, startingAt: book.browseWordIndex)
     }
 
     func togglePlayback(
@@ -66,8 +69,22 @@ final class RSVPPresentationSession {
         sync: (any ReadingPositionSyncing)? = nil,
         now: Date = Date()
     ) -> ReadingPositionCommit? {
-        engine.togglePlayPause()
-        return nil
+        if engine.state == .playing {
+            engine.pause()
+            return nil
+        }
+        guard engine.isLoaded else { return nil }
+        let index = engine.currentIndex
+        engine.play()
+        positionCommitPolicy.pressedPlay(at: index, now: now)
+        return ReadingPositionCoordinator.commit(
+            index,
+            wordCount: cachedWords.count,
+            book: book,
+            saver: saver,
+            sync: sync,
+            now: now
+        )
     }
 
     func commitPlaybackAdvanceIfNeeded(
@@ -77,7 +94,19 @@ final class RSVPPresentationSession {
         sync: (any ReadingPositionSyncing)? = nil,
         now: Date = Date()
     ) -> ReadingPositionCommit? {
-        nil
+        let index = engine.currentIndex
+        guard engine.state == .playing,
+              positionCommitPolicy.shouldCommitAdvance(at: index, now: now) else {
+            return nil
+        }
+        return ReadingPositionCoordinator.commit(
+            index,
+            wordCount: cachedWords.count,
+            book: book,
+            saver: saver,
+            sync: sync,
+            now: now
+        )
     }
 
     @discardableResult
@@ -86,7 +115,17 @@ final class RSVPPresentationSession {
         book: Book,
         saver: any ReadingPositionSaving
     ) -> Bool {
-        false
+        book.ensurePositionMarkersInitialized()
+        book.browseWordIndex = ReadingPositionCoordinator.clampedIndex(
+            index,
+            wordCount: cachedWords.count
+        )
+        do {
+            try saver.save()
+            return true
+        } catch {
+            return false
+        }
     }
 
     func close(
@@ -97,6 +136,10 @@ final class RSVPPresentationSession {
         now: Date = Date()
     ) -> ReadingPositionCommit? {
         let index = engine.snapshotIndexAndPause()
+        guard positionCommitPolicy.hasPlayed else {
+            didCommitClose = true
+            return nil
+        }
         let commit = ReadingPositionCoordinator.commit(
             index,
             wordCount: cachedWords.count,
@@ -125,6 +168,10 @@ final class RSVPPresentationSession {
             return nil
         }
         let index = engine.snapshotIndexAndPause()
+        guard positionCommitPolicy.hasPlayed else {
+            engine.stop()
+            return nil
+        }
         let commit = ReadingPositionCoordinator.commit(
             index,
             wordCount: cachedWords.count,

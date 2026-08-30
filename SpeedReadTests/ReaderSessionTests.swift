@@ -124,7 +124,13 @@ struct ReaderSessionTests {
         #expect(book.lastReadDate == now)
         #expect(book.furthestReadWordIndex == 1)
         #expect(saver.saveCount == 1)
-        #expect(sync.events == [.init(bookID: book.id, title: book.title, wordIndex: 1, timestamp: now)])
+        #expect(sync.events == [.init(
+            bookID: book.id,
+            title: book.title,
+            wordIndex: 1,
+            timestamp: now,
+            furthestReadWordIndex: 1
+        )])
     }
 
     @Test func emptyBookCommitUsesTheOnlyValidCoordinate() {
@@ -211,12 +217,25 @@ private final class RecordingPositionSync: ReadingPositionSyncing {
         let title: String
         let wordIndex: Int
         let timestamp: Date
+        let furthestReadWordIndex: Int
     }
 
     private(set) var events: [Event] = []
 
-    func syncReadingPosition(bookId: UUID, bookTitle: String, wordIndex: Int, timestamp: Date) {
-        events.append(.init(bookID: bookId, title: bookTitle, wordIndex: wordIndex, timestamp: timestamp))
+    func syncReadingPosition(
+        bookId: UUID,
+        bookTitle: String,
+        wordIndex: Int,
+        timestamp: Date,
+        furthestReadWordIndex: Int
+    ) {
+        events.append(.init(
+            bookID: bookId,
+            title: bookTitle,
+            wordIndex: wordIndex,
+            timestamp: timestamp,
+            furthestReadWordIndex: furthestReadWordIndex
+        ))
     }
 }
 

@@ -111,7 +111,7 @@ struct WatchRSVPSessionTests {
         let session = WatchRSVPSession()
         _ = session.load(book: book, wpm: 300)
         session.engine.seek(to: 2)
-        session.engine.play()
+        _ = session.togglePlayback(book: book)
 
         let commit = try #require(session.close(book: book))
 
@@ -126,6 +126,7 @@ struct WatchRSVPSessionTests {
         let session = WatchRSVPSession()
         _ = session.load(book: book, wpm: 300)
         session.engine.seek(to: 2)
+        _ = session.togglePlayback(book: book)
 
         let closeCommit = try #require(session.close(book: book))
         let duplicate = session.handleDisappear(book: book)

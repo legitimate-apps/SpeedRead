@@ -97,7 +97,8 @@ struct WatchSyncLogic {
                 "bookId": bookId.uuidString,
                 "bookTitle": bookTitle,
                 "wordIndex": wordIndex,
-                "timestamp": timestamp.timeIntervalSince1970
+                "timestamp": timestamp.timeIntervalSince1970,
+                "furthestReadWordIndex": furthestReadWordIndex
             ]
         }
 
@@ -115,7 +116,11 @@ struct WatchSyncLogic {
                 bookId: bookId,
                 bookTitle: bookTitle,
                 wordIndex: wordIndex,
-                timestamp: Date(timeIntervalSince1970: interval)
+                timestamp: Date(timeIntervalSince1970: interval),
+                furthestReadWordIndex: max(
+                    0,
+                    (dictionary["furthestReadWordIndex"] as? Int) ?? wordIndex
+                )
             )
         }
     }
@@ -137,8 +142,7 @@ struct WatchSyncLogic {
     }
 
     static func mergedFurthestRead(local: Int, incoming: Int) -> Int {
-        // Red-phase scaffold: last arrival incorrectly wins.
-        incoming
+        max(local, incoming)
     }
 
     static func shouldOfferWatchPosition(
@@ -147,8 +151,17 @@ struct WatchSyncLogic {
         localDate: Date?,
         wordCount: Int
     ) -> Bool {
-        // Red-phase scaffold. The offer policy is implemented after its tests fail.
-        false
+        guard wordCount > 0,
+              reconcile(
+                incoming: incoming,
+                bookExists: true,
+                lastReadDate: localDate
+              ) == .apply else {
+            return false
+        }
+        let clampedIncoming = min(max(0, incoming.wordIndex), wordCount - 1)
+        let materialDifference = max(5, Int(ceil(Double(wordCount) * 0.01)))
+        return abs(clampedIncoming - localIndex) >= materialDifference
     }
 
     enum BookDeliveryRoute: Equatable {
@@ -190,6 +203,13 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         let wordIndex: Int
         let wordCount: Int
         let timestamp: Date
+
+        var displayText: String {
+            let percentage = wordCount > 0
+                ? Int((Double(wordIndex) / Double(wordCount) * 100).rounded())
+                : 0
+            return "Continue from Apple Watch — \(percentage)%, word \((wordIndex + 1).formatted())"
+        }
     }
 
     enum SendState: Equatable {
@@ -323,9 +343,38 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
 
     // MARK: - Bidirectional Position Sync
 
-    func syncReadingPosition(bookId: UUID, bookTitle: String, wordIndex: Int, timestamp: Date = Date()) {
+    func syncReadingPosition(
+        bookId: UUID,
+        bookTitle: String,
+        wordIndex: Int,
+        timestamp: Date = Date()
+    ) {
+        syncReadingPosition(
+            bookId: bookId,
+            bookTitle: bookTitle,
+            wordIndex: wordIndex,
+            timestamp: timestamp,
+            furthestReadWordIndex: wordIndex
+        )
+    }
+
+    func syncReadingPosition(
+        bookId: UUID,
+        bookTitle: String,
+        wordIndex: Int,
+        timestamp: Date,
+        furthestReadWordIndex: Int
+    ) {
+        var outgoingFurthest = furthestReadWordIndex
         #if os(watchOS)
-        library.updatePosition(bookId: bookId, index: wordIndex, timestamp: timestamp)
+        library.updatePosition(
+            bookId: bookId,
+            index: wordIndex,
+            timestamp: timestamp,
+            furthestReadWordIndex: furthestReadWordIndex
+        )
+        outgoingFurthest = library.books.first(where: { $0.id == bookId })?.furthestReadWordIndex
+            ?? furthestReadWordIndex
         persistLibrary()
         #endif
         guard connectivitySession.activationState == .activated else { return }
@@ -333,7 +382,8 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             bookId: bookId,
             bookTitle: bookTitle,
             wordIndex: wordIndex,
-            timestamp: timestamp
+            timestamp: timestamp,
+            furthestReadWordIndex: outgoingFurthest
         )
         try? connectivitySession.updateApplicationContext(payload.dictionary)
     }
@@ -441,17 +491,28 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             #if os(watchOS)
             guard let self else { return }
             guard let book = self.library.books.first(where: { $0.id == payload.bookId }) else { return }
-            guard WatchSyncLogic.reconcile(
+            let readingDecision = WatchSyncLogic.reconcile(
                 incoming: payload,
                 bookExists: true,
                 lastReadDate: book.lastReadDate
-            ) == .apply else { return }
-            self.library.updatePosition(
-                bookId: payload.bookId,
-                index: payload.wordIndex,
-                timestamp: payload.timestamp
             )
-            self.persistLibrary()
+            let mergedFurthest = WatchSyncLogic.mergedFurthestRead(
+                local: book.furthestReadWordIndex,
+                incoming: payload.furthestReadWordIndex
+            )
+            var changed = self.library.mergeFurthestReadPosition(
+                bookId: payload.bookId,
+                index: mergedFurthest
+            )
+            if readingDecision == .apply {
+                changed = self.library.updatePosition(
+                    bookId: payload.bookId,
+                    index: payload.wordIndex,
+                    timestamp: payload.timestamp,
+                    furthestReadWordIndex: mergedFurthest
+                ) || changed
+            }
+            if changed { self.persistLibrary() }
             #elseif os(iOS)
             self?.applyIncomingPosition(payload)
             #endif
@@ -465,17 +526,77 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         let bookId = payload.bookId
         let descriptor = FetchDescriptor<Book>(predicate: #Predicate { $0.id == bookId })
         guard let book = try? modelContext.fetch(descriptor).first else { return }
-        guard WatchSyncLogic.reconcile(
+        book.ensurePositionMarkersInitialized()
+        let clampedIndex = min(payload.wordIndex, max(0, book.wordCount - 1))
+        book.furthestReadWordIndex = min(
+            WatchSyncLogic.mergedFurthestRead(
+                local: book.furthestReadWordIndex,
+                incoming: payload.furthestReadWordIndex
+            ),
+            max(0, book.wordCount - 1)
+        )
+        if WatchSyncLogic.shouldOfferWatchPosition(
             incoming: payload,
-            bookExists: true,
-            lastReadDate: book.lastReadDate
-        ) == .apply else { return }
-        book.lastReadWordIndex = min(payload.wordIndex, max(0, book.wordCount - 1))
-        book.lastReadDate = payload.timestamp
+            localIndex: book.lastReadWordIndex,
+            localDate: book.lastReadDate,
+            wordCount: book.wordCount
+        ) {
+            pendingWatchPositionOffer = PositionOffer(
+                bookId: book.id,
+                bookTitle: book.title,
+                wordIndex: clampedIndex,
+                wordCount: book.wordCount,
+                timestamp: payload.timestamp
+            )
+        }
         do {
             try modelContext.save()
         } catch {
             Self.logger.error("Failed to persist watch reading position: \(error.localizedDescription)")
+        }
+    }
+
+    @MainActor
+    func dismissWatchPositionOffer() {
+        pendingWatchPositionOffer = nil
+    }
+
+    @MainActor
+    @discardableResult
+    func continueFromWatch(_ offer: PositionOffer) -> Bool {
+        guard pendingWatchPositionOffer == offer,
+              let modelContext else { return false }
+        let bookId = offer.bookId
+        let descriptor = FetchDescriptor<Book>(predicate: #Predicate { $0.id == bookId })
+        guard let book = try? modelContext.fetch(descriptor).first else {
+            pendingWatchPositionOffer = nil
+            return false
+        }
+        let payload = WatchSyncLogic.PositionPayload(
+            bookId: offer.bookId,
+            bookTitle: offer.bookTitle,
+            wordIndex: offer.wordIndex,
+            timestamp: offer.timestamp,
+            furthestReadWordIndex: book.furthestReadWordIndex
+        )
+        guard WatchSyncLogic.reconcile(
+            incoming: payload,
+            bookExists: true,
+            lastReadDate: book.lastReadDate
+        ) == .apply else {
+            pendingWatchPositionOffer = nil
+            return false
+        }
+        book.lastReadWordIndex = offer.wordIndex
+        book.lastReadDate = offer.timestamp
+        book.browseWordIndex = offer.wordIndex
+        do {
+            try modelContext.save()
+            pendingWatchPositionOffer = nil
+            return true
+        } catch {
+            Self.logger.error("Failed to persist accepted watch reading position: \(error.localizedDescription)")
+            return false
         }
     }
     #endif

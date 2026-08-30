@@ -8,10 +8,55 @@ struct WatchBook: Codable, Identifiable, Hashable {
     let text: String
     var lastReadIndex: Int
     var lastReadDate: Date?
-    var browseWordIndex: Int = 0
-    var furthestReadWordIndex: Int = 0
+    var browseWordIndex: Int
+    var furthestReadWordIndex: Int
     let wordCount: Int
     let dateAdded: Date
+
+    init(
+        id: UUID,
+        title: String,
+        author: String,
+        text: String,
+        lastReadIndex: Int,
+        lastReadDate: Date?,
+        browseWordIndex: Int? = nil,
+        furthestReadWordIndex: Int? = nil,
+        wordCount: Int,
+        dateAdded: Date
+    ) {
+        self.id = id
+        self.title = title
+        self.author = author
+        self.text = text
+        self.lastReadIndex = lastReadIndex
+        self.lastReadDate = lastReadDate
+        self.browseWordIndex = browseWordIndex ?? lastReadIndex
+        self.furthestReadWordIndex = furthestReadWordIndex ?? lastReadIndex
+        self.wordCount = wordCount
+        self.dateAdded = dateAdded
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, author, text, lastReadIndex, lastReadDate
+        case browseWordIndex, furthestReadWordIndex, wordCount, dateAdded
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        author = try container.decode(String.self, forKey: .author)
+        text = try container.decode(String.self, forKey: .text)
+        lastReadIndex = try container.decode(Int.self, forKey: .lastReadIndex)
+        lastReadDate = try container.decodeIfPresent(Date.self, forKey: .lastReadDate)
+        browseWordIndex = try container.decodeIfPresent(Int.self, forKey: .browseWordIndex)
+            ?? lastReadIndex
+        furthestReadWordIndex = try container.decodeIfPresent(Int.self, forKey: .furthestReadWordIndex)
+            ?? lastReadIndex
+        wordCount = try container.decode(Int.self, forKey: .wordCount)
+        dateAdded = try container.decode(Date.self, forKey: .dateAdded)
+    }
 
     var words: [String] {
         text.components(separatedBy: .whitespacesAndNewlines)
@@ -53,17 +98,37 @@ struct WatchLibrary: Codable, Equatable {
     }
 
     @discardableResult
-    mutating func updatePosition(bookId: UUID, index: Int, timestamp: Date = Date()) -> Bool {
+    mutating func updatePosition(
+        bookId: UUID,
+        index: Int,
+        timestamp: Date = Date(),
+        furthestReadWordIndex: Int? = nil
+    ) -> Bool {
         guard let i = books.firstIndex(where: { $0.id == bookId }) else { return false }
-        books[i].lastReadIndex = min(max(0, index), max(0, books[i].wordCount - 1))
+        let upperBound = max(0, books[i].wordCount - 1)
+        let clamped = min(max(0, index), upperBound)
+        let incomingFurthest = min(max(0, furthestReadWordIndex ?? clamped), upperBound)
+        books[i].lastReadIndex = clamped
         books[i].lastReadDate = timestamp
+        books[i].browseWordIndex = clamped
+        books[i].furthestReadWordIndex = max(books[i].furthestReadWordIndex, incomingFurthest)
         return true
     }
 
     @discardableResult
     mutating func updateBrowsePosition(bookId: UUID, index: Int) -> Bool {
-        // Red-phase scaffold: this incorrectly changes the synced reading marker.
-        updatePosition(bookId: bookId, index: index)
+        guard let i = books.firstIndex(where: { $0.id == bookId }) else { return false }
+        books[i].browseWordIndex = min(max(0, index), max(0, books[i].wordCount - 1))
+        return true
+    }
+
+    @discardableResult
+    mutating func mergeFurthestReadPosition(bookId: UUID, index: Int) -> Bool {
+        guard let i = books.firstIndex(where: { $0.id == bookId }) else { return false }
+        let clamped = min(max(0, index), max(0, books[i].wordCount - 1))
+        guard clamped > books[i].furthestReadWordIndex else { return false }
+        books[i].furthestReadWordIndex = clamped
+        return true
     }
 
     mutating func setCurrentBook(id: UUID) {

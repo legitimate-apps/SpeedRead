@@ -40,6 +40,7 @@ struct WatchSyncLogicTests {
 
         let decoded = try #require(WatchSyncLogic.PositionPayload.decode(from: original.dictionary))
         #expect(decoded == original)
+        #expect(original.dictionary["browseWordIndex"] == nil)
     }
 
     @Test("Characterization: reading position is timestamp LWW, not max")

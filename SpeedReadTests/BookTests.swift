@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import SwiftData
 @testable import SpeedRead
 
 @Suite("Book Model Tests")
@@ -198,5 +199,34 @@ struct BookTests {
 
         #expect(browseWordIndex == 12)
         #expect(furthestReadWordIndex == 44)
+    }
+
+    @Test("Characterization: SwiftData persists all three position markers")
+    @MainActor
+    func swiftDataPositionMarkerRoundTrip() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: Book.self, Bookmark.self, Highlight.self,
+            configurations: configuration
+        )
+        let book = Book(
+            title: "Stored",
+            author: "Author",
+            extractedText: "zero one two three",
+            sourceFileName: "stored.txt"
+        )
+        book.lastReadWordIndex = 1
+        book.browseWordIndex = 2
+        book.furthestReadWordIndex = 3
+        container.mainContext.insert(book)
+        try container.mainContext.save()
+        let id = book.id
+        container.mainContext.rollback()
+
+        let descriptor = FetchDescriptor<Book>(predicate: #Predicate { $0.id == id })
+        let stored = try #require(container.mainContext.fetch(descriptor).first)
+        #expect(stored.lastReadWordIndex == 1)
+        #expect(stored.browseWordIndex == 2)
+        #expect(stored.furthestReadWordIndex == 3)
     }
 }

@@ -143,6 +143,25 @@ struct RSVPView: View {
                 Self.logger.error("Failed to persist lastReadWordIndex on disappear")
             }
         }
+        .onChange(of: engine.currentIndex) { _, newIndex in
+            if engine.state == .playing {
+                let result = presentation.commitPlaybackAdvanceIfNeeded(
+                    engine: engine,
+                    book: book,
+                    saver: modelContext,
+                    sync: syncService
+                )
+                if result?.didSave == false {
+                    Self.logger.error("Failed to persist throttled RSVP reading position")
+                }
+            } else if !presentation.recordBrowsePosition(
+                newIndex,
+                book: book,
+                saver: modelContext
+            ) {
+                Self.logger.error("Failed to persist local RSVP browse position")
+            }
+        }
         .task(id: presentation.feedbackFlash?.id) {
             guard let flash = presentation.feedbackFlash else { return }
             do {
@@ -312,7 +331,15 @@ struct RSVPView: View {
     // MARK: - Actions
 
     private func togglePlayback() {
-        engine.togglePlayPause()
+        let result = presentation.togglePlayback(
+            engine: engine,
+            book: book,
+            saver: modelContext,
+            sync: syncService
+        )
+        if result?.didSave == false {
+            Self.logger.error("Failed to persist RSVP play position")
+        }
         UIImpactFeedbackGenerator(style: .soft).impactOccurred()
     }
 

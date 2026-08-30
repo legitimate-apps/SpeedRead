@@ -37,7 +37,8 @@ struct WatchSyncServiceTests {
             bookId: id,
             bookTitle: "Book",
             wordIndex: 17,
-            timestamp: timestamp
+            timestamp: timestamp,
+            furthestReadWordIndex: 17
         ))
     }
 
@@ -137,7 +138,7 @@ struct WatchSyncServiceTests {
         let book = Book(
             title: "Stored",
             author: "Author",
-            extractedText: "zero one two",
+            extractedText: (0..<1_000).map { "word\($0)" }.joined(separator: " "),
             sourceFileName: "stored.txt"
         )
         book.lastReadDate = Date(timeIntervalSince1970: 100)
@@ -150,7 +151,7 @@ struct WatchSyncServiceTests {
             bookTitle: book.title,
             wordIndex: 99,
             timestamp: Date(timeIntervalSince1970: 200),
-            furthestReadWordIndex: 2
+            furthestReadWordIndex: 80
         )
 
         service.session(.default, didReceiveApplicationContext: payload.dictionary)
@@ -160,8 +161,64 @@ struct WatchSyncServiceTests {
 
         #expect(book.lastReadWordIndex == 0)
         #expect(book.lastReadDate == Date(timeIntervalSince1970: 100))
-        #expect(book.furthestReadWordIndex == 2)
-        #expect(service.pendingWatchPositionOffer?.wordIndex == 2)
+        #expect(book.furthestReadWordIndex == 80)
+        #expect(service.pendingWatchPositionOffer?.wordIndex == 99)
+        let offer = try #require(service.pendingWatchPositionOffer)
+        #expect(service.continueFromWatch(offer))
+        #expect(book.lastReadWordIndex == 99)
+        #expect(book.browseWordIndex == 99)
+        #expect(book.lastReadDate == payload.timestamp)
+        #expect(service.pendingWatchPositionOffer == nil)
+    }
+
+    @Test func staleReadingStillMaxMergesFurthestWithoutCreatingAnOffer() async throws {
+        let service = WatchSyncService(session: FakeWatchConnectivitySession())
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: Book.self, Bookmark.self, Highlight.self,
+            configurations: configuration
+        )
+        let book = Book(
+            title: "Stored",
+            author: "Author",
+            extractedText: (0..<100).map { "word\($0)" }.joined(separator: " "),
+            sourceFileName: "stored.txt"
+        )
+        book.lastReadWordIndex = 20
+        book.lastReadDate = Date(timeIntervalSince1970: 300)
+        book.furthestReadWordIndex = 40
+        container.mainContext.insert(book)
+        try container.mainContext.save()
+        service.configure(modelContext: container.mainContext)
+        let stale = WatchSyncLogic.PositionPayload(
+            bookId: book.id,
+            bookTitle: book.title,
+            wordIndex: 5,
+            timestamp: Date(timeIntervalSince1970: 200),
+            furthestReadWordIndex: 80
+        )
+
+        service.session(.default, didReceiveApplicationContext: stale.dictionary)
+        for _ in 0..<20 where book.furthestReadWordIndex != 80 {
+            await Task.yield()
+        }
+
+        #expect(book.lastReadWordIndex == 20)
+        #expect(book.lastReadDate == Date(timeIntervalSince1970: 300))
+        #expect(book.furthestReadWordIndex == 80)
+        #expect(service.pendingWatchPositionOffer == nil)
+    }
+
+    @Test func watchOfferTextUsesHumanWordNumberAndFormattedProgress() {
+        let offer = WatchSyncService.PositionOffer(
+            bookId: UUID(),
+            bookTitle: "Book",
+            wordIndex: 4_119,
+            wordCount: 12_000,
+            timestamp: Date(timeIntervalSince1970: 100)
+        )
+
+        #expect(offer.displayText == "Continue from Apple Watch — 34%, word 4,120")
     }
 }
 

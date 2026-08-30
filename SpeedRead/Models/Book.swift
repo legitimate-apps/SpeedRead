@@ -19,7 +19,12 @@ enum BookPositionMigration {
         furthestReadWordIndex: inout Int,
         lastReadWordIndex: Int
     ) {
-        // Red-phase scaffold. The migration behavior is implemented after its tests fail.
+        if browseWordIndex < 0 {
+            browseWordIndex = max(0, lastReadWordIndex)
+        }
+        if furthestReadWordIndex < 0 {
+            furthestReadWordIndex = max(0, lastReadWordIndex)
+        }
     }
 }
 
@@ -33,8 +38,12 @@ final class Book {
     var dateAdded: Date
     var lastReadWordIndex: Int
     var lastReadDate: Date?
-    var browseWordIndex: Int = 0
-    var furthestReadWordIndex: Int = 0
+    /// Local RSVP/navigation cursor. A negative value is the migration sentinel for
+    /// stores created before the three-marker position model.
+    var browseWordIndex: Int = -1
+
+    /// Synced high-water reading mark. A negative value is the migration sentinel.
+    var furthestReadWordIndex: Int = -1
     var wordCount: Int
 
     /// Tokens persisted at import so RSVP and reader don't re-tokenize the entire

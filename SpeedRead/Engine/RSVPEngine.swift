@@ -2,6 +2,38 @@
 import Foundation
 import Observation
 
+struct PlaybackPositionCommitPolicy {
+    static let throttleInterval: TimeInterval = 5
+
+    private(set) var hasPlayed = false
+    private var lastCommitDate: Date?
+    private var lastCommittedIndex: Int?
+
+    mutating func reset() {
+        hasPlayed = false
+        lastCommitDate = nil
+        lastCommittedIndex = nil
+    }
+
+    mutating func pressedPlay(at index: Int, now: Date) {
+        hasPlayed = true
+        lastCommitDate = now
+        lastCommittedIndex = index
+    }
+
+    mutating func shouldCommitAdvance(at index: Int, now: Date) -> Bool {
+        guard hasPlayed,
+              index != lastCommittedIndex,
+              let lastCommitDate,
+              now.timeIntervalSince(lastCommitDate) >= Self.throttleInterval else {
+            return false
+        }
+        self.lastCommitDate = now
+        lastCommittedIndex = index
+        return true
+    }
+}
+
 @Observable
 @MainActor
 final class RSVPEngine {
