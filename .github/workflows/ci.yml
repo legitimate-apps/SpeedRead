@@ -2,11 +2,14 @@ name: CI
 
 # Runs on the operator's own Mac via a self-hosted runner. Never on GitHub-hosted macOS —
 # that bills at a 10x multiplier and was ~92% of one project's Actions spend.
+# TRIGGERS ARE DELIBERATELY MANUAL-ONLY until the self-hosted `speedread-mac` runner is
+# registered. With no runner, a push-triggered job queues forever and reads as broken CI.
+# Restore the push/pull_request triggers below in the same change that registers the runner.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
+  # push:
+  #   branches: [main]
+  # pull_request:
 
 # Rapid pushes must not pile Xcode builds onto a machine that also runs the operator's
 # other work. Newest push wins; older runs are cancelled.
