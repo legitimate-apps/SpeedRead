@@ -73,8 +73,11 @@ These are the operator's named priorities. They outrank backlog items.
 > *identical* 42-test watch suite (2026-08-31): headline moved **41.84% → 55.77%** while attributable
 > moved **77.73% → 78.09%**. 316 of the 320 extra "covered" lines were GHOST — the same four files,
 > named by no test, covered only because the host app rendered further into its launch path on one
-> run than the other. Headline on a host-app test bundle is timing-dependent and swings ~14 points
-> for free; gating on it would make CI flaky and would reward nothing.
+> run than the other. **Scope of this claim: MEASURED ON SPEEDREAD, TWO RUNS, UNREPLICATED** — it is
+> not established that host-app headline is nondeterministic in general, and a peer project's
+> attempt to replicate it did not happen. What it does establish, and this stands at n=1, is that
+> headline HERE can swing ~14 points with no code change, which is sufficient reason never to gate
+> it: the build would go red on rendering timing rather than code quality.
 
 1. **The Apple Watch surface is first-class, and stays that way.** It must be genuinely tested and
    actively maintained — not a demo that rots between releases. Concretely: the watch library, RSVP

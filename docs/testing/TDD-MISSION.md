@@ -243,6 +243,13 @@ only because the host app rendered further into its launch path on one run than 
 headline swings ~14 percentage points run-to-run for free, while attributable moves a third of a
 point.
 
+⚠️ **Evidence class: MEASURED, one project, two runs, UNREPLICATED.** The mechanism (launch-path
+rendering varies, and it lands entirely in GHOST) explains it and generalises plausibly, but
+plausible is not measured. Cite this as "headline swung 14 points on SpeedRead with no code change",
+never as "host-app headline is nondeterministic". The distinction matters because the *caution* is
+already actionable at n=1 — it correctly stops anyone gating headline — while the *generalisation*
+needs a second project, and only the generalisation is currently unsupported.
+
 Three consequences, and the first two are the reason this is in the ledger rather than a footnote:
 
 1. **Gating on headline would make CI flaky** — a 14-point free swing dwarfs any plausible
