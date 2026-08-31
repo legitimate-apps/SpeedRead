@@ -184,3 +184,18 @@ Each round is its own session/PR. This doc gets the Changelog updated.
   registered and `.github/workflows/ci.yml` enabled, gating **attributable** coverage via
   `Scripts/coverage.sh` rather than re-implementing the lanes. Roadmap truth sweep: B2 and B3 were
   still marked pending though leg 3 fixed both — corrected above against the source.
+- **2026-08-31** — Leg 8: **chapters** land end to end (EPUB 3 nav documents, EPUB 2 NCX, genuine
+  heading fallback, PDFKit outline; TXT/RTF synthesize nothing, so the watch row hides rather than
+  faking structure), plus a persisted `Book.chapters`, chapter marks carried on the watch sync
+  payload, a pure `ChapterIndex`, and a browse-only chapter row on the watch that commits no reading
+  position. Token-stream identity proven by SHA-256 fingerprints of both the raw text and the
+  length-framed token sequence; `BundledSampleBookTests.swift` passed **unmodified** and appears in
+  no leg-8 commit. Two silent hazards found and pinned: chapter offsets must be counted in
+  post-hyphen-split tokens (the watch tokenizer disagreed with the phone's on `self-awareness`, which
+  would have displaced every chapter coordinate on the watch), and an empty EPUB spine item shares a
+  `startWordIndex` with the next chapter. **The Digital Crown direction is now OBSERVED end to end**
+  — a watch XCUITest in its own `WatchUI.xctestplan` drives `XCUIDevice.rotateDigitalCrown` against
+  the real `.digitalCrownRotation` composition, closing the project's last ASSUMED link. Mutation
+  gate re-measured from a cleared ledger: 21 killed / 1 expected survivor / 0 invalid / 0 unexpected,
+  unchanged by the feature. 238 iOS + 45 watch + 1 UI test; 298 tests, 0 assertion-free; combined
+  attributable 83.73%; CI floor ratcheted 80 -> 82.
