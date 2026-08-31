@@ -16,3 +16,4 @@ xcuserdata/
 *.p8
 *.p12
 *.mobileprovision
+docs/testing/mutation-report.jsonl

@@ -173,18 +173,42 @@ def main():
         record(m["label"], verdict, note)
         print(f"[{i}/{len(muts)}] [{lane_for(m['file'])}] {m['label']}: {verdict} — {note}")
 
-    survivors = [r for r in results if r[1] == "SURVIVED"]
-    invalid   = [r for r in results if r[1] in ("INVALID", "SKIPPED")]
+    # Not every survivor is a test gap, and a gate that cannot pass is not a gate. Two kinds
+    # of mutation legitimately survive:
+    #   * an EQUIVALENT mutant, which no test can kill because it does not change behaviour;
+    #   * a mutation deliberately included as a prediction, to prove the gate reproduces a gap
+    #     I already knew about.
+    # Both carry "expect": "SURVIVED" in mutations.json with a "why". The gate fails only on
+    # an outcome nobody predicted — otherwise the deliberate survivors would make every run red
+    # and the signal would be ignored within a week.
+    expected = {m["label"]: m.get("expect", "KILLED") for m in muts}
+    reasons  = {m["label"]: m.get("why", "") for m in muts}
+    unexpected = [r for r in results if r[1] != expected.get(r[0], "KILLED")]
+    survivors  = [r for r in results if r[1] == "SURVIVED"]
+    invalid    = [r for r in results if r[1] in ("INVALID", "SKIPPED")]
+    killed     = [r for r in results if r[1] == "KILLED"]
     with open(args.out, "w") as f:
         f.write("# Mutation gate report\n\n")
+        f.write("Coverage says a line ran. This says an assertion would have NOTICED if it were wrong.\n\n")
         f.write(f"Run {time.strftime('%Y-%m-%d %H:%M')} · {len(results)} mutations · "
-                f"{len(results)-len(survivors)-len(invalid)} killed · {len(survivors)} survived · "
-                f"{len(invalid)} not counted\n\n")
-        f.write("| mutation | verdict | note |\n|---|---|---|\n")
+                f"{len(killed)} killed · {len(survivors)} survived "
+                f"({len(survivors)-len([r for r in unexpected if r[1]=='SURVIVED'])} of them expected) · "
+                f"{len(invalid)} not counted · **{len(unexpected)} unexpected**\n\n")
+        f.write("| mutation | verdict | expected | note |\n|---|---|---|---|\n")
         for label, verdict, note in results:
-            f.write(f"| {label} | **{verdict}** | {note} |\n")
-    print(f"\n{len(survivors)} survivors, {len(invalid)} invalid/skipped → {args.out}")
-    sys.exit(1 if survivors else 0)
+            exp = expected.get(label, "KILLED")
+            mark = "" if verdict == exp else " ⚠️"
+            why = f" — {reasons[label]}" if reasons.get(label) and verdict == "SURVIVED" else ""
+            f.write(f"| {label} | **{verdict}**{mark} | {exp} | {note}{why} |\n")
+        if unexpected:
+            f.write("\n## Unexpected outcomes\n\n")
+            for label, verdict, note in unexpected:
+                f.write(f"- **{label}** — got {verdict}, expected {expected.get(label,'KILLED')}. {note}\n")
+    print(f"\n{len(killed)} killed · {len(survivors)} survived · {len(invalid)} invalid/skipped · "
+          f"{len(unexpected)} UNEXPECTED → {args.out}")
+    for label, verdict, note in unexpected:
+        print(f"  ⚠️  {label}: {verdict} (expected {expected.get(label,'KILLED')})")
+    sys.exit(1 if unexpected else 0)
 
 if __name__ == "__main__":
     main()

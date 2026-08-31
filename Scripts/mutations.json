@@ -1,134 +1,136 @@
 [
- {
-  "file": "SpeedRead/Engine/ORPCalculator.swift",
-  "old": "        case 2...5:   return 1",
-  "new": "        case 2...5:   return 2",
-  "label": "ORP: 2-5 char words pivot moves 1->2"
- },
- {
-  "file": "SpeedRead/Engine/ORPCalculator.swift",
-  "old": "        case 6...9:   return 2",
-  "new": "        case 6...9:   return 3",
-  "label": "ORP: 6-9 char words pivot moves 2->3"
- },
- {
-  "file": "SpeedRead/Engine/ORPCalculator.swift",
-  "old": "        case 10...13: return 3",
-  "new": "        case 10...13: return 4",
-  "label": "ORP: 10-13 char words pivot moves 3->4"
- },
- {
-  "file": "SpeedRead/Engine/ORPCalculator.swift",
-  "old": "        let clampedIdx = min(orpIndex(for: word), count - 1)",
-  "new": "        let clampedIdx = min(orpIndex(for: word), count)",
-  "label": "ORP: focus clamp off-by-one (OOB risk)"
- },
- {
-  "file": "SpeedRead/Engine/WordTimer.swift",
-  "old": "        if trimmed.count >= 8 {",
-  "new": "        if trimmed.count >= 9 {",
-  "label": "WordTimer: long-word threshold 8->9"
- },
- {
-  "file": "SpeedRead/Engine/WordTimer.swift",
-  "old": "            multiplier *= 1.3",
-  "new": "            multiplier *= 1.6",
-  "label": "WordTimer: long-word multiplier 1.3->1.6"
- },
- {
-  "file": "SpeedRead/Engine/WordTimer.swift",
-  "old": "            multiplier *= 1.8",
-  "new": "            multiplier *= 1.4",
-  "label": "WordTimer: numeric multiplier 1.8->1.4"
- },
- {
-  "file": "SpeedRead/Engine/WordTimer.swift",
-  "old": "            multiplier *= 2.0",
-  "new": "            multiplier *= 1.9",
-  "label": "WordTimer: sentence-end multiplier 2.0->1.9"
- },
- {
-  "file": "SpeedRead/Engine/WordTimer.swift",
-  "old": "            multiplier *= 1.5",
-  "new": "            multiplier *= 1.4",
-  "label": "WordTimer: clause-end multiplier 1.5->1.4"
- },
- {
-  "file": "SpeedRead/Engine/WordTimer.swift",
-  "old": "        60_000 / wpm",
-  "new": "        61_000 / wpm",
-  "label": "WordTimer: base delay constant"
- },
- {
-  "file": "SpeedRead/Engine/RSVPEngine.swift",
-  "old": "    static let wpmRange = 100...1500",
-  "new": "    static let wpmRange = 100...1400",
-  "label": "RSVP: WPM clamp upper bound 1500->1400"
- },
- {
-  "file": "SpeedRead/Connectivity/WatchSyncService.swift",
-  "old": "        return incoming.timestamp > lastReadDate ? .apply : .ignoreStale",
-  "new": "        return incoming.timestamp >= lastReadDate ? .apply : .ignoreStale",
-  "label": "WatchSync: staleness comparison > -> >= (equal-timestamp replay)"
- },
- {
-  "file": "SpeedRead/Models/Book.swift",
-  "old": "        return Double(lastReadWordIndex) / Double(wordCount)",
-  "new": "        return Double(lastReadWordIndex) / Double(wordCount + 1)",
-  "label": "Book: progress denominator off-by-one"
- },
- {
-  "file": "SpeedRead/Models/Book.swift",
-  "old": "            if word[i] == \"-\",",
-  "new": "            if word[i] == \"+\",",
-  "label": "Book: hyphen tokenisation split character"
- },
- {
-  "file": "SpeedRead/Services/OPDSClient.swift",
-  "old": "        if !(200...299).contains(http.statusCode) {",
-  "new": "        if !(200...399).contains(http.statusCode) {",
-  "label": "OPDS: success status range widened to accept redirects"
- },
- {
-  "file": "SpeedRead/Services/OPDSClient.swift",
-  "old": "        if scheme == \"http\" && !server.allowInsecureHTTP {",
-  "new": "        if scheme == \"http\" && server.allowInsecureHTTP {",
-  "label": "OPDS: insecure-HTTP gate inverted (security)"
- },
- {
-  "file": "SpeedRead/Services/OPDSClient.swift",
-  "old": "    init(session: URLSession = .shared) {",
-  "new": "    init(session: URLSession = URLSession(configuration: .ephemeral)) {",
-  "label": "OPDS: DEFAULT ARGUMENT for session (tests always pass a mock)"
- },
- {
-  "file": "SpeedRead/Models/Book.swift",
-  "old": "        guard tokens.isEmpty else { return }",
-  "new": "        guard !tokens.isEmpty else { return }",
-  "label": "Book: token-cache migration guard inverted"
- },
- {
-  "file": "SpeedRead/Connectivity/WatchSyncService.swift",
-  "old": "        max(local, incoming)",
-  "new": "        min(local, incoming)",
-  "label": "furthestRead: max-merge becomes MIN (high-water mark runs backwards)"
- },
- {
-  "file": "SpeedRead/Engine/RSVPEngine.swift",
-  "old": "    static let throttleInterval: TimeInterval = 5",
-  "new": "    static let throttleInterval: TimeInterval = 0",
-  "label": "commit throttle removed (every tick commits)"
- },
- {
-  "file": "SpeedRead/Engine/RSVPEngine.swift",
-  "old": "              now.timeIntervalSince(lastCommitDate) >= Self.throttleInterval else {",
-  "new": "              now.timeIntervalSince(lastCommitDate) <= Self.throttleInterval else {",
-  "label": "commit throttle comparison inverted"
- },
- {
-  "file": "SpeedReadWatch Watch App/Shared/CrownSeek.swift",
-  "old": "        return top - min(max(raw, 0), top)",
-  "new": "        return min(max(raw, 0), top)",
-  "label": "CrownSeek: direction un-inverted (the operator-reported bug returns)"
- }
+  {
+    "file": "SpeedRead/Engine/ORPCalculator.swift",
+    "old": "        case 2...5:   return 1",
+    "new": "        case 2...5:   return 2",
+    "label": "ORP: 2-5 char words pivot moves 1->2"
+  },
+  {
+    "file": "SpeedRead/Engine/ORPCalculator.swift",
+    "old": "        case 6...9:   return 2",
+    "new": "        case 6...9:   return 3",
+    "label": "ORP: 6-9 char words pivot moves 2->3"
+  },
+  {
+    "file": "SpeedRead/Engine/ORPCalculator.swift",
+    "old": "        case 10...13: return 3",
+    "new": "        case 10...13: return 4",
+    "label": "ORP: 10-13 char words pivot moves 3->4"
+  },
+  {
+    "file": "SpeedRead/Engine/ORPCalculator.swift",
+    "old": "        let clampedIdx = min(orpIndex(for: word), count - 1)",
+    "new": "        let clampedIdx = min(orpIndex(for: word), count)",
+    "label": "ORP: focus clamp off-by-one (OOB risk)",
+    "expect": "SURVIVED",
+    "why": "EQUIVALENT MUTANT — not a test gap, and no test can close it. bucket(s) <= s-1 for every s >= 1, and leadingPunct + strippedLength <= count, so orpIndex <= count-1 always; the clamp never fires and both forms behave identically. Proven analytically (pure counting, so character-set independent) and empirically over 1,411,111 words — exhaustive to length 6 over an adversarial alphabet plus 300k random to length 40 — with zero counterexamples and a tightest slack of exactly 0. The clamp stays as cheap insurance; the invariant that makes it dead is what a test should pin."
+  },
+  {
+    "file": "SpeedRead/Engine/WordTimer.swift",
+    "old": "        if trimmed.count >= 8 {",
+    "new": "        if trimmed.count >= 9 {",
+    "label": "WordTimer: long-word threshold 8->9"
+  },
+  {
+    "file": "SpeedRead/Engine/WordTimer.swift",
+    "old": "            multiplier *= 1.3",
+    "new": "            multiplier *= 1.6",
+    "label": "WordTimer: long-word multiplier 1.3->1.6"
+  },
+  {
+    "file": "SpeedRead/Engine/WordTimer.swift",
+    "old": "            multiplier *= 1.8",
+    "new": "            multiplier *= 1.4",
+    "label": "WordTimer: numeric multiplier 1.8->1.4"
+  },
+  {
+    "file": "SpeedRead/Engine/WordTimer.swift",
+    "old": "            multiplier *= 2.0",
+    "new": "            multiplier *= 1.9",
+    "label": "WordTimer: sentence-end multiplier 2.0->1.9"
+  },
+  {
+    "file": "SpeedRead/Engine/WordTimer.swift",
+    "old": "            multiplier *= 1.5",
+    "new": "            multiplier *= 1.4",
+    "label": "WordTimer: clause-end multiplier 1.5->1.4"
+  },
+  {
+    "file": "SpeedRead/Engine/WordTimer.swift",
+    "old": "        60_000 / wpm",
+    "new": "        61_000 / wpm",
+    "label": "WordTimer: base delay constant"
+  },
+  {
+    "file": "SpeedRead/Engine/RSVPEngine.swift",
+    "old": "    static let wpmRange = 100...1500",
+    "new": "    static let wpmRange = 100...1400",
+    "label": "RSVP: WPM clamp upper bound 1500->1400"
+  },
+  {
+    "file": "SpeedRead/Connectivity/WatchSyncService.swift",
+    "old": "        return incoming.timestamp > lastReadDate ? .apply : .ignoreStale",
+    "new": "        return incoming.timestamp >= lastReadDate ? .apply : .ignoreStale",
+    "label": "WatchSync: staleness comparison > -> >= (equal-timestamp replay)"
+  },
+  {
+    "file": "SpeedRead/Models/Book.swift",
+    "old": "        return Double(lastReadWordIndex) / Double(wordCount)",
+    "new": "        return Double(lastReadWordIndex) / Double(wordCount + 1)",
+    "label": "Book: progress denominator off-by-one"
+  },
+  {
+    "file": "SpeedRead/Models/Book.swift",
+    "old": "            if word[i] == \"-\",",
+    "new": "            if word[i] == \"+\",",
+    "label": "Book: hyphen tokenisation split character"
+  },
+  {
+    "file": "SpeedRead/Services/OPDSClient.swift",
+    "old": "        if !(200...299).contains(http.statusCode) {",
+    "new": "        if !(200...399).contains(http.statusCode) {",
+    "label": "OPDS: success status range widened to accept redirects"
+  },
+  {
+    "file": "SpeedRead/Services/OPDSClient.swift",
+    "old": "        if scheme == \"http\" && !server.allowInsecureHTTP {",
+    "new": "        if scheme == \"http\" && server.allowInsecureHTTP {",
+    "label": "OPDS: insecure-HTTP gate inverted (security)"
+  },
+  {
+    "file": "SpeedRead/Services/OPDSClient.swift",
+    "old": "    init(session: URLSession = .shared) {",
+    "new": "    init(session: URLSession = URLSession(configuration: .ephemeral)) {",
+    "label": "OPDS: DEFAULT ARGUMENT for session (tests always pass a mock)"
+  },
+  {
+    "file": "SpeedRead/Models/Book.swift",
+    "old": "        guard tokens.isEmpty else { return }",
+    "new": "        guard !tokens.isEmpty else { return }",
+    "label": "Book: token-cache migration guard inverted"
+  },
+  {
+    "file": "SpeedRead/Connectivity/WatchSyncService.swift",
+    "old": "        max(local, incoming)",
+    "new": "        min(local, incoming)",
+    "label": "furthestRead: max-merge becomes MIN (high-water mark runs backwards)"
+  },
+  {
+    "file": "SpeedRead/Engine/RSVPEngine.swift",
+    "old": "    static let throttleInterval: TimeInterval = 5",
+    "new": "    static let throttleInterval: TimeInterval = 0",
+    "label": "commit throttle removed (every tick commits)"
+  },
+  {
+    "file": "SpeedRead/Engine/RSVPEngine.swift",
+    "old": "              now.timeIntervalSince(lastCommitDate) >= Self.throttleInterval else {",
+    "new": "              now.timeIntervalSince(lastCommitDate) <= Self.throttleInterval else {",
+    "label": "commit throttle comparison inverted"
+  },
+  {
+    "file": "SpeedReadWatch Watch App/Shared/CrownSeek.swift",
+    "old": "        return top - min(max(raw, 0), top)",
+    "new": "        return min(max(raw, 0), top)",
+    "label": "CrownSeek: direction un-inverted (the operator-reported bug returns)"
+  }
 ]
