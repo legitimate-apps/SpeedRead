@@ -324,6 +324,43 @@ convention was the open question the docs could not settle, and the run answered
 XCUITest delta and a rising `.digitalCrownRotation` value agree in sign. That is a real fact the
 project did not have an hour ago.
 
+## 5f. Leg 8 — chapters + the crown closed end to end (VERIFIED BY MANAGER 2026-08-31)
+
+Commits `fa34d37` (red) → `09411ec` → `a630c14` → `a971006`. Verified by me, not taken from the
+implementer's report.
+
+**The migration hazard held.** `BundledSampleBookTests.swift` is byte-identical (sha checked) and
+appears in **no** leg-8 commit — so the exact token counts (9,173 / 25,153 / 32,036 / 187), the
+character counts and the first/last tokens all still pin the stream, unmodified, through an EPUB
+extractor rewrite. A new proof additionally fingerprints the raw text and the length-framed token
+sequence with SHA-256.
+
+**Both hazards I had failed to name in the brief were real, and both are now pinned.**
+- *Hyphen offsets.* `Book.tokenize` splits hyphenated words, so offsets counted as whitespace words
+  drift after the first hyphen — silently, because the token stream is unchanged and every existing
+  guard still passes. The implementer hit exactly this between `Book.tokenize` and `WatchBook.words`
+  (`self-awareness` was one token on the watch, two on the phone) and closed it by compiling one
+  canonical tokenizer into both targets. The pinning test is better than the one I specified: it
+  first asserts the fixture *exercises* the hazard (canonical count > whitespace count) before
+  asserting `book.words[mark.startWordIndex] == first token of the chapter`. Without that control it
+  could pass on a hyphen-free fixture and prove nothing.
+- *Empty chapters.* A spine item with no text shares a `startWordIndex` with the next chapter.
+  Semantics chosen and pinned: the LAST mark at a coordinate owns the first real token, and
+  next/previous use strict comparisons so zero-width peers are skipped. Explicitly word-position
+  navigation, not table-of-contents traversal — recorded because it is a product choice, and a
+  future decision to make equal-offset entries individually selectable needs mark-identity
+  navigation instead.
+
+**The crown is OBSERVED, and it is the project's last ASSUMED link closing.** The previously dormant
+watch UI target now runs in its own `WatchUI.xctestplan` (kept out of `WatchHermetic` so the mutation
+gate does not relaunch an XCUITest 22 times), drives `XCUIDevice.rotateDigitalCrown` against the real
+`.digitalCrownRotation` composition, and passes: positive delta moves BACKWARD, negative FORWARD —
+the inversion the operator asked for. The test carries the provenance in a comment so nobody
+"corrects" it back to the direct mapping.
+
+**Gate re-measured from a cleared ledger: 21 killed · 1 expected survivor · 0 INVALID · 0 unexpected**,
+identical to the leg-7 run. Chapters weakened nothing.
+
 ## 6. Seam pattern (settled fleet-wide — one pattern, not two)
 
 Default-argument injection; no test-only hooks on production types. A dependency becomes a parameter
