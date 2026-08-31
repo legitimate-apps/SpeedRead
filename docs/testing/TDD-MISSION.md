@@ -211,6 +211,23 @@ gap as "expected" would be precisely the laundering this whole phase exists to p
   attempt was SIGKILLed at mutation 3 and lost every verdict behind it. Replaying all 22 from the
   ledger now costs 0.1 s instead of ~13 minutes of simulator time.
 
+## 5b. Open finding — an empty test target in no plan (OBSERVED 2026-08-31)
+
+`SpeedReadWatch Watch AppUITests` exists as a target in `SpeedRead.xcodeproj`, its source directory
+is **empty** (leg 1 deleted the assertion-free Xcode boilerplate), and it is referenced by **no
+`.xctestplan`**. So it runs in no lane and appears in no report, while still reading on the target
+list as "we have watch UI tests".
+
+Found by applying a check the peer-project TDD session made mechanical: **diff the project's test targets
+against the union of the test plans' target lists.** They ran it by hand, cleared the target they
+suspected, and their script then found a second orphan they had missed — which is the argument for
+automating it rather than eyeballing it.
+
+**Target existence, test existence and plan membership are three different facts**, and reports
+conflate them in both directions: this project's watch unit tests were real but unwired and read as
+0.00%; this target is wired to nothing and reads as present. Queued as cleanup — delete the target,
+since an empty one is dead scaffolding that misleads a later reader.
+
 ## 6. Seam pattern (settled fleet-wide — one pattern, not two)
 
 Default-argument injection; no test-only hooks on production types. A dependency becomes a parameter
