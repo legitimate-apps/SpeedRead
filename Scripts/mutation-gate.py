@@ -52,7 +52,13 @@ def run_suite(logpath, plan=None, lane="ios"):
            "-project", "SpeedRead.xcodeproj", "-scheme", scheme,
            "-destination", dest,
            "-derivedDataPath", DD, "-clonedSourcePackagesDirPath", SPM,
-           "-parallel-testing-enabled", "NO"]
+           "-parallel-testing-enabled", "NO",
+           # A mutation gate FAILS ON PURPOSE every time it succeeds, and xcodebuild's default
+           # is `-collect-test-diagnostics on-failure`, which runs `simctl diagnose --timeout=600`.
+           # Measured 2026-08-31: mutation 1 finished its tests in 3.2 s and then sat in
+           # diagnostic collection for over four minutes before being killed. Across 22 mutations
+           # that is hours of sysdiagnose nobody will ever read.
+           "-collect-test-diagnostics", "never"]
     if plan: cmd += ["-testPlan", plan]
     with open(logpath, "w") as f:
         r = subprocess.run(cmd, cwd=REPO, stdout=f, stderr=subprocess.STDOUT)
