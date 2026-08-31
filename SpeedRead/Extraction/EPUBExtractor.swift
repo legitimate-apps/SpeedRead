@@ -29,11 +29,12 @@ struct EPUBExtractor: TextExtractor {
             throw ExtractionError.parsingFailed("OPF spine contains no chapters")
         }
 
-        var chapters: [String] = []
+        var spineDocuments: [SpineDocument] = []
+        var startWordIndex = 0
         for spineID in package.spineIDs {
             let href: String
-            if let manifestHref = package.manifest[spineID] {
-                href = manifestHref
+            if let manifestItem = package.manifest[spineID] {
+                href = manifestItem.href
             } else {
                 // Some malformed-but-recoverable books put the chapter href directly
                 // in idref. Recover only when that exact resolved entry exists.
@@ -53,15 +54,32 @@ struct EPUBExtractor: TextExtractor {
             guard let xhtml = Self.decodeXMLText(fileData) else {
                 throw ExtractionError.parsingFailed("Could not decode spine chapter at \(chapterPath)")
             }
-            chapters.append(Self.stripHTML(xhtml))
+            let text = Self.stripHTML(xhtml)
+            spineDocuments.append(SpineDocument(
+                path: chapterPath,
+                source: xhtml,
+                text: text,
+                startWordIndex: startWordIndex
+            ))
+            startWordIndex += Book.tokenize(text).count
         }
 
-        let fullText = chapters.joined(separator: "\n\n")
+        // This is the legacy text assembly. Chapter extraction is metadata-only:
+        // it must never participate in, trim, or otherwise alter this join.
+        let fullText = spineDocuments.map(\.text).joined(separator: "\n\n")
+        let chapters = try Self.chapterMarks(
+            package: package,
+            entries: entries,
+            opfDirectory: opfDirectory,
+            spineDocuments: spineDocuments,
+            wordCount: startWordIndex
+        )
 
         return ExtractionResult(
             text: fullText,
             title: package.title,
-            author: package.author
+            author: package.author,
+            chapters: chapters
         )
     }
 
@@ -419,8 +437,27 @@ struct EPUBExtractor: TextExtractor {
     private struct EPUBPackage {
         let title: String?
         let author: String?
-        let manifest: [String: String]
+        let manifest: [String: EPUBManifestItem]
         let spineIDs: [String]
+        let spineTOCID: String?
+    }
+
+    fileprivate struct EPUBManifestItem {
+        let href: String
+        let mediaType: String?
+        let properties: Set<String>
+    }
+
+    private struct SpineDocument {
+        let path: String
+        let source: String
+        let text: String
+        let startWordIndex: Int
+    }
+
+    fileprivate struct NavigationEntry {
+        let title: String
+        let reference: String
     }
 
     private static func parseContainerForOPFPath(_ data: Data) throws -> String {
@@ -446,8 +483,161 @@ struct EPUBExtractor: TextExtractor {
             title: delegate.title,
             author: delegate.author,
             manifest: delegate.manifest,
-            spineIDs: delegate.spineIDs
+            spineIDs: delegate.spineIDs,
+            spineTOCID: delegate.spineTOCID
         )
+    }
+
+    private static func chapterMarks(
+        package: EPUBPackage,
+        entries: [String: Data],
+        opfDirectory: String,
+        spineDocuments: [SpineDocument],
+        wordCount: Int
+    ) throws -> [ChapterMark] {
+        let navigationItem = package.manifest.values.first {
+            $0.properties.contains("nav")
+        } ?? package.spineTOCID.flatMap { package.manifest[$0] }
+            ?? package.manifest.values.first { $0.mediaType == "application/x-dtbncx+xml" }
+
+        if let navigationItem {
+            let navigationPath = try resolveArchivePath(
+                navigationItem.href,
+                relativeTo: opfDirectory
+            )
+            if let navigationData = entries[navigationPath] {
+                let navigationDirectory = navigationPath.split(separator: "/")
+                    .dropLast().joined(separator: "/")
+                let parsedEntries = navigationItem.mediaType == "application/x-dtbncx+xml"
+                    ? parseNCXNavigation(navigationData)
+                    : parseEPUB3Navigation(navigationData)
+                let marks = marks(
+                    for: parsedEntries,
+                    relativeTo: navigationDirectory,
+                    spineDocuments: spineDocuments,
+                    wordCount: wordCount
+                )
+                if !marks.isEmpty { return marks }
+            }
+        }
+
+        return headingMarks(in: spineDocuments, wordCount: wordCount)
+    }
+
+    private static func parseEPUB3Navigation(_ data: Data) -> [NavigationEntry] {
+        let delegate = EPUB3NavigationXMLDelegate()
+        let parser = XMLParser(data: data)
+        parser.delegate = delegate
+        parser.shouldResolveExternalEntities = false
+        return parser.parse() ? delegate.entries : []
+    }
+
+    private static func parseNCXNavigation(_ data: Data) -> [NavigationEntry] {
+        let delegate = NCXNavigationXMLDelegate()
+        let parser = XMLParser(data: data)
+        parser.delegate = delegate
+        parser.shouldResolveExternalEntities = false
+        return parser.parse() ? delegate.entries : []
+    }
+
+    private static func marks(
+        for entries: [NavigationEntry],
+        relativeTo navigationDirectory: String,
+        spineDocuments: [SpineDocument],
+        wordCount: Int
+    ) -> [ChapterMark] {
+        var positioned: [(order: Int, mark: ChapterMark)] = []
+        for (order, entry) in entries.enumerated() {
+            guard let targetPath = try? resolveArchivePath(
+                entry.reference,
+                relativeTo: navigationDirectory
+            ), let document = spineDocuments.first(where: { $0.path == targetPath }) else {
+                continue
+            }
+
+            let fragment = entry.reference.split(
+                separator: "#",
+                maxSplits: 1,
+                omittingEmptySubsequences: false
+            ).dropFirst().first.flatMap { String($0).removingPercentEncoding }
+            let localOffset: Int
+            if let fragment, !fragment.isEmpty {
+                guard let offset = wordOffset(ofFragment: fragment, in: document.source) else {
+                    continue
+                }
+                localOffset = offset
+            } else {
+                localOffset = 0
+            }
+
+            let title = normalizedTitle(entry.title)
+            let index = document.startWordIndex + localOffset
+            guard !title.isEmpty, index >= 0, index < wordCount else { continue }
+            positioned.append((order, ChapterMark(title: title, startWordIndex: index)))
+        }
+        return normalizedMarks(positioned)
+    }
+
+    private static func headingMarks(
+        in spineDocuments: [SpineDocument],
+        wordCount: Int
+    ) -> [ChapterMark] {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"<h([1-6])\b[^>]*>(.*?)</h\1\s*>"#,
+            options: [.caseInsensitive, .dotMatchesLineSeparators]
+        ) else { return [] }
+
+        var positioned: [(order: Int, mark: ChapterMark)] = []
+        var order = 0
+        for document in spineDocuments {
+            let range = NSRange(document.source.startIndex..., in: document.source)
+            for match in regex.matches(in: document.source, range: range) {
+                guard let headingRange = Range(match.range(at: 2), in: document.source),
+                      let elementRange = Range(match.range(at: 0), in: document.source) else {
+                    continue
+                }
+                let title = normalizedTitle(stripHTML(String(document.source[headingRange])))
+                let prefix = String(document.source[..<elementRange.lowerBound])
+                let index = document.startWordIndex + Book.tokenize(stripHTML(prefix)).count
+                guard !title.isEmpty, index < wordCount else { continue }
+                positioned.append((order, ChapterMark(title: title, startWordIndex: index)))
+                order += 1
+            }
+        }
+        return normalizedMarks(positioned)
+    }
+
+    private static func wordOffset(ofFragment fragment: String, in source: String) -> Int? {
+        let escaped = NSRegularExpression.escapedPattern(for: fragment)
+        let pattern = #"<[^>]*\b(?:id|xml:id|name)\s*=\s*(?:\""#
+            + escaped + #"\"|'"# + escaped + #"')[^>]*>"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+              let match = regex.firstMatch(
+                in: source,
+                range: NSRange(source.startIndex..., in: source)
+              ),
+              let range = Range(match.range, in: source) else {
+            return nil
+        }
+        return Book.tokenize(stripHTML(String(source[..<range.lowerBound]))).count
+    }
+
+    private static func normalizedTitle(_ title: String) -> String {
+        title.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    private static func normalizedMarks(
+        _ positioned: [(order: Int, mark: ChapterMark)]
+    ) -> [ChapterMark] {
+        var seen: Set<ChapterMark> = []
+        return positioned
+            .sorted {
+                if $0.mark.startWordIndex == $1.mark.startWordIndex {
+                    return $0.order < $1.order
+                }
+                return $0.mark.startWordIndex < $1.mark.startWordIndex
+            }
+            .compactMap { seen.insert($0.mark).inserted ? $0.mark : nil }
     }
 
     private static func resolveArchivePath(_ reference: String, relativeTo directory: String) throws -> String {
@@ -555,8 +745,9 @@ private final class ContainerXMLDelegate: NSObject, XMLParserDelegate {
 private final class OPFXMLDelegate: NSObject, XMLParserDelegate {
     private(set) var title: String?
     private(set) var author: String?
-    private(set) var manifest: [String: String] = [:]
+    private(set) var manifest: [String: EPUBExtractor.EPUBManifestItem] = [:]
     private(set) var spineIDs: [String] = []
+    private(set) var spineTOCID: String?
     private var capturedMetadataElement: String?
     private var capturedCharacters = ""
 
@@ -571,8 +762,18 @@ private final class OPFXMLDelegate: NSObject, XMLParserDelegate {
         switch localName {
         case "item":
             if let id = attributeDict["id"], let href = attributeDict["href"] {
-                manifest[id] = href
+                manifest[id] = EPUBExtractor.EPUBManifestItem(
+                    href: href,
+                    mediaType: attributeDict["media-type"],
+                    properties: Set(
+                        (attributeDict["properties"] ?? "")
+                            .split(whereSeparator: \.isWhitespace)
+                            .map(String.init)
+                    )
+                )
             }
+        case "spine":
+            spineTOCID = attributeDict["toc"]
         case "itemref":
             if let idref = attributeDict["idref"] {
                 spineIDs.append(idref)
@@ -608,5 +809,107 @@ private final class OPFXMLDelegate: NSObject, XMLParserDelegate {
         }
         capturedMetadataElement = nil
         capturedCharacters = ""
+    }
+}
+
+private final class EPUB3NavigationXMLDelegate: NSObject, XMLParserDelegate {
+    private(set) var entries: [EPUBExtractor.NavigationEntry] = []
+    private var tocDepth: Int?
+    private var depth = 0
+    private var activeReference: String?
+    private var activeTitle = ""
+
+    func parser(
+        _ parser: XMLParser,
+        didStartElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?,
+        attributes attributeDict: [String: String] = [:]
+    ) {
+        depth += 1
+        let localName = String(elementName.split(separator: ":").last ?? Substring(elementName))
+        if localName == "nav" {
+            let type = attributeDict.first {
+                $0.key.split(separator: ":").last == "type"
+            }?.value
+            if type?.split(whereSeparator: \.isWhitespace).contains("toc") == true {
+                tocDepth = depth
+            }
+        } else if localName == "a", tocDepth != nil, let href = attributeDict["href"] {
+            activeReference = href
+            activeTitle = ""
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        guard activeReference != nil else { return }
+        activeTitle += string
+    }
+
+    func parser(
+        _ parser: XMLParser,
+        didEndElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?
+    ) {
+        let localName = String(elementName.split(separator: ":").last ?? Substring(elementName))
+        if localName == "a", let reference = activeReference {
+            entries.append(.init(title: activeTitle, reference: reference))
+            activeReference = nil
+            activeTitle = ""
+        }
+        if localName == "nav", tocDepth == depth { tocDepth = nil }
+        depth -= 1
+    }
+}
+
+private final class NCXNavigationXMLDelegate: NSObject, XMLParserDelegate {
+    private struct Point {
+        var title = ""
+        var isCapturingTitle = false
+    }
+
+    private(set) var entries: [EPUBExtractor.NavigationEntry] = []
+    private var points: [Point] = []
+
+    func parser(
+        _ parser: XMLParser,
+        didStartElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?,
+        attributes attributeDict: [String: String] = [:]
+    ) {
+        let localName = String(elementName.split(separator: ":").last ?? Substring(elementName))
+        switch localName {
+        case "navPoint":
+            points.append(Point())
+        case "text":
+            if !points.isEmpty { points[points.count - 1].isCapturingTitle = true }
+        case "content":
+            if let source = attributeDict["src"], let point = points.last {
+                entries.append(.init(title: point.title, reference: source))
+            }
+        default:
+            break
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        guard !points.isEmpty, points[points.count - 1].isCapturingTitle else { return }
+        points[points.count - 1].title += string
+    }
+
+    func parser(
+        _ parser: XMLParser,
+        didEndElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?
+    ) {
+        let localName = String(elementName.split(separator: ":").last ?? Substring(elementName))
+        if localName == "text", !points.isEmpty {
+            points[points.count - 1].isCapturingTitle = false
+        } else if localName == "navPoint", !points.isEmpty {
+            points.removeLast()
+        }
     }
 }

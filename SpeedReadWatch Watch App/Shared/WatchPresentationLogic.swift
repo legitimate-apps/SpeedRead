@@ -98,6 +98,12 @@ final class WatchRSVPSession {
         return synchronizeCrownValue(wordCount: book.words.count)
     }
 
+    func browse(to chapter: ChapterMark, in book: WatchBook) -> Double {
+        engine.pause()
+        engine.seek(to: chapter.startWordIndex)
+        return synchronizeCrownValue(wordCount: book.words.count)
+    }
+
     func close(book: WatchBook?) -> WatchRSVPPositionCommit? {
         let commit = positionCommit(book: book)
         didCommitDismiss = true
@@ -124,6 +130,23 @@ final class WatchRSVPSession {
 
     private func makePositionCommit(book: WatchBook, index: Int) -> WatchRSVPPositionCommit {
         WatchRSVPPositionCommit(bookId: book.id, bookTitle: book.title, wordIndex: index)
+    }
+}
+
+enum WatchChapterSelection {
+    @MainActor
+    static func browse(
+        to chapter: ChapterMark,
+        in book: WatchBook,
+        session: WatchRSVPSession,
+        library: inout WatchLibrary
+    ) -> Double {
+        let crownValue = session.browse(to: chapter, in: book)
+        library.updateBrowsePosition(
+            bookId: book.id,
+            index: session.engine.currentIndex
+        )
+        return crownValue
     }
 }
 
@@ -163,12 +186,13 @@ enum WatchLibraryLogic {
 
 enum WatchSettingsLogic {
     enum Row: Equatable {
+        case chapter
         case backToReadingPosition
         case speed
     }
 
-    static var rows: [Row] {
-        [.backToReadingPosition, .speed]
+    static func rows(hasChapters: Bool) -> [Row] {
+        (hasChapters ? [.chapter] : []) + [.backToReadingPosition, .speed]
     }
 
     static func snappedWPM(_ value: Double) -> Int {

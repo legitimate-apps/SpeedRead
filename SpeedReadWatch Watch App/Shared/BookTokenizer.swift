@@ -1,0 +1,1 @@
+../../SpeedRead/Models/Book.swift

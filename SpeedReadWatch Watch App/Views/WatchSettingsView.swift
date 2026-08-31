@@ -2,12 +2,28 @@ import SwiftUI
 
 struct WatchSettingsView: View {
     var engine: RSVPEngine
+    let chapters: [ChapterMark]
+    let currentWordIndex: Int
+    let onSelectChapter: (ChapterMark) -> Void
     let onRestoreReadingPosition: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             List {
+                if !chapters.isEmpty {
+                    NavigationLink {
+                        WatchChapterListView(
+                            chapters: chapters,
+                            currentWordIndex: currentWordIndex,
+                            onSelect: onSelectChapter
+                        )
+                    } label: {
+                        Label("Chapter", systemImage: "list.bullet.rectangle")
+                    }
+                    .accessibilityIdentifier("watch-chapter-settings-row")
+                }
+
                 Button {
                     onRestoreReadingPosition()
                     dismiss()
@@ -24,6 +40,36 @@ struct WatchSettingsView: View {
             .navigationTitle("Reading Settings")
             .accessibilityIdentifier("watch-reading-settings-list")
         }
+    }
+}
+
+private struct WatchChapterListView: View {
+    let chapters: [ChapterMark]
+    let currentWordIndex: Int
+    let onSelect: (ChapterMark) -> Void
+
+    private var currentChapter: ChapterMark? {
+        ChapterIndex(chapters).chapter(containing: currentWordIndex)
+    }
+
+    var body: some View {
+        List(chapters, id: \.self) { chapter in
+            Button {
+                onSelect(chapter)
+            } label: {
+                HStack {
+                    Text(chapter.title)
+                    Spacer()
+                    if chapter == currentChapter {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(Color.agedGold)
+                    }
+                }
+            }
+            .accessibilityIdentifier("watch-chapter-\(chapter.startWordIndex)")
+        }
+        .navigationTitle("Chapters")
+        .accessibilityIdentifier("watch-chapter-list")
     }
 }
 

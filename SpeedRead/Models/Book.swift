@@ -1,6 +1,40 @@
 //  Book.swift
 import Foundation
+#if !os(watchOS)
 import SwiftData
+#endif
+
+nonisolated enum BookTokenizer {
+    static func tokenize(_ text: String) -> [String] {
+        text.split(whereSeparator: \.isWhitespace)
+            .flatMap(splitHyphens)
+    }
+
+    /// Splits a word on ASCII hyphens, keeping the hyphen attached to the left part.
+    /// Only splits when both sides of a hyphen contain at least one letter, so pure
+    /// hyphen runs ("--"), leading hyphens ("-prefix"), and em/en-dashes are preserved.
+    private static func splitHyphens(_ word: Substring) -> [String] {
+        var tokens: [String] = []
+        var segmentStart = word.startIndex
+        var i = word.startIndex
+        while i < word.endIndex {
+            if word[i] == "-",
+               word[segmentStart..<i].contains(where: \.isLetter),
+               word[word.index(after: i)...].contains(where: \.isLetter) {
+                let next = word.index(after: i)
+                tokens.append(String(word[segmentStart..<next]))
+                segmentStart = next
+            }
+            i = word.index(after: i)
+        }
+        if segmentStart < word.endIndex {
+            tokens.append(String(word[segmentStart..<word.endIndex]))
+        }
+        return tokens
+    }
+}
+
+#if !os(watchOS)
 
 enum BookTokenCache {
     static func ensure(tokens: inout [String], wordCount: inout Int, extractedText: String) {
@@ -51,6 +85,10 @@ final class Book {
     /// `words` falls back to live tokenization in that case.
     private var tokenizedWords: [String] = []
 
+    /// Real structural boundaries supplied by the source format. Empty for
+    /// legacy books and formats that do not carry chapter structure.
+    var chapters: [ChapterMark] = []
+
     @Relationship(deleteRule: .cascade, inverse: \Bookmark.book)
     var bookmarks: [Bookmark] = []
 
@@ -61,13 +99,15 @@ final class Book {
         title: String,
         author: String,
         extractedText: String,
-        sourceFileName: String
+        sourceFileName: String,
+        chapters: [ChapterMark] = []
     ) {
         self.id = UUID()
         self.title = title
         self.author = author
         self.extractedText = extractedText
         self.sourceFileName = sourceFileName
+        self.chapters = chapters
         self.dateAdded = Date()
         self.lastReadWordIndex = 0
         self.lastReadDate = nil
@@ -81,31 +121,7 @@ final class Book {
     /// Splits text into RSVP-friendly tokens, breaking hyphenated words
     /// into separate display tokens while preserving em-dashes and en-dashes.
     static func tokenize(_ text: String) -> [String] {
-        text.split(whereSeparator: \.isWhitespace)
-            .flatMap(splitHyphens)
-    }
-
-    /// Splits a word on ASCII hyphens, keeping the hyphen attached to the left part.
-    /// Only splits when both sides of a hyphen contain at least one letter, so pure
-    /// hyphen runs ("--"), leading hyphens ("-prefix"), and em/en-dashes are preserved.
-    private static func splitHyphens(_ word: Substring) -> [String] {
-        var tokens: [String] = []
-        var segmentStart = word.startIndex
-        var i = word.startIndex
-        while i < word.endIndex {
-            if word[i] == "-",
-               word[segmentStart..<i].contains(where: \.isLetter),
-               word[word.index(after: i)...].contains(where: \.isLetter) {
-                let next = word.index(after: i)
-                tokens.append(String(word[segmentStart..<next]))
-                segmentStart = next
-            }
-            i = word.index(after: i)
-        }
-        if segmentStart < word.endIndex {
-            tokens.append(String(word[segmentStart..<word.endIndex]))
-        }
-        return tokens
+        BookTokenizer.tokenize(text)
     }
 
     var words: [String] {
@@ -138,3 +154,4 @@ final class Book {
         return Double(lastReadWordIndex) / Double(wordCount)
     }
 }
+#endif

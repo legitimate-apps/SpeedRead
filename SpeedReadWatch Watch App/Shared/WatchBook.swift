@@ -12,6 +12,7 @@ struct WatchBook: Codable, Identifiable, Hashable {
     var furthestReadWordIndex: Int
     let wordCount: Int
     let dateAdded: Date
+    let chapters: [ChapterMark]
 
     init(
         id: UUID,
@@ -23,7 +24,8 @@ struct WatchBook: Codable, Identifiable, Hashable {
         browseWordIndex: Int? = nil,
         furthestReadWordIndex: Int? = nil,
         wordCount: Int,
-        dateAdded: Date
+        dateAdded: Date,
+        chapters: [ChapterMark] = []
     ) {
         self.id = id
         self.title = title
@@ -35,11 +37,12 @@ struct WatchBook: Codable, Identifiable, Hashable {
         self.furthestReadWordIndex = furthestReadWordIndex ?? lastReadIndex
         self.wordCount = wordCount
         self.dateAdded = dateAdded
+        self.chapters = chapters
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, title, author, text, lastReadIndex, lastReadDate
-        case browseWordIndex, furthestReadWordIndex, wordCount, dateAdded
+        case browseWordIndex, furthestReadWordIndex, wordCount, dateAdded, chapters
     }
 
     init(from decoder: any Decoder) throws {
@@ -56,11 +59,11 @@ struct WatchBook: Codable, Identifiable, Hashable {
             ?? lastReadIndex
         wordCount = try container.decode(Int.self, forKey: .wordCount)
         dateAdded = try container.decode(Date.self, forKey: .dateAdded)
+        chapters = try container.decodeIfPresent([ChapterMark].self, forKey: .chapters) ?? []
     }
 
     var words: [String] {
-        text.components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }
+        BookTokenizer.tokenize(text)
     }
 
     var progress: Double {

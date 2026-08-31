@@ -44,7 +44,8 @@ struct LibraryView: View {
                     try? await Task.sleep(for: .seconds(1))
                     syncService.sendBook(
                         id: book.id, title: book.title, author: book.author,
-                        text: book.extractedText, wordCount: book.wordCount
+                        text: book.extractedText, wordCount: book.wordCount,
+                        chapters: book.chapters
                     )
                 }
                 if ProcessInfo.processInfo.arguments.contains("--auto-open-first-book") {
@@ -202,7 +203,14 @@ struct LibraryView: View {
                                     }
                                     .contextMenu {
                                         Button {
-                                            syncService.sendBook(id: book.id, title: book.title, author: book.author, text: book.extractedText, wordCount: book.wordCount)
+                                            syncService.sendBook(
+                                                id: book.id,
+                                                title: book.title,
+                                                author: book.author,
+                                                text: book.extractedText,
+                                                wordCount: book.wordCount,
+                                                chapters: book.chapters
+                                            )
                                         } label: {
                                             Label("Send to Watch", systemImage: "applewatch")
                                         }

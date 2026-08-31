@@ -51,7 +51,8 @@ struct DocumentImporter {
             title: title,
             author: author,
             extractedText: result.text,
-            sourceFileName: filename
+            sourceFileName: filename,
+            chapters: result.chapters
         )
 
         modelContext.insert(book)

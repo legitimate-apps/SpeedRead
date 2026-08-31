@@ -54,7 +54,8 @@ struct SampleBookLoader {
                     title: title,
                     author: author,
                     extractedText: result.text,
-                    sourceFileName: sample.fileName
+                    sourceFileName: sample.fileName,
+                    chapters: result.chapters
                 )
                 modelContext.insert(book)
             } catch {

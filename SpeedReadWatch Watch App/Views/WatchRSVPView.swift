@@ -64,11 +64,27 @@ struct WatchRSVPView: View {
             sync(session.handleDisappear(book: currentBook))
         }
         .sheet(isPresented: $showSettings) {
-            WatchSettingsView(engine: engine) {
-                guard let currentBook else { return }
-                crownValue = session.restoreReadingPosition(book: currentBook)
-                persistBrowsePosition()
-            }
+            WatchSettingsView(
+                engine: engine,
+                chapters: currentBook?.chapters ?? [],
+                currentWordIndex: engine.currentIndex,
+                onSelectChapter: { chapter in
+                    guard let currentBook else { return }
+                    crownValue = WatchChapterSelection.browse(
+                        to: chapter,
+                        in: currentBook,
+                        session: session,
+                        library: &syncService.library
+                    )
+                    syncService.persistLibrary()
+                    showSettings = false
+                },
+                onRestoreReadingPosition: {
+                    guard let currentBook else { return }
+                    crownValue = session.restoreReadingPosition(book: currentBook)
+                    persistBrowsePosition()
+                }
+            )
         }
     }
 

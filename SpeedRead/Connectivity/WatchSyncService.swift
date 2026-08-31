@@ -36,6 +36,29 @@ struct WatchSyncLogic {
         let author: String
         let text: String
         let wordCount: Int
+        let chapters: [ChapterMark]
+
+        init(
+            id: UUID,
+            title: String,
+            author: String,
+            text: String,
+            wordCount: Int,
+            chapters: [ChapterMark] = []
+        ) {
+            self.id = id
+            self.title = title
+            self.author = author
+            self.text = text
+            self.wordCount = wordCount
+            self.chapters = chapters
+        }
+
+        private var chapterDictionaries: [[String: Any]] {
+            chapters.map {
+                ["title": $0.title, "startWordIndex": $0.startWordIndex]
+            }
+        }
 
         var dictionary: [String: Any] {
             [
@@ -43,7 +66,8 @@ struct WatchSyncLogic {
                 "title": title,
                 "author": author,
                 "text": text,
-                "wordCount": wordCount
+                "wordCount": wordCount,
+                "chapters": chapterDictionaries
             ]
         }
 
@@ -52,7 +76,8 @@ struct WatchSyncLogic {
                 "id": id.uuidString,
                 "title": title,
                 "author": author,
-                "wordCount": wordCount
+                "wordCount": wordCount,
+                "chapters": chapterDictionaries
             ]
         }
 
@@ -67,7 +92,36 @@ struct WatchSyncLogic {
             let wordCount = (dictionary["wordCount"] as? Int)
                 ?? text.split(whereSeparator: \.isWhitespace).count
             guard wordCount >= 0 else { return nil }
-            return BookPayload(id: id, title: title, author: author, text: text, wordCount: wordCount)
+            let chapters: [ChapterMark]
+            if let encodedChapters = dictionary["chapters"] as? [[String: Any]] {
+                var decoded: [ChapterMark] = []
+                for encoded in encodedChapters {
+                    guard let chapterTitle = encoded["title"] as? String,
+                          !chapterTitle.isEmpty,
+                          let startWordIndex = encoded["startWordIndex"] as? Int,
+                          startWordIndex >= 0,
+                          startWordIndex < wordCount else {
+                        return nil
+                    }
+                    decoded.append(ChapterMark(
+                        title: chapterTitle,
+                        startWordIndex: startWordIndex
+                    ))
+                }
+                chapters = decoded
+            } else if dictionary["chapters"] == nil {
+                chapters = []
+            } else {
+                return nil
+            }
+            return BookPayload(
+                id: id,
+                title: title,
+                author: author,
+                text: text,
+                wordCount: wordCount,
+                chapters: chapters
+            )
         }
     }
 
@@ -287,14 +341,28 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         self.modelContext = modelContext
     }
 
-    func sendBook(id: UUID, title: String, author: String, text: String, wordCount: Int) {
+    func sendBook(
+        id: UUID,
+        title: String,
+        author: String,
+        text: String,
+        wordCount: Int,
+        chapters: [ChapterMark] = []
+    ) {
         guard connectivitySession.activationState == .activated else {
             sendState = .failed("Watch not connected")
             scheduleSendStateClear()
             return
         }
 
-        let payload = BookPayload(id: id, title: title, author: author, text: text, wordCount: wordCount)
+        let payload = BookPayload(
+            id: id,
+            title: title,
+            author: author,
+            text: text,
+            wordCount: wordCount,
+            chapters: chapters
+        )
         sendState = .sending(title)
 
         Self.logger.info("Sending '\(title, privacy: .public)' — reachable=\(self.connectivitySession.isReachable) paired=\(self.connectivitySession.isPaired)")
@@ -450,7 +518,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         let book = WatchBook(
             id: payload.id, title: payload.title, author: payload.author, text: payload.text,
             lastReadIndex: 0, lastReadDate: nil,
-            wordCount: payload.wordCount, dateAdded: Date()
+            wordCount: payload.wordCount, dateAdded: Date(), chapters: payload.chapters
         )
         library.addBook(book)
         persistLibrary()
