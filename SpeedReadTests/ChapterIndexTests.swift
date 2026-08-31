@@ -43,4 +43,21 @@ struct ChapterIndexTests {
         #expect(index.next(after: 4)?.title == "Late")
         #expect(index.previous(before: 5) == nil)
     }
+
+    @Test func duplicateBoundaryBelongsToLastMarkAndNavigationSkipsItsZeroWidthPeers() {
+        let prior = ChapterMark(title: "Prior", startWordIndex: 0)
+        let empty = ChapterMark(title: "Empty spine item", startWordIndex: 5)
+        let content = ChapterMark(title: "Content", startWordIndex: 5)
+        let later = ChapterMark(title: "Later", startWordIndex: 10)
+        let index = ChapterIndex([prior, empty, content, later])
+
+        // Equal offsets model an empty spine item followed by content. The last
+        // mark at the boundary owns the first real token; zero-width peers are
+        // not separate seek destinations for next/previous word-index navigation.
+        #expect(index.chapter(containing: 5) == content)
+        #expect(index.start(of: empty) == 5)
+        #expect(index.start(of: content) == 5)
+        #expect(index.next(after: 5) == later)
+        #expect(index.previous(before: 5) == prior)
+    }
 }

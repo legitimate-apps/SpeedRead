@@ -69,6 +69,32 @@ struct ChapterTokenIdentityTests {
         }
     }
 
+    @Test func bundledEPUBChapterOffsetsUsePostHyphenCanonicalTokens() throws {
+        let data = try Data(contentsOf: try #require(
+            Bundle.main.url(forResource: "AChristmasCarol.epub", withExtension: nil)
+        ))
+        let result = try EPUBExtractor().extractText(from: data)
+        let book = Book(
+            title: "A Christmas Carol",
+            author: "Charles Dickens",
+            extractedText: result.text,
+            sourceFileName: "AChristmasCarol.epub",
+            chapters: result.chapters
+        )
+        let mark = try #require(result.chapters.first {
+            $0.title.uppercased().contains("STAVE FIVE")
+        })
+        let firstChapterToken = try #require(Book.tokenize(mark.title).first)
+
+        // This fixture contains letter-letter ASCII hyphens before STAVE FIVE,
+        // so canonical token count must exceed whitespace-only word count.
+        #expect(
+            Book.tokenize(result.text).count
+                > result.text.split(whereSeparator: \.isWhitespace).count
+        )
+        #expect(book.words[mark.startWordIndex] == firstChapterToken)
+    }
+
     private func tokenFingerprint(_ tokens: [String]) -> String {
         var data = Data()
         for token in tokens {
