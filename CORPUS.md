@@ -69,12 +69,20 @@ These are testable statements. Breaking one is a defect regardless of what it en
 
 These are the operator's named priorities. They outrank backlog items.
 
+> ⚠️ **Read watch coverage as ATTRIBUTABLE, never as headline.** Measured across two CI runs of the
+> *identical* 42-test watch suite (2026-08-31): headline moved **41.84% → 55.77%** while attributable
+> moved **77.73% → 78.09%**. 316 of the 320 extra "covered" lines were GHOST — the same four files,
+> named by no test, covered only because the host app rendered further into its launch path on one
+> run than the other. Headline on a host-app test bundle is timing-dependent and swings ~14 points
+> for free; gating on it would make CI flaky and would reward nothing.
+
 1. **The Apple Watch surface is first-class, and stays that way.** It must be genuinely tested and
    actively maintained — not a demo that rots between releases. Concretely: the watch library, RSVP
    via the Digital Crown, and the phone↔watch sync path each carry real automated coverage, and a
    watch regression blocks a release the same way a phone regression does.
-   *Current state (2026-08-30): the watch is now genuinely measured, which it had never been.
-   Coverage on the watch app went **0.00% → 55.77%** — the first step was not writing tests but
+   *Current state (2026-08-31): the watch is now genuinely measured, which it had never been.
+   Coverage on the watch app went **0.00% → 78.09% attributable** (866/1109 lines in files a test
+   actually names; headline 55.77%, 1281/2297) — the first step was not writing tests but
    discovering that a `WatchHermetic` lane had never run, so tests that already existed and named
    real types had been reporting zero the whole time. `WatchLibraryView`, `WatchRSVPView`,
    `WatchSettingsView` and the `WCSessionDelegate` half of `WatchSyncService` are now driven by

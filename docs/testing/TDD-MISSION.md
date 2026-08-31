@@ -228,6 +228,35 @@ General form, and it is the same shape as the equivalent-mutant trap: **a cache 
 cheap also makes it possible for the check to not happen.** Any verification tool with a resume,
 cache or fixture needs to say which of its answers it actually computed this time.
 
+### 5d. Headline coverage is NONDETERMINISTIC on a host-app bundle — measured, 2026-08-31
+
+Two CI runs, the **identical** watch suite (42 tests in 7 suites, same 2297-line denominator):
+
+| watch lane | run A | run B | Δ |
+|---|---|---|---|
+| HEADLINE | 41.84% (961/2297) | 55.77% (1281/2297) | **+320 lines** |
+| ATTRIBUTABLE | 77.73% (862/1109) | 78.09% (866/1109) | +4 lines |
+| GHOST | 99 lines, 4 files | 415 lines, 4 files | **+316 lines** |
+
+**316 of the 320 extra "covered" lines are GHOST** — the same four files, named by no test, covered
+only because the host app rendered further into its launch path on one run than on the other. So
+headline swings ~14 percentage points run-to-run for free, while attributable moves a third of a
+point.
+
+Three consequences, and the first two are the reason this is in the ledger rather than a footnote:
+
+1. **Gating on headline would make CI flaky** — a 14-point free swing dwarfs any plausible
+   threshold margin, so the build would go red on rendering timing rather than on code quality.
+2. **Headline movement between two runs is not evidence of anything.** I read the earlier run,
+   saw the watch at 41.84%, and told the operator it had "dropped, because leg 5 grew the watch
+   codebase faster than coverage followed". That explanation was wrong and I should have caught it
+   from the numbers I was already holding: **the denominator was 2297 in BOTH runs**, so codebase
+   growth could not have been the cause. I reached for a plausible story instead of checking that
+   my evidence was consistent with it.
+3. It is the strongest empirical vindication available of the operator's decision to gate
+   attributable and merely report headline. The split was justified on principle (GHOST lines have
+   no assertions behind them); this shows the principle has a measurable cost attached.
+
 ## 5b. Open finding — an empty test target in no plan (OBSERVED 2026-08-31)
 
 `SpeedReadWatch Watch AppUITests` exists as a target in `SpeedRead.xcodeproj`, its source directory
