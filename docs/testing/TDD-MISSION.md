@@ -242,8 +242,15 @@ automating it rather than eyeballing it.
 
 **Target existence, test existence and plan membership are three different facts**, and reports
 conflate them in both directions: this project's watch unit tests were real but unwired and read as
-0.00%; this target is wired to nothing and reads as present. Queued as cleanup — delete the target,
-since an empty one is dead scaffolding that misleads a later reader.
+0.00%; this target is wired to nothing and reads as present.
+
+**Revised 2026-08-31 — WIRE it, do not delete it.** I had queued deletion as dead scaffolding, then
+checked what XCUITest can do on watchOS: `XCUIDevice.shared.rotateDigitalCrown(delta:)` exists on the
+WatchSimulator platform, and its sign is documented as the user-facing scroll direction, already
+adjusted for crown orientation. That makes this empty target the only place the project's last
+ASSUMED link can be closed — the operator's crown-direction bug is pinned at the unit level
+(`CrownSeek`), but the COMPOSITION of SwiftUI's `.digitalCrownRotation` binding with that inverted
+mapping, which is the layer the operator actually experienced, is verified by nobody.
 
 ## 6. Seam pattern (settled fleet-wide — one pattern, not two)
 
