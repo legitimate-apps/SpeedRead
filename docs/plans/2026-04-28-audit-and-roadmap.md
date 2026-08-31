@@ -25,8 +25,8 @@ This document is the source of truth for known issues, planned improvements, and
 | ID | Sev | Area | Location | Issue | Status |
 |----|-----|------|----------|-------|--------|
 | B1 | High | Perf | `SpeedRead/Models/Book.swift:17-20,42-44,77-90`; `SpeedRead/Views/RSVPView.swift:127-131` | `Book.words` re-tokenizes on every access; RSVPView calls it 3× | fixed |
-| B2 | High | EPUB | `EPUBExtractor.swift:65-147` | ZIP reader does O(n²) byte scans; no Central Directory fallback; full byte copy in memory | pending |
-| B3 | High | EPUB | `EPUBExtractor.swift:236-272` | Spine href resolution doesn't normalize `..` paths; chapters can be silently dropped | pending |
+| B2 | High | EPUB | `EPUBExtractor.swift:65-147` | ZIP reader does O(n²) byte scans; no Central Directory fallback; full byte copy in memory | **fixed** 2026-08-29 (leg 3) — `readCentralDirectory` locates the EOCD record (`0x06054b50`) and walks central-directory entries (`0x02014b50`), replacing the linear signature scan; the local-header scan remains only as a fallback for archives with no readable central directory. Verified by reading the source 2026-08-31. |
+| B3 | High | EPUB | `EPUBExtractor.swift:236-272` | Spine href resolution doesn't normalize `..` paths; chapters can be silently dropped | **fixed** 2026-08-29 (leg 3) — href resolution now walks path components, collapsing `.` and `..`, and *throws* `EPUB path escapes archive root` rather than silently dropping a chapter. The silence was the bug: a dropped chapter shifts every later word index with nothing to notice. Verified by reading the source 2026-08-31. |
 | B4 | Med | Gesture | `RSVPPresentationSession.swift` (was `RSVPView.swift:262-298`) | **Root cause was misdiagnosed in this row.** Resetting `lastDragX` is *required* — `DragGesture.Value.translation` restarts at zero each gesture. The actual defect was the **missing `lastDragTime` reset**, so a new drag inherited the previous gesture's timestamp, computed ~1600 pt/s of phantom velocity, and dropped effective resolution from 8 pt/word to 2.5 — jumping six words instead of two. Fixed red-first in `f063ad6`; the test drives samples *across* a gesture boundary, which is the only way this class of bug is visible. | fixed |
 | B5 | Med | Engine | `SpeedRead/Engine/RSVPEngine.swift:22-25,47-50,147-153` | At end-of-book, progress < 1.0 because index = count - 1 | fixed |
 | B6 | Med | RSVP dismiss | `SpeedRead/Engine/RSVPEngine.swift:83-95`; `SpeedRead/Views/RSVPView.swift:81-85` | Pause-then-read may capture a tick that already advanced; read currentIndex before pausing | fixed |
@@ -176,3 +176,11 @@ Each round is its own session/PR. This doc gets the Changelog updated.
   the snapshot and then `onDisappear` committed and synced it again.
   Coverage after: **42.91%** headline, **81.42%** attributable, reach 19.3% → 46.7%. Verified
   independently by the manager, not taken from the implementer's report.
+- **2026-08-31** — Round 8 continued. First **mutation gate** run (`Scripts/mutation-gate.py`,
+  22 manager-chosen mutations): **18 killed, 4 survived, 0 invalid**. One survivor is a proven
+  equivalent mutant (`ORPCalculator`'s focus clamp is dead code — `orpIndex <= count-1` always);
+  three are real gaps now queued (`WordTimer`'s `>= 8` boundary, `OPDSClient` accepting 3xx as
+  success, and the never-exercised `init(session:)` default). Self-hosted `speedread-mac` runner
+  registered and `.github/workflows/ci.yml` enabled, gating **attributable** coverage via
+  `Scripts/coverage.sh` rather than re-implementing the lanes. Roadmap truth sweep: B2 and B3 were
+  still marked pending though leg 3 fixed both — corrected above against the source.
