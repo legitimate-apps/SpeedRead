@@ -64,13 +64,29 @@ def run_suite(logpath, plan=None, lane="ios"):
         r = subprocess.run(cmd, cwd=REPO, stdout=f, stderr=subprocess.STDOUT)
     return r.returncode
 
+def _log(logpath):
+    try:
+        return open(logpath, errors="replace").read()
+    except OSError:
+        return ""
+
 def compiled(logpath, filename):
     """Proof the mutation actually reached the compiler."""
-    try:
-        log = open(logpath, errors="replace").read()
-    except OSError:
-        return False
-    return f"SwiftCompile" in log and filename in log
+    log = _log(logpath)
+    return "SwiftCompile" in log and filename in log
+
+def tests_ran(logpath):
+    """Proof the SUITE ACTUALLY EXECUTED, which is a different fact from 'the build failed'.
+
+    A non-zero exit is only evidence of a kill if tests ran and one of them failed. A mutation
+    that does not COMPILE also exits non-zero — and would otherwise be scored KILLED, which is a
+    false kill: the strongest possible verdict awarded to a run that never tested anything.
+    Same family as the INVALID check, one level down. (Owed to the peer-project TDD session, which hit
+    it as `xcodebuild` returning EXIT=65 and "** TEST FAILED **" for a run that started zero
+    tests — indistinguishable from real failure unless you count.)
+    """
+    log = _log(logpath)
+    return ("Test run with" in log) or ("Test Case '-[" in log) or ("Executed " in log)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -161,8 +177,11 @@ def main():
             lane = lane_for(m["file"])
             rc = run_suite(log, args.plan, lane)
             recompiled = compiled(log, pathlib.Path(m["file"]).name)
+            ran = tests_ran(log)
             if not recompiled:
                 verdict, note = "INVALID", "mutation did not reach the compiler — result means nothing"
+            elif not ran:
+                verdict, note = "INVALID", "no test ever executed — a build failure is not a kill"
             elif rc != 0:
                 verdict, note = "KILLED", "suite failed, as it should"
             else:
