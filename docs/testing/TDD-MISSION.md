@@ -163,6 +163,54 @@ Two operational traps from the same source: **confirm the mutation actually reco
 believing a survival, and **do not use grep to decide whether a default is pinned** — a test that
 pins a default argument does not mention the parameter name, which is the entire point of it.
 
+### 5a. First full run — OBSERVED 2026-08-31
+
+22 mutations, `Scripts/mutations.json`, chosen by me rather than by whoever wrote the tests.
+Report: `docs/testing/mutation-report.md`. **18 KILLED · 4 SURVIVED · 0 INVALID.**
+
+*0 INVALID is the load-bearing number.* Every mutation reached the compiler, so no verdict is a
+silent pass — a mutation that fails to recompile reads exactly like one nothing pins.
+
+The seeded prediction reproduced: `OPDSClient.init(session:)`'s default argument was included
+*expecting* it to survive, and it did. A gate that reproduces a prediction is measuring something;
+one that only confirms its author's picks is not.
+
+**Three genuine gaps** (each stays `expect: KILLED`, so the gate is red until they close):
+
+| survivor | why it survived |
+|---|---|
+| `WordTimer` `>= 8` long-word threshold | its only test uses `"beautiful"` — nine letters, so it passes under `>= 8` or `>= 9`. The test asserts the interior of the range; the edge is free to move. |
+| `OPDSClient` accepts 3xx as success | tests cover 200/401/503 and never the 3xx band. Not just a coverage gap — a captive portal or SSO bounce answers 302 with HTML, which would be handed to `OPDSAtomParser` as a feed. |
+| `init(session:)` default argument | every test passes a mock, so the one value that actually ships is the one value no test uses. |
+
+**One survivor is an EQUIVALENT MUTANT and no test can ever kill it.** `ORPCalculator.segments`
+clamps with `min(orpIndex(for: word), count - 1)`. Since `bucket(s) <= s-1` for every `s >= 1`, and
+`leadingPunct + strippedLength <= count`, `orpIndex <= count - 1` always — the clamp never fires and
+both forms behave identically. Proof is pure counting, so it is character-set independent; checked
+empirically over 1,411,111 words (exhaustive to length 6 over an adversarial alphabet, plus 300k
+random to length 40) with zero counterexamples and a tightest slack of exactly 0.
+
+⚠️ **Not every survivor is a test gap, and I nearly briefed a delegate to write an impossible test.**
+Classify before assigning: *equivalent* (unkillable — annotate with the proof), *masked* (killable,
+but a redundant guard downstream hides it — find the observable that differs), or a real gap.
+
+**That finding exposed a design flaw in the gate itself.** It exited non-zero on ANY survivor while
+deliberately seeding a survivor it predicted — i.e. it could never pass. A gate that cannot pass
+gets ignored within a week. It now judges each mutation against an `expect` field and fails only on
+unpredicted outcomes. **Only the proven-equivalent mutant is marked expected**; annotating a real
+gap as "expected" would be precisely the laundering this whole phase exists to prevent.
+
+**Two harness repairs paid for by this run:**
+- 🚨 `xcodebuild` defaults to `-collect-test-diagnostics on-failure`, which runs
+  `simctl diagnose --timeout=600`. A mutation gate fails on purpose every time it *succeeds*, so
+  the default punished the good outcome. Measured: mutation 1 ran its 220 tests in 3.2 s then sat
+  in diagnostic collection for 4+ minutes; with `-collect-test-diagnostics never`, mutations 1 and
+  2 both completed in ~75 s. It presents as a hung build with no output — i.e. it mimics a wedged
+  CoreSimulator. **Use the flag in every red-heavy lane.**
+- Verdicts are appended to a JSONL ledger as they land and a re-run resumes from it. The first
+  attempt was SIGKILLed at mutation 3 and lost every verdict behind it. Replaying all 22 from the
+  ledger now costs 0.1 s instead of ~13 minutes of simulator time.
+
 ## 6. Seam pattern (settled fleet-wide — one pattern, not two)
 
 Default-argument injection; no test-only hooks on production types. A dependency becomes a parameter
