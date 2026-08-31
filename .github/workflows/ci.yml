@@ -1,15 +1,13 @@
 name: CI
 
-# Runs on the operator's own Mac via a self-hosted runner. Never on GitHub-hosted macOS —
-# that bills at a 10x multiplier and was ~92% of one project's Actions spend.
-# TRIGGERS ARE DELIBERATELY MANUAL-ONLY until the self-hosted `speedread-mac` runner is
-# registered. With no runner, a push-triggered job queues forever and reads as broken CI.
-# Restore the push/pull_request triggers below in the same change that registers the runner.
+# Runs on the operator's own Mac via the self-hosted `speedread-mac` runner. Never on
+# GitHub-hosted macOS — that bills at a 10x multiplier and was ~92% of one project's
+# Actions spend.
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [main]
-  # pull_request:
+  push:
+    branches: [main]
+  pull_request:
 
 # Rapid pushes must not pile Xcode builds onto a machine that also runs the operator's
 # other work. Newest push wins; older runs are cancelled.
@@ -18,8 +16,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DERIVED_DATA: /Volumes/Crucial X8/DerivedData/speedread-ci
-  SPM_CACHE: /Volumes/Crucial X8/dev-caches/spm-clones
+  # Build output goes on the external volume. The boot drive on this Mac is small and has
+  # repeatedly hit "disk full"; DerivedData is one of the biggest offenders.
+  SPEEDREAD_DERIVED_DATA_PATH: /Volumes/Crucial X8/DerivedData/speedread-ci
+  SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH: /Volumes/Crucial X8/dev-caches/spm-clones
 
 jobs:
   hermetic:
@@ -29,13 +29,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Cheap gates first — they need no simulator and fail in seconds rather than minutes.
+      # Cheap gates first — this needs no simulator and fails in seconds rather than minutes.
       - name: No assertion-free tests
         run: python3 Scripts/assertion-audit.py .
 
-      # A wedged CoreSimulator hangs every iOS build with NO error output, including
-      # device and archive builds, because compiling an asset catalog needs a device-type
-      # lookup. Empty output here means stop, not proceed.
+      # The external volume is where DerivedData is routed. If it is not mounted, xcodebuild
+      # would silently fall back to filling the boot drive, so fail loudly instead.
+      - name: External volume mounted
+        run: |
+          if [ ! -d "/Volumes/Crucial X8" ]; then
+            echo "::error::/Volumes/Crucial X8 is not mounted — refusing to build onto the boot drive."
+            exit 1
+          fi
+
+      # A wedged CoreSimulator hangs every iOS build with NO error output, including device
+      # and archive builds, because compiling an asset catalog needs a device-type lookup.
+      # Empty output here means stop, not proceed.
       - name: Simulator preflight
         run: |
           set -euo pipefail
@@ -46,27 +55,15 @@ jobs:
           fi
           echo "$types" | head -3
 
-      - name: iOS hermetic lane
-        run: |
-          xcodebuild test \
-            -project SpeedRead.xcodeproj \
-            -scheme SpeedRead \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-            -derivedDataPath "$DERIVED_DATA" \
-            -clonedSourcePackagesDirPath "$SPM_CACHE" \
-            -parallel-testing-enabled NO \
-            -resultBundlePath "$RUNNER_TEMP/ios.xcresult"
-
-      - name: Coverage honesty report
-        run: |
-          xcrun xccov view --report --json "$RUNNER_TEMP/ios.xcresult" > "$RUNNER_TEMP/cov.json"
-          python3 Scripts/attributable-coverage.py "$RUNNER_TEMP/cov.json" "$GITHUB_WORKSPACE"
-
-      - name: Watch hermetic lane
-        run: |
-          xcodebuild test \
-            -project SpeedRead.xcodeproj \
-            -scheme 'SpeedReadWatch Watch App' \
-            -destination 'platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)' \
-            -derivedDataPath "$DERIVED_DATA" \
-            -parallel-testing-enabled NO
+      # One step, because Scripts/coverage.sh already IS the gate: it runs the iOS and watch
+      # hermetic lanes serially, prints worst-first per-file coverage, and fails below the
+      # threshold. Re-implementing the xcodebuild invocations here would only let CI and the
+      # local command drift apart.
+      #
+      # The threshold gates ATTRIBUTABLE coverage — lines in files a test actually names —
+      # per the operator's decision of 2026-08-29. Headline coverage is reported but not
+      # gated, because a host-app test bundle renders views into it with no assertions behind
+      # them. RATCHET: combined attributable measured 83.99% after leg 5; 80 is the floor
+      # agreed for the chapters leg. Raise this as the real number climbs.
+      - name: Hermetic lanes + attributable coverage gate
+        run: Scripts/coverage.sh 80
