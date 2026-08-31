@@ -91,8 +91,23 @@ def main():
         sys.exit(0)
 
     muts = json.load(open(args.mutations))
-    results = []
     scratch = pathlib.Path(os.environ.get("SCRATCH", "/tmp"))
+
+    # The first real run of this gate was SIGKILLed at mutation 3 of 22 and every verdict
+    # already earned went with it, because the report was only written at the end. An hour
+    # of simulator time is too expensive to hold in memory. Each verdict is appended to a
+    # JSONL ledger the moment it is known, and a re-run skips what the ledger already has.
+    ledger = pathlib.Path(args.out).with_suffix(".jsonl")
+    done = {}
+    if ledger.exists():
+        for line in ledger.open():
+            line = line.strip()
+            if line:
+                r = json.loads(line)
+                done[r["label"]] = r
+        if done:
+            print(f"resuming: {len(done)} verdicts already in {ledger}")
+    results = []
     backups = scratch / "mutation-backups"
 
     # A SIGKILL mid-mutation bypasses `finally` and leaves a mutation sitting in production
@@ -111,14 +126,24 @@ def main():
               "not a gap in the suite.")
 
     for i, m in enumerate(muts, 1):
+        if m["label"] in done:
+            d = done[m["label"]]
+            results.append((d["label"], d["verdict"], d["note"]))
+            print(f"[{i}/{len(muts)}] {m['label']}: {d['verdict']} (from ledger)")
+            continue
         target = REPO / m["file"]
         original = target.read_text()
+        def record(label, verdict, note):
+            results.append((label, verdict, note))
+            with ledger.open("a") as lf:
+                lf.write(json.dumps({"label": label, "verdict": verdict, "note": note}) + "\n")
+
         if m["old"] not in original:
-            results.append((m["label"], "SKIPPED", "anchor string not found — mutation is stale"))
+            record(m["label"], "SKIPPED", "anchor string not found — mutation is stale")
             print(f"[{i}/{len(muts)}] {m['label']}: SKIPPED (anchor not found)")
             continue
         if original.count(m["old"]) != 1:
-            results.append((m["label"], "SKIPPED", f"anchor not unique ({original.count(m['old'])} matches)"))
+            record(m["label"], "SKIPPED", f"anchor not unique ({original.count(m['old'])} matches)")
             print(f"[{i}/{len(muts)}] {m['label']}: SKIPPED (anchor not unique)")
             continue
 
@@ -139,7 +164,7 @@ def main():
         finally:
             target.write_text(original)
             backup.unlink(missing_ok=True)
-        results.append((m["label"], verdict, note))
+        record(m["label"], verdict, note)
         print(f"[{i}/{len(muts)}] [{lane_for(m['file'])}] {m['label']}: {verdict} — {note}")
 
     survivors = [r for r in results if r[1] == "SURVIVED"]
