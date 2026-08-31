@@ -12,6 +12,7 @@ struct RTFExtractorTests {
         let result = try RTFExtractor().extractText(from: data)
 
         #expect(result.text.contains("Hello, RTF reader!"))
+        #expect(result.chapters.isEmpty)
     }
 
     @Test func extractsMultipleParagraphs() throws {

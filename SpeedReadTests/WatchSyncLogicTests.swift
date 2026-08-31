@@ -11,11 +11,29 @@ struct WatchSyncLogicTests {
             title: "A Book",
             author: "An Author",
             text: "one two three",
-            wordCount: 3
+            wordCount: 3,
+            chapters: [
+                ChapterMark(title: "Start", startWordIndex: 0),
+                ChapterMark(title: "Later", startWordIndex: 2)
+            ]
         )
 
         let decoded = try #require(WatchSyncLogic.BookPayload.decode(from: original.dictionary))
         #expect(decoded == original)
+    }
+
+    @Test func legacyBookPayloadWithoutChaptersDefaultsEmpty() throws {
+        let dictionary: [String: Any] = [
+            "id": UUID().uuidString,
+            "title": "Legacy",
+            "author": "Author",
+            "text": "one two",
+            "wordCount": 2
+        ]
+
+        let decoded = try #require(WatchSyncLogic.BookPayload.decode(from: dictionary))
+
+        #expect(decoded.chapters.isEmpty)
     }
 
     @Test func fileMetadataAndInlineTextRoundTrip() throws {

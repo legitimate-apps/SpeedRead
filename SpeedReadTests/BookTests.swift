@@ -19,6 +19,7 @@ struct BookTests {
         #expect(book.furthestReadWordIndex == 0)
         #expect(book.sourceFileName == "test.epub")
         #expect(book.wordCount == 6)
+        #expect(book.chapters.isEmpty)
     }
 
     @Test func wordsPropertySplitsText() {
@@ -228,5 +229,34 @@ struct BookTests {
         #expect(stored.lastReadWordIndex == 1)
         #expect(stored.browseWordIndex == 2)
         #expect(stored.furthestReadWordIndex == 3)
+    }
+
+    @Test("SwiftData persists chapter marks")
+    @MainActor
+    func swiftDataChapterRoundTrip() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: Book.self, Bookmark.self, Highlight.self,
+            configurations: configuration
+        )
+        let chapters = [
+            ChapterMark(title: "Opening", startWordIndex: 0),
+            ChapterMark(title: "Second", startWordIndex: 2)
+        ]
+        let book = Book(
+            title: "Stored",
+            author: "Author",
+            extractedText: "zero one two three",
+            sourceFileName: "stored.epub",
+            chapters: chapters
+        )
+        container.mainContext.insert(book)
+        try container.mainContext.save()
+        let id = book.id
+        container.mainContext.rollback()
+
+        let descriptor = FetchDescriptor<Book>(predicate: #Predicate { $0.id == id })
+        let stored = try #require(container.mainContext.fetch(descriptor).first)
+        #expect(stored.chapters == chapters)
     }
 }

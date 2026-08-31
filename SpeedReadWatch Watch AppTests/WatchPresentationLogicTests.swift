@@ -147,6 +147,35 @@ struct WatchRSVPSessionTests {
         #expect(session.engine.state == .idle)
     }
 
+    @Test func selectingAChapterBrowsesWithoutCreatingAReadingCommit() {
+        let originalReadDate = Date(timeIntervalSince1970: 500)
+        let book = WatchBook(
+            id: UUID(), title: "Watch Book", author: "Author",
+            text: "zero one two three four", lastReadIndex: 1,
+            lastReadDate: originalReadDate, browseWordIndex: 1,
+            furthestReadWordIndex: 4, wordCount: 5,
+            dateAdded: Date(timeIntervalSince1970: 1_000)
+        )
+        var library = WatchLibrary(books: [book], currentBookId: book.id)
+        let session = WatchRSVPSession()
+        _ = session.load(book: book, wpm: 300)
+
+        let crownValue = WatchChapterSelection.browse(
+            to: ChapterMark(title: "Later", startWordIndex: 3),
+            in: book,
+            session: session,
+            library: &library
+        )
+
+        #expect(session.engine.currentIndex == 3)
+        #expect(crownValue == CrownSeek.crownValue(forWordIndex: 3, wordCount: 5))
+        #expect(library.currentBook?.browseWordIndex == 3)
+        #expect(library.currentBook?.lastReadIndex == 1)
+        #expect(library.currentBook?.lastReadDate == originalReadDate)
+        #expect(library.currentBook?.furthestReadWordIndex == 4)
+        #expect(session.handleDisappear(book: book) == nil)
+    }
+
     private func makeBook(text: String, index: Int = 0) -> WatchBook {
         WatchBook(
             id: UUID(),
@@ -226,8 +255,13 @@ struct WatchPresentationCharacterizationTests {
         #expect(WatchSettingsLogic.snappedWPM(346) == 350)
     }
 
-    @Test func settingsListContainsRecallAndSpeedButNoChapterRow() {
-        #expect(WatchSettingsLogic.rows == [.backToReadingPosition, .speed])
+    @Test func settingsListShowsChapterFirstOnlyWhenRealMarksExist() {
+        #expect(WatchSettingsLogic.rows(hasChapters: false) == [
+            .backToReadingPosition, .speed
+        ])
+        #expect(WatchSettingsLogic.rows(hasChapters: true) == [
+            .chapter, .backToReadingPosition, .speed
+        ])
     }
 
     @Test("Characterization: applying watch settings updates the engine")

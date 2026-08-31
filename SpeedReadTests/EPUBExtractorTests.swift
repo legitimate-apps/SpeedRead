@@ -102,6 +102,71 @@ struct EPUBExtractorTests {
         #expect(result.text.contains("Chapter One"))
     }
 
+    @Test func navigationDocumentProducesRealTitlesAtExistingTokenOffsets() throws {
+        let firstChapter = Data("""
+        <html xmlns="http://www.w3.org/1999/xhtml"><body>
+        <h1 id="opening">Opening</h1><p>zero one</p>
+        <h2 id="middle">Middle Matters</h2><p>two three</p>
+        </body></html>
+        """.utf8)
+        let secondChapter = Data("""
+        <html xmlns="http://www.w3.org/1999/xhtml"><body>
+        <h1 id="ending">The Ending</h1><p>four five</p>
+        </body></html>
+        """.utf8)
+        let navigation = Data("""
+        <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+        <body><nav epub:type="toc"><ol>
+          <li><a href="Text/one.xhtml#opening">Opening</a></li>
+          <li><a href="Text/one.xhtml#middle"><span>Middle</span> Matters</a></li>
+          <li><a href="Text/two.xhtml#ending">The Ending</a></li>
+        </ol></nav></body></html>
+        """.utf8)
+        let epubData = makeEPUB(
+            opfPath: "OPS/content.opf",
+            opfXML: """
+            <package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+              <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Chapters</dc:title></metadata>
+              <manifest>
+                <item id="one" href="Text/one.xhtml" media-type="application/xhtml+xml"/>
+                <item id="two" href="Text/two.xhtml" media-type="application/xhtml+xml"/>
+                <item id="nav" href="toc.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+              </manifest>
+              <spine><itemref idref="one"/><itemref idref="two"/></spine>
+            </package>
+            """,
+            chapters: [
+                ("OPS/Text/one.xhtml", firstChapter),
+                ("OPS/Text/two.xhtml", secondChapter),
+                ("OPS/toc.xhtml", navigation)
+            ]
+        )
+
+        let result = try EPUBExtractor().extractText(from: epubData)
+        let legacyText = [
+            EPUBExtractor.stripHTML(String(decoding: firstChapter, as: UTF8.self)),
+            EPUBExtractor.stripHTML(String(decoding: secondChapter, as: UTF8.self))
+        ].joined(separator: "\n\n")
+
+        #expect(result.text == legacyText)
+        #expect(result.chapters == [
+            ChapterMark(title: "Opening", startWordIndex: 0),
+            ChapterMark(title: "Middle Matters", startWordIndex: 3),
+            ChapterMark(title: "The Ending", startWordIndex: 7)
+        ])
+    }
+
+    @Test func epubWithoutNavigationOrHeadingsEmitsNoChapters() throws {
+        let epubData = makeEPUB(
+            opfXML: standardOPF(hrefs: [("ch1", "chapter1.xhtml")]),
+            chapters: [("chapter1.xhtml", utf8Chapter("Ordinary body text."))]
+        )
+
+        let result = try EPUBExtractor().extractText(from: epubData)
+
+        #expect(result.chapters.isEmpty)
+    }
+
     @Test func recoversSpineIDRefThatNamesExistingChapter() throws {
         let epubData = makeEPUB(
             opfPath: "OEBPS/content.opf",

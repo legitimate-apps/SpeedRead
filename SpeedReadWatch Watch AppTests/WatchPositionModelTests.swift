@@ -26,6 +26,7 @@ struct WatchPositionModelTests {
         #expect(decoded.lastReadIndex == 2)
         #expect(decoded.browseWordIndex == 2)
         #expect(decoded.furthestReadWordIndex == 2)
+        #expect(decoded.chapters.isEmpty)
     }
 
     @Test func browsingOnWatchPublishesNothingAndCannotAlterReadingPosition() {
@@ -57,6 +58,38 @@ struct WatchPositionModelTests {
         #expect(service.library.currentBook?.lastReadDate == readDate)
         #expect(service.library.currentBook?.furthestReadWordIndex == 3)
         #expect(connection.applicationContexts.isEmpty)
+    }
+
+    @Test func watchBookPersistsChapterMarks() throws {
+        let chapters = [
+            ChapterMark(title: "Start", startWordIndex: 0),
+            ChapterMark(title: "Part Two", startWordIndex: 2)
+        ]
+        let book = WatchBook(
+            id: UUID(), title: "Book", author: "Author", text: "zero one two three",
+            lastReadIndex: 0, lastReadDate: nil, wordCount: 4,
+            dateAdded: Date(timeIntervalSince1970: 100), chapters: chapters
+        )
+
+        let decoded = try JSONDecoder().decode(
+            WatchBook.self,
+            from: JSONEncoder().encode(book)
+        )
+
+        #expect(decoded.chapters == chapters)
+    }
+
+    @Test func watchWordsUseTheCanonicalHyphenTokenCoordinates() {
+        let book = WatchBook(
+            id: UUID(), title: "Book", author: "Author",
+            text: "self-awareness starts part-two",
+            lastReadIndex: 0, lastReadDate: nil, wordCount: 5,
+            dateAdded: Date(timeIntervalSince1970: 100),
+            chapters: [ChapterMark(title: "Part", startWordIndex: 3)]
+        )
+
+        #expect(book.words == ["self-", "awareness", "starts", "part-", "two"])
+        #expect(book.words[book.chapters[0].startWordIndex] == "part-")
     }
 }
 

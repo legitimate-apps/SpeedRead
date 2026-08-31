@@ -24,6 +24,7 @@ struct DocumentImporterDataTests {
         #expect(book.wordCount > 0)
         #expect(book.sourceFileName == "story.txt")
         #expect(book.extractedText.contains("Once upon"))
+        #expect(book.chapters.isEmpty)
     }
 
     @Test func importsRTFFromData() throws {

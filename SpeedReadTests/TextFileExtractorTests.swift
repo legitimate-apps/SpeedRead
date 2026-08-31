@@ -12,6 +12,7 @@ struct TextFileExtractorTests {
 
         #expect(result.text.contains("ancestral halls"))
         #expect(result.title == "The Yellow Wallpaper")
+        #expect(result.chapters.isEmpty)
     }
 
     @Test func parsesProjectGutenbergStyleTitle() throws {
