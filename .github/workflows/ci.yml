@@ -63,7 +63,17 @@ jobs:
       # The threshold gates ATTRIBUTABLE coverage — lines in files a test actually names —
       # per the operator's decision of 2026-08-29. Headline coverage is reported but not
       # gated, because a host-app test bundle renders views into it with no assertions behind
-      # them. RATCHET: combined attributable measured 83.99% after leg 5; 80 is the floor
-      # agreed for the chapters leg. Raise this as the real number climbs.
+      # them.
+      #
+      # RATCHET, 2026-08-31: raised 80 -> 82 now that chapters have landed. Measured combined
+      # attributable is 83.73% (5240/6258), so this keeps ~1.7 points of headroom. That margin is
+      # deliberate: attributable moves a little on its own (0.36 points across two identical runs)
+      # and a feature leg legitimately dips it while new code lands ahead of its tests. A floor set
+      # flush against the current number turns ordinary work into a red build, and a gate people
+      # route around is worse than no gate.
+      #
+      # Do NOT ratchet headline. Measured on this project the same day, headline swung 41.84% ->
+      # 55.77% on the watch lane across two runs of an IDENTICAL suite — 316 of the 320 extra
+      # "covered" lines were GHOST, i.e. launch-path rendering with no assertions behind it.
       - name: Hermetic lanes + attributable coverage gate
-        run: Scripts/coverage.sh 80
+        run: Scripts/coverage.sh 82
