@@ -288,6 +288,42 @@ ASSUMED link can be closed — the operator's crown-direction bug is pinned at t
 (`CrownSeek`), but the COMPOSITION of SwiftUI's `.digitalCrownRotation` binding with that inverted
 mapping, which is the layer the operator actually experienced, is verified by nobody.
 
+## 5e. A delegate's confident finding inherits the manager's assumption (2026-08-31)
+
+Leg 8 wired the dormant watch UI target and drove `XCUIDevice.rotateDigitalCrown` against the real
+SwiftUI composition — the first time anything in this project measured that layer. It reported, in
+bold: **the operator's Digital Crown bug is still live.** Every OBSERVED line in that report was
+correct. The conclusion was wrong, and it was wrong because of *my brief*.
+
+I had written the assertion as "a positive crown delta must move FORWARD through the book". That is
+the PRE-FIX behaviour. The original build (`6363e84`) bound the crown directly —
+`engine.seek(to: Int(newValue))`, so positive delta → word index rises → forward — and that is
+precisely the build the operator called *"the opposite way of what I expect"*. They asked for the
+inversion; `CrownSeek` applies it; the measured `+0.25 → 100→98` is the fix **working**.
+
+So the delegate faithfully executed an assertion that encoded the exact behaviour the operator had
+rejected, and returned it as a confident defect. Had I taken it at face value the next step would
+have been to revert the operator's own fix.
+
+**The lesson, and it is not "verify the delegate":** I did verify — the measurements were sound.
+The failure was upstream of measurement. *An expected value written into a brief is an assumption
+wearing the costume of a specification*, and every downstream OBSERVED line inherits it while
+looking like independent evidence. The delegate cannot catch it, because I gave it the oracle.
+
+Two cheap guards that would have caught this one:
+- **When writing an expected value into a brief, state where it came from.** "Positive must move
+  forward" had no provenance. "Positive must move forward *because…*" would have failed to complete,
+  because the operator's report says the opposite.
+- **When a delegate reports that a previously-fixed bug is still live, re-derive the expected value
+  from the original report before believing it.** A regression and a wrong oracle look identical
+  from inside the test.
+
+One good thing survives unqualified: the composition is now measured. `rotateDigitalCrown`'s sign
+convention was the open question the docs could not settle, and the run answered it — since
+`index = top - crownValue`, an index falling by 2 means the bound value ROSE by 2, so a positive
+XCUITest delta and a rising `.digitalCrownRotation` value agree in sign. That is a real fact the
+project did not have an hour ago.
+
 ## 6. Seam pattern (settled fleet-wide — one pattern, not two)
 
 Default-argument injection; no test-only hooks on production types. A dependency becomes a parameter
