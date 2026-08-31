@@ -47,6 +47,9 @@
             default = "YES"
             reference = "container:WatchHermetic.xctestplan">
          </TestPlanReference>
+         <TestPlanReference
+            reference = "container:WatchUI.xctestplan">
+         </TestPlanReference>
       </TestPlans>
    </TestAction>
    <LaunchAction

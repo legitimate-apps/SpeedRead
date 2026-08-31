@@ -1,0 +1,31 @@
+{
+  "configurations" : [
+    {
+      "id" : "8B8BFCD5-C40C-4D03-8F6B-40D66EC57392",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:SpeedRead.xcodeproj",
+      "identifier" : "87039CA12F7DC13500AB9568",
+      "name" : "SpeedReadWatch Watch App"
+    },
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:SpeedRead.xcodeproj",
+        "identifier" : "87039CB72F7DC13600AB9568",
+        "name" : "SpeedReadWatch Watch AppUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

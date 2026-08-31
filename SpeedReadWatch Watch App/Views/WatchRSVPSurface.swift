@@ -38,6 +38,10 @@ struct WatchRSVPSurface: View {
             if engine.state == .playing {
                 RSVPWordView(segments: engine.currentSegments, fontSize: 20)
                     .allowsHitTesting(false)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(engine.currentWord)
+                    .accessibilityValue("\(engine.currentIndex)")
+                    .accessibilityIdentifier("watch-rsvp-position")
 
                 VStack {
                     Spacer()
@@ -79,6 +83,10 @@ struct WatchRSVPSurface: View {
 
                     RSVPWordView(segments: engine.currentSegments, fontSize: 18)
                         .allowsHitTesting(false)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(engine.currentWord)
+                        .accessibilityValue("\(engine.currentIndex)")
+                        .accessibilityIdentifier("watch-rsvp-position")
 
                     Spacer()
 
