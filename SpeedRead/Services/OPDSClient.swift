@@ -33,7 +33,7 @@ nonisolated enum OPDSError: LocalizedError, Equatable, Sendable {
 /// when the server has a username, enforces the per-server insecure-HTTP gate,
 /// and routes raw bytes / parsed feeds back to the caller.
 actor OPDSClient {
-    private let session: URLSession
+    let session: URLSession
 
     init(session: URLSession = .shared) {
         self.session = session

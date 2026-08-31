@@ -67,6 +67,11 @@ struct WordTimerTests {
         #expect(delay == 260)
     }
 
+    @Test func longWordBonusStartsAtEightCharacters() {
+        #expect(WordTimer.multiplier(for: "swiftly") == 1.0)
+        #expect(WordTimer.multiplier(for: "bookcase") == 1.3)
+    }
+
     @Test func numberGets1_8xDelay() {
         let timer = WordTimer(wpm: 300)
         let delay = timer.delay(for: "42")

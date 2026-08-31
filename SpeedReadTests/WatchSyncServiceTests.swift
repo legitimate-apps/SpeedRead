@@ -209,6 +209,56 @@ struct WatchSyncServiceTests {
         #expect(service.pendingWatchPositionOffer == nil)
     }
 
+    @Test func independentlyConstructedOfferIsClampedAndRepairsLegacyMarkersWhenAccepted() async throws {
+        let service = WatchSyncService(session: FakeWatchConnectivitySession())
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: Book.self, Bookmark.self, Highlight.self,
+            configurations: configuration
+        )
+        let book = Book(
+            title: "Stored",
+            author: "Author",
+            extractedText: (0..<100).map { "word\($0)" }.joined(separator: " "),
+            sourceFileName: "stored.txt"
+        )
+        book.lastReadDate = Date(timeIntervalSince1970: 100)
+        container.mainContext.insert(book)
+        try container.mainContext.save()
+        service.configure(modelContext: container.mainContext)
+        let timestamp = Date(timeIntervalSince1970: 200)
+        let incoming = WatchSyncLogic.PositionPayload(
+            bookId: book.id,
+            bookTitle: book.title,
+            wordIndex: 99,
+            timestamp: timestamp,
+            furthestReadWordIndex: 99
+        )
+
+        service.session(.default, didReceiveApplicationContext: incoming.dictionary)
+        for _ in 0..<20 where service.pendingWatchPositionOffer == nil {
+            await Task.yield()
+        }
+        let pending = try #require(service.pendingWatchPositionOffer)
+        let independentlyConstructed = WatchSyncService.PositionOffer(
+            bookId: pending.bookId,
+            bookTitle: pending.bookTitle,
+            wordIndex: pending.wordIndex,
+            wordCount: pending.wordCount,
+            timestamp: pending.timestamp
+        )
+
+        // Acceptance must not rely on applyIncomingPosition having kept these valid.
+        book.wordCount = 10
+        book.browseWordIndex = -1
+        book.furthestReadWordIndex = -1
+
+        #expect(service.continueFromWatch(independentlyConstructed))
+        #expect(book.lastReadWordIndex == 9)
+        #expect(book.browseWordIndex == 9)
+        #expect(book.furthestReadWordIndex == 9)
+    }
+
     @Test func watchOfferTextUsesHumanWordNumberAndFormattedProgress() {
         let offer = WatchSyncService.PositionOffer(
             bookId: UUID(),

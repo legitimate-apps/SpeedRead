@@ -572,12 +572,18 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             pendingWatchPositionOffer = nil
             return false
         }
+        let lastValidIndex = max(0, book.wordCount - 1)
+        let acceptedIndex = min(max(0, offer.wordIndex), lastValidIndex)
+        let existingFurthestIndex = min(
+            max(0, book.furthestReadWordIndex),
+            lastValidIndex
+        )
         let payload = WatchSyncLogic.PositionPayload(
             bookId: offer.bookId,
             bookTitle: offer.bookTitle,
-            wordIndex: offer.wordIndex,
+            wordIndex: acceptedIndex,
             timestamp: offer.timestamp,
-            furthestReadWordIndex: book.furthestReadWordIndex
+            furthestReadWordIndex: existingFurthestIndex
         )
         guard WatchSyncLogic.reconcile(
             incoming: payload,
@@ -587,9 +593,17 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             pendingWatchPositionOffer = nil
             return false
         }
-        book.lastReadWordIndex = offer.wordIndex
+        book.ensurePositionMarkersInitialized()
+        book.lastReadWordIndex = acceptedIndex
         book.lastReadDate = offer.timestamp
-        book.browseWordIndex = offer.wordIndex
+        book.browseWordIndex = acceptedIndex
+        book.furthestReadWordIndex = min(
+            WatchSyncLogic.mergedFurthestRead(
+                local: book.furthestReadWordIndex,
+                incoming: acceptedIndex
+            ),
+            lastValidIndex
+        )
         do {
             try modelContext.save()
             pendingWatchPositionOffer = nil

@@ -136,6 +136,33 @@ struct OPDSClientTests {
         }
     }
 
+    @Test func fetchFeedThrowsOnRedirectInsteadOfParsingItsBody() async throws {
+        let server = makeServer()
+        MockURLProtocol.handler = { req in
+            let resp = HTTPURLResponse(
+                url: req.url!,
+                statusCode: 302,
+                httpVersion: nil,
+                headerFields: [
+                    "Content-Type": "text/html",
+                    "Location": "https://login.example.com/"
+                ]
+            )!
+            return (resp, Data("<html>Sign in</html>".utf8))
+        }
+        let client = OPDSClient(session: mockSession())
+
+        await #expect(throws: OPDSError.httpError(status: 302)) {
+            _ = try await client.fetchFeed(url: server.baseURL!, on: server)
+        }
+    }
+
+    @Test func defaultInitializerUsesSharedSession() async {
+        let client = OPDSClient()
+
+        #expect(await client.session === URLSession.shared)
+    }
+
     @Test func httpSchemeBlockedWhenInsecureDisabled() async throws {
         let server = makeServer(base: "http://insecure.example.com", allowInsecure: false)
         let client = OPDSClient(session: mockSession())

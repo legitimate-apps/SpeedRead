@@ -97,4 +97,33 @@ struct ORPCalculatorTests {
         #expect(segments.focus == "e")
         #expect(segments.after == "llo\"")
     }
+
+    @Test func adversarialWordsKeepORPInBoundsAndSegmentsRoundTrip() {
+        let words = [
+            "",
+            "x",
+            "...?!—",
+            "((\"Hello",
+            "don't",
+            "mother-in-law",
+            "1234567890",
+            String(repeating: "a", count: 1_024),
+            "e\u{301}clair",
+            "👩🏽‍🚀reading"
+        ]
+
+        for word in words {
+            let index = ORPCalculator.orpIndex(for: word)
+            let segments = ORPCalculator.segments(for: word)
+
+            if word.isEmpty {
+                #expect(index == 0)
+                #expect(segments.focus.isEmpty)
+            } else {
+                #expect(index < word.count)
+                #expect(segments.focus.count == 1)
+            }
+            #expect(segments.before + segments.focus + segments.after == word)
+        }
+    }
 }
