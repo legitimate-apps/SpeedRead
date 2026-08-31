@@ -211,6 +211,23 @@ gap as "expected" would be precisely the laundering this whole phase exists to p
   attempt was SIGKILLed at mutation 3 and lost every verdict behind it. Replaying all 22 from the
   ledger now costs 0.1 s instead of ~13 minutes of simulator time.
 
+### 5c. The resume ledger is a verification laundering vector (2026-08-31)
+
+I built the JSONL ledger so a killed run would not lose an hour of verdicts. It has a second effect
+I did not design and nearly fell into: **a re-run replays the ledger, so re-running the gate to
+verify a delegate's work would have replayed the delegate's own verdicts and reported them as my
+measurement.** Instant, green, and worthless — the delegate's claim and my "verification" of it
+would share a single source.
+
+The rule: **to verify someone's work, delete the ledger first, so every verdict is measured fresh.**
+The gate now enforces disclosure rather than relying on me remembering — replayed verdicts are
+printed as `REPLAYED from ledger, not re-measured`, marked per-row in the report, and the report
+states in its header how many were not measured by that run.
+
+General form, and it is the same shape as the equivalent-mutant trap: **a cache that makes a check
+cheap also makes it possible for the check to not happen.** Any verification tool with a resume,
+cache or fixture needs to say which of its answers it actually computed this time.
+
 ## 5b. Open finding — an empty test target in no plan (OBSERVED 2026-08-31)
 
 `SpeedReadWatch Watch AppUITests` exists as a target in `SpeedRead.xcodeproj`, its source directory

@@ -129,6 +129,9 @@ def main():
                 done[r["label"]] = r
         if done:
             print(f"resuming: {len(done)} verdicts already in {ledger}")
+            print("  ⚠️  REPLAYED verdicts were measured by an EARLIER run — possibly a different")
+            print("      agent's. Delete the ledger before using this run to verify someone's work.")
+    replayed = set()
     results = []
     backups = scratch / "mutation-backups"
 
@@ -151,7 +154,8 @@ def main():
         if m["label"] in done:
             d = done[m["label"]]
             results.append((d["label"], d["verdict"], d["note"]))
-            print(f"[{i}/{len(muts)}] {m['label']}: {d['verdict']} (from ledger)")
+            replayed.add(d["label"])
+            print(f"[{i}/{len(muts)}] {m['label']}: {d['verdict']} (REPLAYED from ledger, not re-measured)")
             continue
         target = REPO / m["file"]
         original = target.read_text()
@@ -213,12 +217,19 @@ def main():
                 f"{len(killed)} killed · {len(survivors)} survived "
                 f"({len(survivors)-len([r for r in unexpected if r[1]=='SURVIVED'])} of them expected) · "
                 f"{len(invalid)} not counted · **{len(unexpected)} unexpected**\n\n")
-        f.write("| mutation | verdict | expected | note |\n|---|---|---|---|\n")
+        if replayed:
+            f.write(f"⚠️ **{len(replayed)} of these verdicts were REPLAYED from a previous run's ledger "
+                    f"and were not re-measured here.** Rows are marked *replayed*. To verify another "
+                    f"agent's work, delete the ledger and re-run so every verdict is measured fresh.\n\n")
+        else:
+            f.write("Every verdict in this table was measured by this run.\n\n")
+        f.write("| mutation | verdict | expected | measured | note |\n|---|---|---|---|---|\n")
         for label, verdict, note in results:
             exp = expected.get(label, "KILLED")
+            prov = "*replayed*" if label in replayed else "this run"
             mark = "" if verdict == exp else " ⚠️"
             why = f" — {reasons[label]}" if reasons.get(label) and verdict == "SURVIVED" else ""
-            f.write(f"| {label} | **{verdict}**{mark} | {exp} | {note}{why} |\n")
+            f.write(f"| {label} | **{verdict}**{mark} | {exp} | {prov} | {note}{why} |\n")
         if unexpected:
             f.write("\n## Unexpected outcomes\n\n")
             for label, verdict, note in unexpected:
