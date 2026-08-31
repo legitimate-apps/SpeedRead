@@ -73,12 +73,6 @@
  },
  {
   "file": "SpeedRead/Models/Book.swift",
-  "old": "        guard tokenizedWords.isEmpty else { return }",
-  "new": "        guard !tokenizedWords.isEmpty else { return }",
-  "label": "Book: token-cache migration guard inverted"
- },
- {
-  "file": "SpeedRead/Models/Book.swift",
   "old": "        return Double(lastReadWordIndex) / Double(wordCount)",
   "new": "        return Double(lastReadWordIndex) / Double(wordCount + 1)",
   "label": "Book: progress denominator off-by-one"
@@ -106,5 +100,35 @@
   "old": "    init(session: URLSession = .shared) {",
   "new": "    init(session: URLSession = URLSession(configuration: .ephemeral)) {",
   "label": "OPDS: DEFAULT ARGUMENT for session (tests always pass a mock)"
+ },
+ {
+  "file": "SpeedRead/Models/Book.swift",
+  "old": "        guard tokens.isEmpty else { return }",
+  "new": "        guard !tokens.isEmpty else { return }",
+  "label": "Book: token-cache migration guard inverted"
+ },
+ {
+  "file": "SpeedRead/Connectivity/WatchSyncService.swift",
+  "old": "        max(local, incoming)",
+  "new": "        min(local, incoming)",
+  "label": "furthestRead: max-merge becomes MIN (high-water mark runs backwards)"
+ },
+ {
+  "file": "SpeedRead/Engine/RSVPEngine.swift",
+  "old": "    static let throttleInterval: TimeInterval = 5",
+  "new": "    static let throttleInterval: TimeInterval = 0",
+  "label": "commit throttle removed (every tick commits)"
+ },
+ {
+  "file": "SpeedRead/Engine/RSVPEngine.swift",
+  "old": "              now.timeIntervalSince(lastCommitDate) >= Self.throttleInterval else {",
+  "new": "              now.timeIntervalSince(lastCommitDate) <= Self.throttleInterval else {",
+  "label": "commit throttle comparison inverted"
+ },
+ {
+  "file": "SpeedReadWatch Watch App/Shared/CrownSeek.swift",
+  "old": "        return top - min(max(raw, 0), top)",
+  "new": "        return min(max(raw, 0), top)",
+  "label": "CrownSeek: direction un-inverted (the operator-reported bug returns)"
  }
 ]

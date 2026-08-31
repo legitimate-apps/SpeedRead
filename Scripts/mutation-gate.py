@@ -16,15 +16,41 @@ Two traps this guards against, both measured on the fleet 2026-08-29:
 """
 import subprocess, sys, os, json, time, pathlib, shutil, argparse
 
-REPO = pathlib.Path("/path/to/SpeedRead")
-DD   = "/Volumes/Crucial X8/DerivedData/speedread-tests"
-SPM  = "/Volumes/Crucial X8/dev-caches/spm-clones"
-SIM  = "9202766C-CD78-4DD4-9F18-E538F62D30C4"
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+except Exception:
+    pass
 
-def run_suite(logpath, plan=None):
+# Derive the repo root from this file's own location. Never hardcode an absolute path
+# under a home directory — it bakes the macOS username into the repo, and it breaks the
+# moment the checkout moves.
+REPO = pathlib.Path(__file__).resolve().parent.parent
+DD   = os.environ.get("SPEEDREAD_DERIVED_DATA_PATH", "/Volumes/Crucial X8/DerivedData/speedread-tests")  # external volume, no username
+SPM  = os.environ.get("SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH", "/Volumes/Crucial X8/dev-caches/spm-clones")
+def _dest(lane):
+    """Read destinations LAZILY. They were read at import once, which meant --restore —
+    the one path that runs after a crash, needing no simulator at all — died with a
+    KeyError before it could put a live mutation back. Found the hard way when a killed
+    run left a mutation in ORPCalculator.swift and the recovery tool refused to start."""
+    var = "SPEEDREAD_IOS_DESTINATION" if lane == "ios" else "SPEEDREAD_WATCH_DESTINATION"
+    try:
+        return os.environ[var]
+    except KeyError:
+        print(f"error: {var} must be set to run mutations (not needed for --restore)")
+        sys.exit(64)
+
+# A mutation in a watch-only source file cannot be killed by the iOS lane — that file is not
+# even in the iOS target, so it would report SURVIVED for a reason that has nothing to do with
+# the tests. Route each mutation to the lane that actually compiles it.
+def lane_for(path):
+    return "watch" if path.startswith("SpeedReadWatch") else "ios"
+
+def run_suite(logpath, plan=None, lane="ios"):
+    scheme = "SpeedRead" if lane == "ios" else "SpeedReadWatch Watch App"
+    dest = _dest(lane)
     cmd = ["xcodebuild", "test",
-           "-project", "SpeedRead.xcodeproj", "-scheme", "SpeedRead",
-           "-destination", f"platform=iOS Simulator,id={SIM}",
+           "-project", "SpeedRead.xcodeproj", "-scheme", scheme,
+           "-destination", dest,
            "-derivedDataPath", DD, "-clonedSourcePackagesDirPath", SPM,
            "-parallel-testing-enabled", "NO"]
     if plan: cmd += ["-testPlan", plan]
@@ -101,7 +127,8 @@ def main():
         target.write_text(original.replace(m["old"], m["new"]))
         log = scratch / f"mut-{i}.log"
         try:
-            rc = run_suite(log, args.plan)
+            lane = lane_for(m["file"])
+            rc = run_suite(log, args.plan, lane)
             recompiled = compiled(log, pathlib.Path(m["file"]).name)
             if not recompiled:
                 verdict, note = "INVALID", "mutation did not reach the compiler — result means nothing"
@@ -113,7 +140,7 @@ def main():
             target.write_text(original)
             backup.unlink(missing_ok=True)
         results.append((m["label"], verdict, note))
-        print(f"[{i}/{len(muts)}] {m['label']}: {verdict} — {note}")
+        print(f"[{i}/{len(muts)}] [{lane_for(m['file'])}] {m['label']}: {verdict} — {note}")
 
     survivors = [r for r in results if r[1] == "SURVIVED"]
     invalid   = [r for r in results if r[1] in ("INVALID", "SKIPPED")]
