@@ -1,5 +1,4 @@
 import Foundation
-import Testing
 
 /// iOS hermetic-lane network guard.
 ///
@@ -9,19 +8,34 @@ import Testing
 enum HermeticNetworkGuard {
     nonisolated(unsafe) private(set) static var isInstalled = false
     nonisolated(unsafe) private(set) static var blockedRequestCount = 0
+    private static let lock = NSLock()
 
     static func install() {
-        // TDD scaffold: the red test proves the bundle-load installer cannot silently do nothing.
+        lock.lock()
+        defer { lock.unlock() }
+        guard !isInstalled else { return }
+        isInstalled = URLProtocol.registerClass(HermeticNetworkGuardURLProtocol.self)
+    }
+
+    static func recordBlockedRequest(_ request: URLRequest, context: String) {
+        lock.lock()
+        blockedRequestCount += 1
+        lock.unlock()
+        fatalError(
+            "Hermetic network isolation blocked an un-stubbed request "
+                + "(\(context)): \(request.url?.absoluteString ?? "<missing URL>")"
+        )
     }
 }
 
 final class HermeticNetworkGuardURLProtocol: URLProtocol, @unchecked Sendable {
-    override class func canInit(with request: URLRequest) -> Bool { false }
+    override class func canInit(with request: URLRequest) -> Bool {
+        request.url?.scheme == "http" || request.url?.scheme == "https"
+    }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        Issue.record("TDD scaffold reached instead of the implemented hermetic network guard")
-        client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+        HermeticNetworkGuard.recordBlockedRequest(request, context: "global/default session")
     }
 
     override func stopLoading() {}
@@ -30,4 +44,40 @@ final class HermeticNetworkGuardURLProtocol: URLProtocol, @unchecked Sendable {
 @_cdecl("SpeedReadInstallHermeticNetworkGuard")
 func speedReadInstallHermeticNetworkGuard() {
     HermeticNetworkGuard.install()
+}
+
+nonisolated final class MockURLProtocol: URLProtocol, @unchecked Sendable {
+    typealias Handler = (URLRequest) -> (HTTPURLResponse, Data?)
+
+    nonisolated(unsafe) static var handler: Handler?
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let handler = Self.handler else {
+            HermeticNetworkGuard.recordBlockedRequest(request, context: "mock session without a stub")
+            return
+        }
+        // A handler is one request's stub, not ambient suite state. Consuming it prevents a later
+        // test that forgot to stub from receiving a stale success response.
+        Self.handler = nil
+        let (response, data) = handler(request)
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        if let data { client?.urlProtocol(self, didLoad: data) }
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+func mockSession() -> URLSession {
+    let configuration = URLSessionConfiguration.ephemeral
+    // Custom configurations ignore global URLProtocol registration. The mock gets first refusal;
+    // the blocking guard is the fallback if a future stub protocol declines a request.
+    configuration.protocolClasses = [
+        MockURLProtocol.self,
+        HermeticNetworkGuardURLProtocol.self
+    ]
+    return URLSession(configuration: configuration)
 }

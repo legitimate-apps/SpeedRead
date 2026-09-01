@@ -35,6 +35,10 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 project="$repo_root/SpeedRead.xcodeproj"
 
+# Runtime registration covers iOS shared/default sessions, while this source audit closes the
+# custom-configuration hole and the watchOS global-registration no-op measured on watchOS 26.5.
+python3 "$script_dir/network-isolation-audit.py" "$repo_root"
+
 ios_destination="${SPEEDREAD_IOS_DESTINATION:-platform=iOS Simulator,name=iPhone 17 Pro,OS=latest}"
 watch_destination="${SPEEDREAD_WATCH_DESTINATION:-platform=watchOS Simulator,name=Apple Watch Series 11 (46mm),OS=latest}"
 

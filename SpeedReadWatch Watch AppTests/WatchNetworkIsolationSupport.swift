@@ -1,5 +1,4 @@
 import Foundation
-import Testing
 
 /// watchOS hermetic-lane scope.
 ///
@@ -13,8 +12,17 @@ enum WatchNetworkIsolationScope {
     static func guardedConfiguration(
         protocolClasses: [AnyClass] = []
     ) -> URLSessionConfiguration {
-        // TDD scaffold: the red test proves explicit protocol classes are actually installed.
-        .ephemeral
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = protocolClasses + [
+            WatchHermeticNetworkGuardURLProtocol.self
+        ]
+        return configuration
+    }
+
+    static func guardedSession(
+        protocolClasses: [AnyClass] = []
+    ) -> URLSession {
+        URLSession(configuration: guardedConfiguration(protocolClasses: protocolClasses))
     }
 }
 
@@ -26,8 +34,10 @@ final class WatchHermeticNetworkGuardURLProtocol: URLProtocol, @unchecked Sendab
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        Issue.record("watch hermetic lane blocked an un-stubbed request to \(request.url?.absoluteString ?? "<missing URL>")")
-        client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+        fatalError(
+            "Watch hermetic network isolation blocked an un-stubbed request to "
+                + (request.url?.absoluteString ?? "<missing URL>")
+        )
     }
 
     override func stopLoading() {}

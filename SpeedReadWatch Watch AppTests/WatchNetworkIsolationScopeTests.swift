@@ -34,7 +34,9 @@ struct WatchNetworkIsolationScopeTests {
         #expect(configuration.protocolClasses?.first === WatchStubURLProtocol.self)
         #expect(configuration.protocolClasses?.last === WatchHermeticNetworkGuardURLProtocol.self)
 
-        let session = URLSession(configuration: configuration)
+        let session = WatchNetworkIsolationScope.guardedSession(
+            protocolClasses: [WatchStubURLProtocol.self]
+        )
         let (_, response) = try await session.data(
             from: URL(string: "https://speedread.invalid/stubbed")!
         )

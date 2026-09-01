@@ -39,6 +39,9 @@
          <TestPlanReference
             reference = "container:UI.xctestplan">
          </TestPlanReference>
+         <TestPlanReference
+            reference = "container:NetworkIsolationPositiveControl.xctestplan">
+         </TestPlanReference>
       </TestPlans>
    </TestAction>
    <LaunchAction

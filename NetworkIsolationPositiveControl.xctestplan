@@ -1,0 +1,35 @@
+{
+  "configurations" : [
+    {
+      "id" : "6D9CC7C5-27B4-4C65-A930-7C2FD1E9707E",
+      "name" : "Positive Control",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SPEEDREAD_NETWORK_GUARD_POSITIVE_CONTROL",
+            "value" : "1"
+          }
+        ]
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:SpeedRead.xcodeproj",
+      "identifier" : "87038ECF2F7DA3E400AB9568",
+      "name" : "SpeedRead"
+    },
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:SpeedRead.xcodeproj",
+        "identifier" : "87038EE12F7DA3E500AB9568",
+        "name" : "SpeedReadTests"
+      }
+    }
+  ],
+  "version" : 1
+}
