@@ -15,17 +15,13 @@ struct ServerEditView: View {
     @State private var password: String = ""
     @State private var allowInsecureHTTP: Bool = false
 
-    @State private var testState: TestState = .idle
+    @State private var testState: ServerEditLogic.ConnectionState = .idle
     @State private var validationError: String?
 
-    enum TestState: Equatable {
-        case idle
-        case running
-        case success
-        case failure(String)
+    private var presentation: ServerEditLogic.Presentation {
+        ServerEditLogic.presentation(server: server)
     }
 
-    private var isEdit: Bool { server != nil }
     private var pendingHTTP: Bool {
         OPDSServerFormLogic.isPendingPlainHTTP(urlString)
     }
@@ -89,7 +85,10 @@ struct ServerEditView: View {
                         }
                     }
                 }
-                .disabled(testState == .running || urlString.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(!ServerEditLogic.canTestConnection(
+                    state: testState,
+                    urlString: urlString
+                ))
             }
 
             if let validationError {
@@ -102,14 +101,14 @@ struct ServerEditView: View {
         }
         .scrollContentBackground(.hidden)
         .background(themeManager.currentTheme.backgroundColor)
-        .navigationTitle(isEdit ? server?.name ?? "Server" : "New Server")
+        .navigationTitle(presentation.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") { save() }
                     .disabled(!canSave)
             }
-            if isEdit {
+            if presentation.showsCancel {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
@@ -123,87 +122,82 @@ struct ServerEditView: View {
     }
 
     private func loadExisting() {
-        guard let server else { return }
-        name = server.name
-        urlString = server.baseURLString
-        username = server.username
-        password = KeychainStore.password(for: server.keychainTag) ?? ""
-        allowInsecureHTTP = server.allowInsecureHTTP
+        let values = ServerEditLogic.initialValues(server: server)
+        name = values.name
+        urlString = values.urlString
+        username = values.username
+        password = values.password
+        allowInsecureHTTP = values.allowInsecureHTTP
     }
 
     private func save() {
-        let url: URL
-        switch OPDSServerFormLogic.validateURL(
-            urlString,
+        let validated: ServerEditLogic.ValidatedServer
+        switch ServerEditLogic.saveDecision(
+            name: name,
+            urlString: urlString,
+            username: username,
+            password: password,
             allowInsecureHTTP: allowInsecureHTTP
         ) {
-        case .valid(let validatedURL):
-            url = validatedURL
-        case .invalid:
-            validationError = "Please enter a valid URL beginning with http:// or https://."
+        case .failure(let message):
+            validationError = message
             return
-        case .insecureHTTP:
-            validationError = "This URL uses http://. Enable “Allow plain HTTP” or switch to https://."
-            return
+        case .valid(let value):
+            validated = value
         }
         validationError = nil
-        let identity = OPDSServerFormLogic.normalizedIdentity(
-            name: name,
-            username: username,
-            password: password
-        )
 
         if let server {
-            server.name = identity.name
-            server.baseURLString = url.absoluteString
-            server.username = identity.username
-            server.allowInsecureHTTP = allowInsecureHTTP
-            persistPassword(identity.password, for: server.keychainTag)
+            server.name = validated.name
+            server.baseURLString = validated.url.absoluteString
+            server.username = validated.username
+            server.allowInsecureHTTP = validated.allowInsecureHTTP
+            persistPassword(validated.password, for: server.keychainTag)
         } else {
             let s = OPDSServer(
-                name: identity.name,
-                baseURL: url,
-                username: identity.username,
-                allowInsecureHTTP: allowInsecureHTTP,
-                sortIndex: Int(Date().timeIntervalSince1970)
+                name: validated.name,
+                baseURL: validated.url,
+                username: validated.username,
+                allowInsecureHTTP: validated.allowInsecureHTTP,
+                sortIndex: ServerEditLogic.sortIndex()
             )
             modelContext.insert(s)
-            persistPassword(identity.password, for: s.keychainTag)
+            persistPassword(validated.password, for: s.keychainTag)
         }
         try? modelContext.save()
         dismiss()
     }
 
     private func persistPassword(_ password: String, for tag: String) {
-        if password.isEmpty {
+        switch ServerEditLogic.passwordAction(password: password) {
+        case .delete:
             try? KeychainStore.deletePassword(for: tag)
-        } else {
-            try? KeychainStore.setPassword(password, for: tag)
+        case .set(let value):
+            try? KeychainStore.setPassword(value, for: tag)
         }
     }
 
     private func testConnection() async {
         let url: URL
-        switch OPDSServerFormLogic.validateURL(
-            urlString,
+        switch ServerEditLogic.connectionDecision(
+            urlString: urlString,
             allowInsecureHTTP: allowInsecureHTTP
         ) {
-        case .valid(let validatedURL):
+        case .probe(let validatedURL):
             url = validatedURL
-        case .invalid:
-            testState = .failure("Invalid URL")
-            return
-        case .insecureHTTP:
-            testState = .failure("Plain HTTP is disabled for this server")
+        case .failure(let message):
+            testState = .failure(message)
             return
         }
         testState = .running
-        let tag = server?.keychainTag ?? "test-\(UUID().uuidString)"
+        let tag = ServerEditLogic.connectionTag(existingTag: server?.keychainTag)
         if !password.isEmpty {
-            try? KeychainStore.setPassword(password, for: tag)
+            try? KeychainStore.setPassword(password, for: tag.value)
         }
         defer {
-            if server == nil { try? KeychainStore.deletePassword(for: tag) }
+            if tag.deletesAfterProbe {
+                try? KeychainStore.deletePassword(for: tag.value)
+            }
         }
 
         let identity = OPDSServerFormLogic.normalizedIdentity(
@@ -217,7 +211,7 @@ struct ServerEditView: View {
             username: identity.username,
             allowInsecureHTTP: allowInsecureHTTP
         )
-        probeServer.keychainTag = tag
+        probeServer.keychainTag = tag.value
 
         let client = OPDSClient()
         do {
@@ -292,18 +286,29 @@ struct ServerEditLogic {
         server: OPDSServer?,
         passwordForTag: (String) -> String? = KeychainStore.password(for:)
     ) -> FormValues {
-        .empty
+        guard let server else { return .empty }
+        return FormValues(
+            name: server.name,
+            urlString: server.baseURLString,
+            username: server.username,
+            password: passwordForTag(server.keychainTag) ?? "",
+            allowInsecureHTTP: server.allowInsecureHTTP
+        )
     }
 
     static func presentation(server: OPDSServer?) -> Presentation {
-        Presentation(navigationTitle: "New Server", showsCancel: false)
+        guard let server else {
+            return Presentation(navigationTitle: "New Server", showsCancel: false)
+        }
+        return Presentation(navigationTitle: server.name, showsCancel: true)
     }
 
     static func canTestConnection(
         state: ConnectionState,
         urlString: String
     ) -> Bool {
-        false
+        state != .running
+            && !urlString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     static func saveDecision(
@@ -313,28 +318,64 @@ struct ServerEditLogic {
         password: String,
         allowInsecureHTTP: Bool
     ) -> SaveDecision {
-        .failure("Not implemented")
+        let url: URL
+        switch OPDSServerFormLogic.validateURL(
+            urlString,
+            allowInsecureHTTP: allowInsecureHTTP
+        ) {
+        case .valid(let validatedURL):
+            url = validatedURL
+        case .invalid:
+            return .failure("Please enter a valid URL beginning with http:// or https://.")
+        case .insecureHTTP:
+            return .failure("This URL uses http://. Enable “Allow plain HTTP” or switch to https://.")
+        }
+        let identity = OPDSServerFormLogic.normalizedIdentity(
+            name: name,
+            username: username,
+            password: password
+        )
+        return .valid(.init(
+            url: url,
+            name: identity.name,
+            username: identity.username,
+            password: identity.password,
+            allowInsecureHTTP: allowInsecureHTTP
+        ))
     }
 
     static func connectionDecision(
         urlString: String,
         allowInsecureHTTP: Bool
     ) -> ConnectionDecision {
-        .failure("Not implemented")
+        switch OPDSServerFormLogic.validateURL(
+            urlString,
+            allowInsecureHTTP: allowInsecureHTTP
+        ) {
+        case .valid(let url):
+            return .probe(url)
+        case .invalid:
+            return .failure("Invalid URL")
+        case .insecureHTTP:
+            return .failure("Plain HTTP is disabled for this server")
+        }
     }
 
     static func passwordAction(password: String) -> PasswordAction {
-        .delete
+        password.isEmpty ? .delete : .set(password)
     }
 
     static func sortIndex(now: Date = Date()) -> Int {
-        0
+        Int(now.timeIntervalSince1970)
     }
 
     static func connectionTag(
         existingTag: String?,
         generatedTag: String = UUID().uuidString
     ) -> ConnectionTag {
-        ConnectionTag(value: "", deletesAfterProbe: false)
+        if let existingTag {
+            return ConnectionTag(value: existingTag, deletesAfterProbe: false)
+        }
+        return ConnectionTag(value: generatedTag, deletesAfterProbe: true)
     }
 }

@@ -27,14 +27,21 @@ nonisolated enum OPDSServerFormLogic {
         allowInsecureHTTP: Bool
     ) -> URLValidation {
         var value = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !value.lowercased().hasPrefix("http://")
-            && !value.lowercased().hasPrefix("https://") {
+        if let separator = value.range(of: "://") {
+            let explicitScheme = value[..<separator.lowerBound].lowercased()
+            guard explicitScheme == "http" || explicitScheme == "https" else {
+                return .invalid
+            }
+        } else {
             value = "https://" + value
         }
-        guard let url = URL(string: value), url.scheme != nil, url.host != nil else {
+        guard let url = URL(string: value),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              url.host != nil else {
             return .invalid
         }
-        if url.scheme?.lowercased() == "http" && !allowInsecureHTTP {
+        if scheme == "http" && !allowInsecureHTTP {
             return .insecureHTTP
         }
         return .valid(url)
