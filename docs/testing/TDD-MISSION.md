@@ -1014,6 +1014,129 @@ deviation rather than leaving it implicit.
 structural problem that no test failure would have shown. Ratcheting down to accommodate it would
 have converted a working instrument into a rubber stamp.
 
+## 5r. Leg 12 — the watch trio, network isolation, and SpineColor closed (VERIFIED BY MANAGER 2026-09-01)
+
+Seven commits, every one a red-then-green pair, pushed at `87ac743`. Verified independently before
+reading Sol's report:
+
+- **Watch view trio.** `WatchSettingsLogic`, `WatchRSVPViewLogic` and `WatchAppLaunchLogic` extracted
+  into their own files (CORPUS §4.8 was already in the brief, so the new logic did not repeat leg
+  11's co-location mistake). **Watch files named by no test: 3 -> 1** — only
+  `SpeedReadWatchApp.swift` (32 lines) remains.
+- **`SpineColor.swift` is now a symlink** into `SpeedRead/Theme/`. `Scripts/shared-source-audit.py`
+  passes 8 of 8 single-source, so it is wired into CI with an **empty exemption dict** — the
+  condition I had set for wiring it at all.
+- **Network isolation is a harness property, not a convention.** `HermeticNetworkGuardURLProtocol`
+  `fatalError`s on any escaping request. Its positive control lives in its **own test plan**, which
+  is the right shape: a control that must FAIL by design can never sit in a lane whose job is green.
+- **Mutation proposals delivered** (six), `Scripts/mutations.json` untouched and the gate not run —
+  the boundary held, so replaying a delegate's verdicts through my resume ledger stays impossible.
+  Two proposals carry honest self-criticism (an encoding mutant that may algebraically collapse, a
+  clock mutant that preserves relative ordering), and one deliberately re-introduces leg 9's
+  `/opds/opds/search` duplication to test whether that fix is actually pinned.
+- Sol **discarded its own green result** when a selector-shaped invocation reported `TEST SUCCEEDED`
+  while executing zero tests, and re-ran the full target. That is §5j's lesson applied by the
+  delegate without being told.
+
+## 5s. My own gate had a self-referential hole, and a control that should have failed did not
+
+Tightening `lane-audit.py` exposed two defects in it, both found because a **control failed to
+fire** rather than because anything looked wrong:
+
+1. It read every file under `Scripts/`, so *a plan name appearing anywhere* counted as *a lane runs
+   this plan*. `NetworkIsolationPositiveControl` is named only by a script no workflow invokes — so
+   it passed the audit while being exactly as dormant as the UI plans had been. **A script nobody
+   runs is not a lane.** Only workflows and the scripts those workflows actually invoke count now.
+2. **`lane-audit.py` lives in `Scripts/` and IS invoked by the workflow, so its own `EXEMPT_PLANS`
+   dict counted as naming a plan — the exemption mechanism silently satisfied the check it exists to
+   guard.** It excluded itself by FILENAME, which stopped working the instant a control ran a copy
+   under a different name; that control then passed when it should have failed. Now self-identified
+   by a content marker, because an identity you can state outright should never be re-derived.
+
+All three controls re-run and firing: hide `ui-lanes.sh` -> names `UI`/`WatchUI`; drop the
+positive-control exemption -> names it; add an exemption for a plan that does not exist -> names that.
+
+## 5t. A zero has TWO failure modes, and the second one has no tell
+
+From the peer session, and it sent me back to a claim I had already reported:
+
+    "the code ignores this setting"   -> 0 references
+    "the feature does not exist"      -> ALSO 0 references
+
+**A zero tells you the intersection is empty, never which of the two sets was.** Their `grep -c
+hapticsDisabled` returned an entirely ACCURATE 0 — and the inference was wrong, because every haptic
+call in the file was commented out. The correct fix (make the feature work at all) is different work
+from the one the finding named (restore parity).
+
+⚠️ **And a contrast reads as stronger evidence than a bare zero while establishing strictly less.**
+"iOS 9, watch 0" invites belief; a lone 0 invites "is my filter right?". The positive denominator
+looks like a control and only actually proves the two inputs differ.
+
+**Applied here immediately.** I had told the operator the `baseURL!` crash class was "contained",
+on a grep whose pattern missed `try!` and `as!` entirely. Re-run with a pattern covering all three
+forms: exactly one force-unwrap in production, a compile-time-constant UUID literal in a file a test
+now names. The claim holds — but it held by luck of pattern coverage, and the zero alone could not
+have told me which.
+
+## 5u. Mutation gate on the leg 9-11 logic: the INVALID guard caught its first real one (2026-09-01)
+
+Six proposals from Sol, selected and run by the manager — `Scripts/mutations.json` untouched, so no
+delegate verdict was replayed through the resume ledger.
+
+```
+4 KILLED · 1 SURVIVED · 1 INVALID · 2 unexpected
+```
+
+**The KILLs that matter.** Re-introducing leg 9's `/opds/opds/search` duplication makes the suite
+fail, so that real bug's fix is genuinely pinned rather than merely covered. Both surviving
+default-argument mutants behaved: swapping the production credential store for `{ _ in nil }` was
+killed, which is the historically weakest spot in this suite finally holding.
+
+**The SURVIVOR is a real gap, and Sol predicted it in its own review note before the run.**
+`urlPathAllowed -> urlQueryAllowed` in the search-encoding path survived because the fixture contains
+no character on which the two sets differ, so both branches encode identically and the assertion
+cannot see the change. Classified **real gap, not equivalent**, and now CLOSED.
+
+The discriminating character was MEASURED rather than assumed (`?` -> `%3F` under `.urlPathAllowed`,
+literal `?` under `.urlQueryAllowed`; `:` also differs). `searchEncodesWithThePathCharacterSetNotTheQueryOne`
+pins it, and re-running the mutation against the new suite gives **KILLED**. The evidence is the
+part worth keeping:
+
+```
+✔ searchActionTrimsEncodesAndPrefersAdvertisedTemplate()  PASSED under the mutant
+✘ searchEncodesWithThePathCharacterSetNotTheQueryOne()    FAILED under the mutant
+      got  .../who%20goes%20there?      expected  .../who%20goes%20there%3F
+```
+
+Two tests over the same code path, one blind and one discriminating, with the blind one having sat
+there looking like coverage. **The old fixture used a space, which BOTH sets render `%20`** — so it
+executed the line and asserted nothing about the decision on it. That is the difference between
+coverage and pinning, in one diff.
+
+A delegate predicting its own weak spot and being right is a better signal than a clean sweep would
+have been. All six are now in `Scripts/mutations.json` (22 -> 28), every one measured KILLED.
+
+**The INVALID is the important one.** `generatedTag: String = UUID().uuidString -> ""` compiles
+perfectly well, so the mutation was not at fault. The log says:
+
+```
+Early unexpected exit, operation never finished bootstrapping - no restart will be attempted.
+(Underlying Error: Test crashed with signal kill before establishing connection.)
+```
+
+**The test runner was killed by machine pressure while CI ran concurrently.** `xcodebuild` exited
+non-zero, which at the exit-code level is **indistinguishable from a failing test** — so without
+`tests_ran()` this would have scored KILLED and falsely certified that default argument as pinned.
+That guard was added earlier today from reasoning alone; this is the first time it has caught a real
+one, and it caught a false KILL rather than a false survivor, which is the dangerous direction.
+
+⚠️ **A correction I made mid-investigation, because it is the day's recurring failure again.** I
+stated the gate deletes its per-mutation logs and called it a fourth instance of the
+evidence-destroying pattern. **False.** The gate writes to `$SCRATCH` (default `/tmp`) and keeps
+them; my `find` searched `$TMPDIR`, which macOS points at `/var/folders/...`. The evidence was on
+disk the whole time and the tool was fine. Same shape as every other one today: a plausible story
+arrived before a check that was one command away.
+
 ## 5i. Post-reboot hydration + leg 11 (2026-09-01)
 
 **Fleet reboot, second compaction boundary, full transcript mined — nothing lost.** All five record
