@@ -183,26 +183,3 @@ enum WatchLibraryLogic {
         }
     }
 }
-
-enum WatchSettingsLogic {
-    enum Row: Equatable {
-        case chapter
-        case backToReadingPosition
-        case speed
-    }
-
-    static func rows(hasChapters: Bool) -> [Row] {
-        (hasChapters ? [.chapter] : []) + [.backToReadingPosition, .speed]
-    }
-
-    static func snappedWPM(_ value: Double) -> Int {
-        Int((value / 10).rounded() * 10)
-    }
-
-    @discardableResult
-    static func apply(_ value: Double, to engine: RSVPEngine) -> Int {
-        let wpm = snappedWPM(value)
-        engine.wpm = wpm
-        return wpm
-    }
-}
