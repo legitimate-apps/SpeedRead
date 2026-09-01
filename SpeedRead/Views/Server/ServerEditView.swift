@@ -230,3 +230,111 @@ struct ServerEditView: View {
         }
     }
 }
+
+struct ServerEditLogic {
+    struct FormValues: Equatable {
+        let name: String
+        let urlString: String
+        let username: String
+        let password: String
+        let allowInsecureHTTP: Bool
+
+        static let empty = FormValues(
+            name: "",
+            urlString: "",
+            username: "",
+            password: "",
+            allowInsecureHTTP: false
+        )
+    }
+
+    struct Presentation: Equatable {
+        let navigationTitle: String
+        let showsCancel: Bool
+    }
+
+    enum ConnectionState: Equatable {
+        case idle
+        case running
+        case success
+        case failure(String)
+    }
+
+    struct ValidatedServer: Equatable {
+        let url: URL
+        let name: String
+        let username: String
+        let password: String
+        let allowInsecureHTTP: Bool
+    }
+
+    enum SaveDecision: Equatable {
+        case valid(ValidatedServer)
+        case failure(String)
+    }
+
+    enum ConnectionDecision: Equatable {
+        case probe(URL)
+        case failure(String)
+    }
+
+    enum PasswordAction: Equatable {
+        case delete
+        case set(String)
+    }
+
+    struct ConnectionTag: Equatable {
+        let value: String
+        let deletesAfterProbe: Bool
+    }
+
+    static func initialValues(
+        server: OPDSServer?,
+        passwordForTag: (String) -> String? = KeychainStore.password(for:)
+    ) -> FormValues {
+        .empty
+    }
+
+    static func presentation(server: OPDSServer?) -> Presentation {
+        Presentation(navigationTitle: "New Server", showsCancel: false)
+    }
+
+    static func canTestConnection(
+        state: ConnectionState,
+        urlString: String
+    ) -> Bool {
+        false
+    }
+
+    static func saveDecision(
+        name: String,
+        urlString: String,
+        username: String,
+        password: String,
+        allowInsecureHTTP: Bool
+    ) -> SaveDecision {
+        .failure("Not implemented")
+    }
+
+    static func connectionDecision(
+        urlString: String,
+        allowInsecureHTTP: Bool
+    ) -> ConnectionDecision {
+        .failure("Not implemented")
+    }
+
+    static func passwordAction(password: String) -> PasswordAction {
+        .delete
+    }
+
+    static func sortIndex(now: Date = Date()) -> Int {
+        0
+    }
+
+    static func connectionTag(
+        existingTag: String?,
+        generatedTag: String = UUID().uuidString
+    ) -> ConnectionTag {
+        ConnectionTag(value: "", deletesAfterProbe: false)
+    }
+}

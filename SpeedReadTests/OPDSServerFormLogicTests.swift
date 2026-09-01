@@ -32,6 +32,13 @@ struct OPDSServerFormLogicTests {
         ) == .valid(URL(string: "http://books.example/opds")!))
     }
 
+    @Test func validationRejectsProtocolsTheOPDSClientCannotUse() {
+        #expect(OPDSServerFormLogic.validateURL(
+            "ftp://books.example/opds",
+            allowInsecureHTTP: true
+        ) == .invalid)
+    }
+
     @Test func displayWarningRecognizesTheTypedSchemeCaseInsensitively() {
         #expect(OPDSServerFormLogic.isPendingPlainHTTP("HTTP://books.example"))
         #expect(!OPDSServerFormLogic.isPendingPlainHTTP("https://books.example"))
