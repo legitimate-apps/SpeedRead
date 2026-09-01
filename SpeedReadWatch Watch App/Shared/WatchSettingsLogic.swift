@@ -19,26 +19,27 @@ enum WatchSettingsLogic {
     }
 
     static func title(for row: Row) -> String {
-        // TDD scaffold: the red test pins the operator-approved copy before the view adopts it.
-        ""
+        switch row {
+        case .chapter: "Chapter"
+        case .backToReadingPosition: "Back to where I was reading"
+        case .speed: "Speed"
+        }
     }
 
     static func speedValue(wpm: Int) -> String {
-        // TDD scaffold: the red test pins the unit-bearing value used by the sheet.
-        ""
+        "\(wpm) WPM"
     }
 
     static func currentChapter(
         in chapters: [ChapterMark],
         at wordIndex: Int
     ) -> ChapterMark? {
-        // TDD scaffold: the red test pins which duplicate/boundary chapter receives the checkmark.
-        nil
+        ChapterIndex(chapters).chapter(containing: wordIndex)
     }
 
     static func snappedWPM(_ value: Double) -> Int {
-        // Existing behaviour intentionally remains unclamped for the red boundary test.
-        Int((value / wpmStep).rounded() * wpmStep)
+        let snapped = Int((value / wpmStep).rounded() * wpmStep)
+        return min(max(snapped, wpmRange.lowerBound), wpmRange.upperBound)
     }
 
     @discardableResult

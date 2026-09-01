@@ -12,22 +12,21 @@ enum WatchAppLaunchLogic {
     static func destination(
         arguments: [String] = ProcessInfo.processInfo.arguments
     ) -> Destination {
-        // TDD scaffold: the red test proves the launch argument selects the fixture.
-        .library
+        arguments.contains(crownDirectionArgument) ? .crownDirectionFixture : .library
     }
 
     static func crownDirectionFixture() -> WatchBook {
-        // TDD scaffold: the red test pins the deterministic fixture the watch UI lane depends on.
-        WatchBook(
+        let words = (0..<200).map { "word\(String(format: "%03d", $0))" }
+        return WatchBook(
             id: UUID(uuidString: "C0DEC0DE-0000-4000-8000-000000000008")!,
-            title: "",
-            author: "",
-            text: "",
-            lastReadIndex: 0,
+            title: "Crown Direction Fixture",
+            author: "SpeedRead",
+            text: words.joined(separator: " "),
+            lastReadIndex: 100,
             lastReadDate: nil,
-            browseWordIndex: 0,
-            furthestReadWordIndex: 0,
-            wordCount: 0,
+            browseWordIndex: 100,
+            furthestReadWordIndex: 100,
+            wordCount: words.count,
             dateAdded: Date(timeIntervalSince1970: 0)
         )
     }

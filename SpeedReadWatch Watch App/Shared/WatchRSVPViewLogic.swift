@@ -8,7 +8,7 @@ enum WatchRSVPViewLogic {
         engineState: RSVPEngine.State,
         in library: inout WatchLibrary
     ) -> Bool {
-        // TDD scaffold: the red test pins that browsing is device-local and playback is not browsing.
-        false
+        guard engineState != .playing, let book else { return false }
+        return library.updateBrowsePosition(bookId: book.id, index: index)
     }
 }

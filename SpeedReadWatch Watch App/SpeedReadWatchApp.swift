@@ -7,22 +7,9 @@ struct SpeedReadWatch_Watch_AppApp: App {
 
     init() {
         #if DEBUG
-        launchesCrownDirectionFixture = ProcessInfo.processInfo.arguments
-            .contains("--ui-test-crown-direction")
+        launchesCrownDirectionFixture = WatchAppLaunchLogic.destination() == .crownDirectionFixture
         if launchesCrownDirectionFixture {
-            let words = (0..<200).map { "word\(String(format: "%03d", $0))" }
-            let book = WatchBook(
-                id: UUID(uuidString: "C0DEC0DE-0000-4000-8000-000000000008")!,
-                title: "Crown Direction Fixture",
-                author: "SpeedRead",
-                text: words.joined(separator: " "),
-                lastReadIndex: 100,
-                lastReadDate: nil,
-                browseWordIndex: 100,
-                furthestReadWordIndex: 100,
-                wordCount: words.count,
-                dateAdded: Date(timeIntervalSince1970: 0)
-            )
+            let book = WatchAppLaunchLogic.crownDirectionFixture()
             syncService.library = WatchLibrary(books: [book], currentBookId: book.id)
         }
         #else

@@ -44,9 +44,7 @@ struct WatchRSVPView: View {
             if normalized != newValue {
                 crownValue = normalized
             }
-            if engine.state != .playing {
-                persistBrowsePosition()
-            }
+            persistBrowsePosition()
         }
         .onChange(of: engine.currentIndex) { _, _ in
             let normalized = session.synchronizeCrownValue(wordCount: words.count)
@@ -98,10 +96,11 @@ struct WatchRSVPView: View {
     }
 
     private func persistBrowsePosition() {
-        guard let currentBook else { return }
-        guard syncService.library.updateBrowsePosition(
-            bookId: currentBook.id,
-            index: engine.currentIndex
+        guard WatchRSVPViewLogic.recordBrowsePosition(
+            book: currentBook,
+            index: engine.currentIndex,
+            engineState: engine.state,
+            in: &syncService.library
         ) else { return }
         syncService.persistLibrary()
     }

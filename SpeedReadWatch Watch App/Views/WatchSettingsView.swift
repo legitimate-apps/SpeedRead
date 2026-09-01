@@ -19,7 +19,10 @@ struct WatchSettingsView: View {
                             onSelect: onSelectChapter
                         )
                     } label: {
-                        Label("Chapter", systemImage: "list.bullet.rectangle")
+                        Label(
+                            WatchSettingsLogic.title(for: .chapter),
+                            systemImage: "list.bullet.rectangle"
+                        )
                     }
                     .accessibilityIdentifier("watch-chapter-settings-row")
                 }
@@ -28,13 +31,19 @@ struct WatchSettingsView: View {
                     onRestoreReadingPosition()
                     dismiss()
                 } label: {
-                    Label("Back to where I was reading", systemImage: "arrow.uturn.backward")
+                    Label(
+                        WatchSettingsLogic.title(for: .backToReadingPosition),
+                        systemImage: "arrow.uturn.backward"
+                    )
                 }
 
                 NavigationLink {
                     WatchSpeedSettingsView(engine: engine)
                 } label: {
-                    LabeledContent("Speed", value: "\(engine.wpm) WPM")
+                    LabeledContent(
+                        WatchSettingsLogic.title(for: .speed),
+                        value: WatchSettingsLogic.speedValue(wpm: engine.wpm)
+                    )
                 }
             }
             .navigationTitle("Reading Settings")
@@ -49,7 +58,7 @@ private struct WatchChapterListView: View {
     let onSelect: (ChapterMark) -> Void
 
     private var currentChapter: ChapterMark? {
-        ChapterIndex(chapters).chapter(containing: currentWordIndex)
+        WatchSettingsLogic.currentChapter(in: chapters, at: currentWordIndex)
     }
 
     var body: some View {
@@ -100,9 +109,9 @@ private struct WatchSpeedSettingsView: View {
         .focusable()
         .digitalCrownRotation(
             $wpmValue,
-            from: 100,
-            through: 1000,
-            by: 10,
+            from: Double(WatchSettingsLogic.wpmRange.lowerBound),
+            through: Double(WatchSettingsLogic.wpmRange.upperBound),
+            by: WatchSettingsLogic.wpmStep,
             sensitivity: .low,
             isContinuous: false,
             isHapticFeedbackEnabled: true
