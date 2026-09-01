@@ -41,6 +41,14 @@ jobs:
       - name: Every target in a plan, every plan in a lane
         run: python3 Scripts/lane-audit.py
 
+      # The fifth arrow: a test can clear every wiring check above and still be aimed at the
+      # wrong copy. SpineColor.swift lived as two real files, iOS grew a themed-palette overload
+      # the watch copy never got, and SpineColorTests names only the iOS one -- so the same book
+      # rendered a different colour on each device with nothing able to notice. Fails on
+      # byte-identical copies too: identical today is a copy that drifts tomorrow.
+      - name: Shared sources are one file, not two
+        run: python3 Scripts/shared-source-audit.py
+
       # The external volume is where DerivedData is routed. If it is not mounted, xcodebuild
       # would silently fall back to filling the boot drive, so fail loudly instead.
       - name: External volume mounted

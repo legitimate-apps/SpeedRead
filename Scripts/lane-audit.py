@@ -24,6 +24,14 @@ import pathlib
 import re
 import sys
 
+# This audit lives in Scripts/ and IS invoked by the workflow, so without excluding itself its
+# own EXEMPT_PLANS dict would count as "a lane names this plan" -- the exemption mechanism would
+# silently satisfy the very check it is meant to guard. Identified by a content marker rather
+# than by filename: the first version excluded `__file__`'s NAME, which stopped working the
+# moment a control ran a copy under a different name, and the control then passed when it should
+# have failed. Never re-derive an identity you can state outright.
+SELF_MARKER = "lane-audit-self-identifying-marker"
+
 # Repo root defaults to this script's parent, and is overridable by argument for the same
 # reason Scripts/assertion-audit.py takes one: so the audit can be pointed at a checkout it
 # does not live inside.
@@ -38,6 +46,11 @@ EXEMPT_TARGETS: dict[str, str] = {}
 # say who runs it and why -- a silent skip here would recreate exactly the blindness this
 # script exists to remove.
 EXEMPT_PLANS: dict[str, str] = {
+    "NetworkIsolationPositiveControl": (
+        "positive control for the hermetic network guard: it makes a deliberately un-stubbed "
+        "request and MUST fail, so it can never run in a lane whose job is to be green. Run by "
+        "hand via Scripts/network-isolation-positive-control.sh when changing the guard."
+    ),
     "Integration": (
         "live OPDS suite; needs SPEEDREAD_LIVE_OPDS plus real server credentials from the "
         "environment, so it cannot run unattended in CI. Run by hand per CLAUDE.md before "
@@ -81,12 +94,32 @@ def plans() -> dict[str, set[str]]:
 
 
 def lane_sources() -> str:
-    parts = []
-    for pattern in ("Scripts/*.sh", "Scripts/*.py", ".github/workflows/*.yml"):
-        for path in sorted(ROOT.glob(pattern)):
-            if path.name == pathlib.Path(__file__).name:
-                continue
-            parts.append(path.read_text(errors="ignore"))
+    """Text of the workflows, plus ONLY the scripts those workflows actually invoke.
+
+    The earlier version read every file under Scripts/, which made "a plan name appears
+    somewhere" count as "a lane runs this plan". That is too lenient in exactly the way this
+    audit exists to prevent, and it was caught by a real case:
+    `NetworkIsolationPositiveControl.xctestplan` is named by
+    `Scripts/network-isolation-positive-control.sh`, which no workflow invokes -- so the plan
+    passed the audit while remaining as dormant as the UI plans had been. A script nobody runs
+    is not a lane.
+    """
+    workflows = [p for p in sorted(ROOT.glob(".github/workflows/*.yml"))]
+    workflow_text = "\n".join(p.read_text(errors="ignore") for p in workflows)
+
+    parts = [workflow_text]
+    for script in sorted(ROOT.glob("Scripts/*")):
+        if not script.is_file():
+            continue
+        try:
+            text = script.read_text(errors="ignore")
+        except OSError:
+            continue
+        if SELF_MARKER in text:
+            continue
+        # Invoked means the workflow names it -- by path or by bare filename.
+        if f"Scripts/{script.name}" in workflow_text or script.name in workflow_text:
+            parts.append(text)
     return "\n".join(parts)
 
 
