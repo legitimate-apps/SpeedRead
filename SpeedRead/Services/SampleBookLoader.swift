@@ -3,10 +3,38 @@ import Foundation
 import SwiftData
 import os
 
+protocol SampleBookResourceProviding {
+    func data(named fileName: String) throws -> Data?
+}
+
+struct BundleSampleBookResourceProvider: SampleBookResourceProviding {
+    let bundle: Bundle
+
+    init(bundle: Bundle = .main) {
+        self.bundle = bundle
+    }
+
+    func data(named fileName: String) throws -> Data? {
+        guard let url = bundle.url(forResource: fileName, withExtension: nil) else {
+            return nil
+        }
+        return try Data(contentsOf: url)
+    }
+}
+
 struct SampleBookLoader {
     private static let logger = Logger(subsystem: "com.legitimateapps.SpeedRead", category: "SampleLoader")
 
     let modelContext: ModelContext
+    let resources: any SampleBookResourceProviding
+
+    init(
+        modelContext: ModelContext,
+        resources: any SampleBookResourceProviding = BundleSampleBookResourceProvider()
+    ) {
+        self.modelContext = modelContext
+        self.resources = resources
+    }
 
     private struct SampleBook {
         let fileName: String
@@ -28,13 +56,9 @@ struct SampleBookLoader {
         guard existingCount == 0 else { return }
 
         for sample in Self.sampleBooks {
-            guard let url = Bundle.main.url(forResource: sample.fileName, withExtension: nil) else {
-                continue
-            }
-
             do {
-                let data = try Data(contentsOf: url)
-                let ext = url.pathExtension.lowercased()
+                guard let data = try resources.data(named: sample.fileName) else { continue }
+                let ext = (sample.fileName as NSString).pathExtension.lowercased()
 
                 let extractor: TextExtractor
                 switch ext {

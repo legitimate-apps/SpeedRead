@@ -27,7 +27,7 @@ struct ServerEditView: View {
 
     private var isEdit: Bool { server != nil }
     private var pendingHTTP: Bool {
-        urlString.lowercased().hasPrefix("http://")
+        OPDSServerFormLogic.isPendingPlainHTTP(urlString)
     }
 
     var body: some View {
@@ -119,8 +119,7 @@ struct ServerEditView: View {
     }
 
     private var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !urlString.trimmingCharacters(in: .whitespaces).isEmpty
+        OPDSServerFormLogic.canSave(name: name, urlString: urlString)
     }
 
     private func loadExisting() {
@@ -133,38 +132,49 @@ struct ServerEditView: View {
     }
 
     private func save() {
-        guard let url = sanitizedURL() else {
+        let url: URL
+        switch OPDSServerFormLogic.validateURL(
+            urlString,
+            allowInsecureHTTP: allowInsecureHTTP
+        ) {
+        case .valid(let validatedURL):
+            url = validatedURL
+        case .invalid:
             validationError = "Please enter a valid URL beginning with http:// or https://."
             return
-        }
-        if url.scheme?.lowercased() == "http" && !allowInsecureHTTP {
+        case .insecureHTTP:
             validationError = "This URL uses http://. Enable “Allow plain HTTP” or switch to https://."
             return
         }
         validationError = nil
+        let identity = OPDSServerFormLogic.normalizedIdentity(
+            name: name,
+            username: username,
+            password: password
+        )
 
         if let server {
-            server.name = name.trimmingCharacters(in: .whitespaces)
+            server.name = identity.name
             server.baseURLString = url.absoluteString
-            server.username = username.trimmingCharacters(in: .whitespaces)
+            server.username = identity.username
             server.allowInsecureHTTP = allowInsecureHTTP
-            persistPassword(for: server.keychainTag)
+            persistPassword(identity.password, for: server.keychainTag)
         } else {
             let s = OPDSServer(
-                name: name.trimmingCharacters(in: .whitespaces),
+                name: identity.name,
                 baseURL: url,
-                username: username.trimmingCharacters(in: .whitespaces),
+                username: identity.username,
                 allowInsecureHTTP: allowInsecureHTTP,
                 sortIndex: Int(Date().timeIntervalSince1970)
             )
             modelContext.insert(s)
-            persistPassword(for: s.keychainTag)
+            persistPassword(identity.password, for: s.keychainTag)
         }
         try? modelContext.save()
         dismiss()
     }
 
-    private func persistPassword(for tag: String) {
+    private func persistPassword(_ password: String, for tag: String) {
         if password.isEmpty {
             try? KeychainStore.deletePassword(for: tag)
         } else {
@@ -172,21 +182,18 @@ struct ServerEditView: View {
         }
     }
 
-    private func sanitizedURL() -> URL? {
-        var s = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !s.lowercased().hasPrefix("http://") && !s.lowercased().hasPrefix("https://") {
-            s = "https://" + s
-        }
-        guard let url = URL(string: s), url.scheme != nil, url.host != nil else { return nil }
-        return url
-    }
-
     private func testConnection() async {
-        guard let url = sanitizedURL() else {
+        let url: URL
+        switch OPDSServerFormLogic.validateURL(
+            urlString,
+            allowInsecureHTTP: allowInsecureHTTP
+        ) {
+        case .valid(let validatedURL):
+            url = validatedURL
+        case .invalid:
             testState = .failure("Invalid URL")
             return
-        }
-        if url.scheme?.lowercased() == "http" && !allowInsecureHTTP {
+        case .insecureHTTP:
             testState = .failure("Plain HTTP is disabled for this server")
             return
         }
@@ -199,10 +206,15 @@ struct ServerEditView: View {
             if server == nil { try? KeychainStore.deletePassword(for: tag) }
         }
 
+        let identity = OPDSServerFormLogic.normalizedIdentity(
+            name: name,
+            username: username,
+            password: password
+        )
         let probeServer = OPDSServer(
             name: "probe",
             baseURL: url,
-            username: username.trimmingCharacters(in: .whitespaces),
+            username: identity.username,
             allowInsecureHTTP: allowInsecureHTTP
         )
         probeServer.keychainTag = tag

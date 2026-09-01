@@ -51,8 +51,8 @@ struct WatchLibraryView: View {
                                     .foregroundStyle(Color.parchment)
                                     .lineLimit(2)
 
-                                if book.progress > 0 {
-                                    Text("\(Int(book.progress * 100))% complete")
+                                if let progressText = WatchLibraryPresentation.progressText(for: book) {
+                                    Text(progressText)
                                         .font(.caption2)
                                         .foregroundStyle(Color.agedGold)
                                 }
@@ -87,7 +87,7 @@ struct WatchLibraryView: View {
                 }
                 .onDelete(perform: deleteBooks)
             } header: {
-                if currentBook != nil {
+                if WatchLibraryPresentation.showsAllBooksHeader(currentBook: currentBook) {
                     Text("All Books")
                         .foregroundStyle(Color.parchment.opacity(0.6))
                 }
@@ -117,20 +117,26 @@ struct WatchLibraryView: View {
 
             Spacer(minLength: 0)
 
-            if book.id == syncService.library.currentBookId {
+            switch WatchLibraryPresentation.accessory(
+                for: book,
+                currentBookID: syncService.library.currentBookId
+            ) {
+            case .current:
                 Circle()
                     .fill(Color.crimsonSoft)
                     .frame(width: 8, height: 8)
-            } else if book.progress > 0 {
+            case .progress(let progress):
                 ZStack {
                     Circle()
                         .stroke(Color.parchment.opacity(0.15), lineWidth: 2)
                     Circle()
-                        .trim(from: 0, to: book.progress)
+                        .trim(from: 0, to: progress)
                         .stroke(Color.agedGold, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                 }
                 .frame(width: 20, height: 20)
+            case .none:
+                EmptyView()
             }
         }
     }

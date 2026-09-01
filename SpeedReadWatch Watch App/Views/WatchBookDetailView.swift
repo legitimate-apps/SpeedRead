@@ -15,7 +15,7 @@ struct WatchBookDetailView: View {
     }
 
     private var latestBook: WatchBook {
-        syncService.library.books.first { $0.id == book.id } ?? book
+        WatchBookDetailPresentation.latestBook(for: book, in: syncService.library)
     }
 
     var body: some View {
@@ -39,7 +39,7 @@ struct WatchBookDetailView: View {
 
                 HStack {
                     VStack(spacing: 2) {
-                        Text("\(Int(latestBook.progress * 100))%")
+                        Text("\(WatchBookDetailPresentation.progressPercentage(for: latestBook))%")
                             .font(.numeric(size: 18))
                             .foregroundStyle(Color.agedGold)
                         Text("Progress")

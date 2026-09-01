@@ -104,17 +104,20 @@ private struct BrowseFeedView: View {
     @State private var downloadCompleteTitle: String?
 
     private var displayEntries: [OPDSEntry] {
-        if !searchText.isEmpty, let s = searchedFeed { return s.entries }
-        return paginatedEntries
+        OPDSBrowseLogic.displayEntries(
+            searchText: searchText,
+            searchedFeed: searchedFeed,
+            paginatedEntries: paginatedEntries
+        )
     }
 
-    private var navigationLinks: [OPDSEntry] {
-        displayEntries.filter { $0.acquisitions.isEmpty && $0.navigationLink != nil }
+    private var entrySections: OPDSBrowseLogic.EntrySections {
+        OPDSBrowseLogic.sections(for: displayEntries)
     }
 
-    private var bookEntries: [OPDSEntry] {
-        displayEntries.filter { !$0.acquisitions.isEmpty }
-    }
+    private var navigationLinks: [OPDSEntry] { entrySections.navigation }
+
+    private var bookEntries: [OPDSEntry] { entrySections.books }
 
     var body: some View {
         Group {
@@ -245,19 +248,21 @@ private struct BrowseFeedView: View {
     }
 
     private func runSearch() async {
-        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else {
+        let action = OPDSBrowseLogic.searchAction(
+            query: searchText,
+            advertisedTemplate: feed?.searchTemplate,
+            baseURL: server.baseURL
+        )
+        let searchURL: URL
+        switch action {
+        case .clear:
             searchedFeed = nil
             return
-        }
-        guard let template = feed?.searchTemplate ?? defaultSearchTemplate else {
+        case .unavailable:
             return
+        case .fetch(let url):
+            searchURL = url
         }
-        let resolved = template.replacingOccurrences(
-            of: "{searchTerms}",
-            with: q.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? q
-        )
-        guard let searchURL = URL(string: resolved) else { return }
         let client = OPDSClient()
         do {
             searchedFeed = try await client.fetchFeed(url: searchURL, on: server)
@@ -265,11 +270,6 @@ private struct BrowseFeedView: View {
             searchedFeed = nil
             self.error = (error as? OPDSError)?.errorDescription ?? error.localizedDescription
         }
-    }
-
-    private var defaultSearchTemplate: String? {
-        guard let base = server.baseURL else { return nil }
-        return base.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/opds/search/{searchTerms}"
     }
 
     private func fetchCover(url: URL) async -> Image? {
