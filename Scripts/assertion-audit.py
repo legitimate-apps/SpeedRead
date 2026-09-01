@@ -1,12 +1,27 @@
 #!/usr/bin/env python3
-"""Fail if any test body contains no assertion.
+"""Fail if any test body contains no assertion, or ends by sleeping instead of asserting.
 
 A test that cannot fail inflates the count and hides the gap it appears to cover. This is
 cheap enough to run on every change, so it runs as a gate rather than an audit.
+
+TWO shapes, because the first check has a blind spot the second closes. Counting assertions
+catches a body with none. It does NOT catch a body that asserts a screen appeared, then
+sleeps for an external screenshotter and returns -- every assertion in it is about SETUP,
+and nothing is asserted about the behaviour the test is named for. SpeedRead's UI suite was
+mostly that shape: `testSendFirstBookToWatch` asserted the button existed, tapped it, slept
+six seconds and ended, so it passed whether or not anything was ever sent.
+
+The mechanical signature is precise and worth stating exactly: **a sleep with no assertion
+after it.** That is a capture holder, not a test.
 """
 import re, sys, pathlib
 
 ASSERT = re.compile(r'#expect|#require|Issue\.record|XCTAssert|XCTFail|XCTUnwrap|withKnownIssue')
+SLEEP = re.compile(r'Thread\.sleep|usleep\(|sleep\(')
+
+# Tests allowed to end on a sleep, each with the reason. An exemption is a decision; a
+# silent skip would rebuild the blind spot this check exists to remove.
+SLEEP_EXEMPT: dict[str, str] = {}
 repo = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
 
 def bodies(src):
@@ -26,7 +41,7 @@ def bodies(src):
 # resolve() so a file symlinked into a second target is audited once, not twice
 files = sorted({p.resolve() for p in repo.rglob('*.swift')
                 if 'Tests' in str(p) and 'DerivedData' not in str(p) and '.build' not in str(p)})
-bad, total = [], 0
+bad, holders, total = [], [], 0
 for p in files:
     src = p.read_text(errors='replace')
     for name, body, start in bodies(src):
@@ -36,10 +51,20 @@ for p in files:
         if name in ('setUpWithError', 'tearDownWithError', 'setUp', 'tearDown'):
             continue
         total += 1
+        where = f"{p.relative_to(repo.resolve())}:{src[:start].count(chr(10)) + 1}  {name}()"
         if not ASSERT.search(body):
-            bad.append(f"{p.relative_to(repo.resolve())}:{src[:start].count(chr(10)) + 1}  {name}()")
+            bad.append(where)
+            continue
+        sleeps = list(SLEEP.finditer(body))
+        if sleeps and name not in SLEEP_EXEMPT:
+            after = body[sleeps[-1].end():]
+            if not ASSERT.search(after):
+                holders.append(where)
 
-print(f"test files: {len(files)}   tests: {total}   assertion-free: {len(bad)}")
+print(f"test files: {len(files)}   tests: {total}   "
+      f"assertion-free: {len(bad)}   sleep-then-nothing: {len(holders)}")
 for b in bad:
-    print("   " + b)
-sys.exit(1 if bad else 0)
+    print("   assertion-free   " + b)
+for h in holders:
+    print("   capture holder   " + h + "   (sleeps, then asserts nothing)")
+sys.exit(1 if bad or holders else 0)

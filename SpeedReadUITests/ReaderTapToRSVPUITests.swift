@@ -69,52 +69,8 @@ final class ReaderTapToRSVPUITests: XCTestCase {
         add(attachment)
     }
 
-    @MainActor
-    func testHoldOnReaderForExternalCapture() throws {
-        let app = launchAppPastOnboarding()
-        let bookHit = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "Metamorphosis")).firstMatch
-        XCTAssertTrue(bookHit.waitForExistence(timeout: 5))
-        bookHit.tap()
-        XCTAssertTrue(app.buttons["Start RSVP from current word"].waitForExistence(timeout: 5))
-        Thread.sleep(forTimeInterval: 40)
-    }
 
-    @MainActor
-    func testHoldOnRSVPForExternalCapture() throws {
-        let app = launchAppPastOnboarding()
-        let bookHit = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "Metamorphosis")).firstMatch
-        XCTAssertTrue(bookHit.waitForExistence(timeout: 5))
-        bookHit.tap()
-        XCTAssertTrue(app.buttons["Start RSVP from current word"].waitForExistence(timeout: 5))
-        let wordHit = app.staticTexts["Gregor"].firstMatch
-        if wordHit.waitForExistence(timeout: 4) {
-            wordHit.tap()
-        } else {
-            app.buttons["Start RSVP from current word"].tap()
-        }
-        XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 5))
-        Thread.sleep(forTimeInterval: 40)
-    }
 
-    @MainActor
-    func testHoldOnReaderAfterRSVPDismiss() throws {
-        let app = launchAppPastOnboarding()
-        let bookHit = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "Metamorphosis")).firstMatch
-        XCTAssertTrue(bookHit.waitForExistence(timeout: 5))
-        bookHit.tap()
-        XCTAssertTrue(app.buttons["Start RSVP from current word"].waitForExistence(timeout: 5))
-        let wordHit = app.staticTexts["Gregor"].firstMatch
-        if wordHit.waitForExistence(timeout: 4) {
-            wordHit.tap()
-        } else {
-            app.buttons["Start RSVP from current word"].tap()
-        }
-        XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 5))
-        Thread.sleep(forTimeInterval: 4)
-        app.buttons["Close"].tap()
-        XCTAssertTrue(app.buttons["Start RSVP from current word"].waitForExistence(timeout: 5))
-        Thread.sleep(forTimeInterval: 40)
-    }
 
     @MainActor
     func testTapWordOpensRSVP() throws {

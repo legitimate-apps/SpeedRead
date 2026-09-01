@@ -22,9 +22,5 @@ final class LibraryAdaptiveLayoutUITests: XCTestCase {
         landscape.name = "library-ipad-landscape"
         landscape.lifetime = .keepAlways
         add(landscape)
-
-        // Keep the orientation stable briefly so command-line screenshot
-        // verification can capture the same live state without opening Simulator.
-        Thread.sleep(forTimeInterval: 5)
     }
 }
