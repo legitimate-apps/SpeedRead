@@ -62,7 +62,7 @@ struct OPDSBrowseLogicTests {
             query: "swift",
             advertisedTemplate: nil,
             baseURL: URL(string: "https://books.example/opds///")
-        ) == .fetch(URL(string: "https://books.example/opds/opds/search/swift")!))
+        ) == .fetch(URL(string: "https://books.example/opds/search/swift")!))
 
         #expect(OPDSBrowseLogic.searchAction(
             query: "swift",
