@@ -131,6 +131,13 @@ def main():
     # already earned went with it, because the report was only written at the end. An hour
     # of simulator time is too expensive to hold in memory. Each verdict is appended to a
     # JSONL ledger the moment it is known, and a re-run skips what the ledger already has.
+    # WALL CLOCK IS EVIDENCE, not decoration. A mutant can flip a guard and send the suite off
+    # doing real I/O -- a peer project measured one flipped operator opening three live
+    # production WebSockets from a unit suite. That mutant still reports a verdict on its
+    # assertion and says nothing about the connection it opened; the run went from 0.007s to
+    # 5.9s, so the CLOCK saw it before any grep did. Recording per-mutation elapsed makes that
+    # visible without needing to know in advance what to grep for.
+    timings: dict[str, float | None] = {}
     ledger = pathlib.Path(args.out).with_suffix(".jsonl")
     done = {}
     if ledger.exists():
@@ -167,14 +174,17 @@ def main():
             d = done[m["label"]]
             results.append((d["label"], d["verdict"], d["note"]))
             replayed.add(d["label"])
+            timings[d["label"]] = d.get("elapsed")
             print(f"[{i}/{len(muts)}] {m['label']}: {d['verdict']} (REPLAYED from ledger, not re-measured)")
             continue
         target = REPO / m["file"]
         original = target.read_text()
-        def record(label, verdict, note):
+        def record(label, verdict, note, elapsed=None):
             results.append((label, verdict, note))
+            timings[label] = elapsed
             with ledger.open("a") as lf:
-                lf.write(json.dumps({"label": label, "verdict": verdict, "note": note}) + "\n")
+                lf.write(json.dumps({"label": label, "verdict": verdict, "note": note,
+                                     "elapsed": elapsed}) + "\n")
 
         if m["old"] not in original:
             record(m["label"], "SKIPPED", "anchor string not found — mutation is stale")
@@ -194,6 +204,7 @@ def main():
         backup.write_text(original)
         target.write_text(original.replace(m["old"], m["new"]))
         log = scratch / f"mut-{i}.log"
+        started = time.monotonic()
         try:
             lane = lane_for(m["file"])
             rc = run_suite(log, args.plan, lane)
@@ -208,9 +219,10 @@ def main():
             else:
                 verdict, note = "SURVIVED", "suite still green — nothing pins this"
         finally:
+            elapsed = time.monotonic() - started
             target.write_text(original)
             backup.unlink(missing_ok=True)
-        record(m["label"], verdict, note)
+        record(m["label"], verdict, note, round(elapsed, 1))
         print(f"[{i}/{len(muts)}] [{lane_for(m['file'])}] {m['label']}: {verdict} — {note}")
 
     # Not every survivor is a test gap, and a gate that cannot pass is not a gate. Two kinds
@@ -227,6 +239,15 @@ def main():
     survivors  = [r for r in results if r[1] == "SURVIVED"]
     invalid    = [r for r in results if r[1] in ("INVALID", "SKIPPED")]
     killed     = [r for r in results if r[1] == "KILLED"]
+
+    measured = sorted(s for s in timings.values() if isinstance(s, (int, float)))
+    median = measured[len(measured) // 2] if measured else 0.0
+    # Both conditions, deliberately: a ratio alone screams on a fast suite where 0.5s vs 3s is
+    # noise, and an absolute alone never fires on a slow one. An outlier has to be both.
+    slow = sorted(
+        ((label, s) for label, s in timings.items()
+         if isinstance(s, (int, float)) and median > 0 and s > 3 * median and s - median > 60),
+        key=lambda kv: -kv[1])
     with open(args.out, "w") as f:
         f.write("# Mutation gate report\n\n")
         f.write("Coverage says a line ran. This says an assertion would have NOTICED if it were wrong.\n\n")
@@ -251,10 +272,22 @@ def main():
             f.write("\n## Unexpected outcomes\n\n")
             for label, verdict, note in unexpected:
                 f.write(f"- **{label}** — got {verdict}, expected {expected.get(label,'KILLED')}. {note}\n")
+        if slow:
+            f.write("\n## Suspiciously slow mutants\n\n")
+            f.write(f"Median mutation run was {median:.0f}s. These took far longer, which usually "
+                    f"means the mutant made the suite DO something — real network I/O, a retry "
+                    f"loop, a timeout — rather than simply fail. **A verdict does not report what a "
+                    f"test touched; the clock is the only thing here that would notice.** Read the "
+                    f"log for these before trusting their verdict.\n\n")
+            for label, seconds in slow:
+                f.write(f"- **{label}** — {seconds:.0f}s, {seconds/median:.1f}x the median\n")
     print(f"\n{len(killed)} killed · {len(survivors)} survived · {len(invalid)} invalid/skipped · "
           f"{len(unexpected)} UNEXPECTED → {args.out}")
     for label, verdict, note in unexpected:
         print(f"  ⚠️  {label}: {verdict} (expected {expected.get(label,'KILLED')})")
+    for label, seconds in slow:
+        print(f"  ⏱  {label}: {seconds:.0f}s ({seconds/median:.1f}x median) — read the log, the "
+              f"mutant may have done real I/O")
     sys.exit(1 if unexpected else 0)
 
 if __name__ == "__main__":
