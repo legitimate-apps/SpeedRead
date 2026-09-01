@@ -8,20 +8,36 @@ struct BrowseServerView: View {
     @Environment(ThemeManager.self) private var themeManager
     @Query(sort: \OPDSServer.sortIndex) private var servers: [OPDSServer]
 
-    @State private var selectedServer: OPDSServer?
+    @State private var selectedServerID: UUID?
+
+    private var route: BrowseServerLogic.Route {
+        BrowseServerLogic.route(
+            servers: servers.map(BrowseServerLogic.ServerSnapshot.init),
+            selectedServerID: selectedServerID
+        )
+    }
 
     var body: some View {
         NavigationStack {
             ZStack {
                 themeManager.currentTheme.backgroundColor.ignoresSafeArea()
-                if servers.isEmpty {
+                switch route {
+                case .empty:
                     emptyState
-                } else if let only = onlyServer {
-                    BrowseFeedView(server: only, url: only.baseURL!, title: only.name)
-                } else if let selectedServer {
-                    BrowseFeedView(server: selectedServer, url: selectedServer.baseURL!, title: selectedServer.name)
-                } else {
+                case .picker:
                     serverPicker
+                case .feed(let destination):
+                    if let server = servers.first(where: { $0.id == destination.serverID }) {
+                        BrowseFeedView(
+                            server: server,
+                            url: destination.url,
+                            title: destination.title
+                        )
+                    } else {
+                        serverPicker
+                    }
+                case .invalidURL(let serverName):
+                    invalidServerState(serverName: serverName)
                 }
             }
             .navigationTitle("Browse")
@@ -35,16 +51,12 @@ struct BrowseServerView: View {
         }
     }
 
-    private var onlyServer: OPDSServer? {
-        servers.count == 1 ? servers.first : nil
-    }
-
     private var serverPicker: some View {
         List {
             Section("Select a Library Server") {
                 ForEach(servers) { server in
                     Button {
-                        selectedServer = server
+                        selectedServerID = server.id
                         server.lastUsedAt = Date()
                         try? modelContext.save()
                     } label: {
@@ -79,6 +91,22 @@ struct BrowseServerView: View {
             Text("Open Settings to add an OPDS server.")
                 .font(.system(size: 14))
                 .foregroundStyle(Color.walnutLight)
+        }
+        .padding()
+    }
+
+    private func invalidServerState(serverName: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 48))
+                .foregroundStyle(Color.crimsonSoft)
+            Text("Invalid Server URL")
+                .font(.displayFont(size: 22, weight: .regular))
+                .foregroundStyle(Color.walnut)
+            Text("The saved URL for \(serverName) is invalid. Open Settings to correct it.")
+                .font(.system(size: 14))
+                .foregroundStyle(Color.walnutLight)
+                .multilineTextAlignment(.center)
         }
         .padding()
     }
@@ -121,21 +149,26 @@ private struct BrowseFeedView: View {
 
     var body: some View {
         Group {
-            if loading && feed == nil {
+            switch BrowseServerLogic.feedPresentation(
+                loading: loading,
+                hasFeed: feed != nil,
+                error: error
+            ) {
+            case .loading:
                 ProgressView().controlSize(.large)
-            } else if let error {
+            case .failure(let message):
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
                         .foregroundStyle(Color.crimsonSoft)
-                    Text(error)
+                    Text(message)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                     Button("Retry") { Task { await load() } }
                         .buttonStyle(.borderedProminent)
                         .tint(Color.crimsonSoft)
                 }
-            } else {
+            case .content:
                 feedList
             }
         }
@@ -145,16 +178,22 @@ private struct BrowseFeedView: View {
         .searchable(text: $searchText, prompt: "Search this server")
         .onSubmit(of: .search) { Task { await runSearch() } }
         .overlay(alignment: .bottom) {
-            if let downloadCompleteTitle {
-                ToastView(icon: "checkmark.circle.fill", text: "Added \(downloadCompleteTitle)", color: Color.agedGold)
+            switch BrowseServerLogic.toastPresentation(
+                completedTitle: downloadCompleteTitle,
+                error: downloadError
+            ) {
+            case .none:
+                EmptyView()
+            case .added(let title):
+                ToastView(icon: "checkmark.circle.fill", text: "Added \(title)", color: Color.agedGold)
                     .onAppear {
                         Task {
                             try? await Task.sleep(for: .seconds(2.2))
                             self.downloadCompleteTitle = nil
                         }
                     }
-            } else if let downloadError {
-                ToastView(icon: "exclamationmark.triangle.fill", text: downloadError, color: Color.crimsonSoft)
+            case .failure(let message):
+                ToastView(icon: "exclamationmark.triangle.fill", text: message, color: Color.crimsonSoft)
                     .onTapGesture { self.downloadError = nil }
             }
         }
@@ -191,19 +230,27 @@ private struct BrowseFeedView: View {
                             }
                         }
                     }
-                    if nextPageURL != nil && searchText.isEmpty {
+                    let pagination = BrowseServerLogic.paginationPresentation(
+                        nextPageURL: nextPageURL,
+                        searchText: searchText,
+                        loadingMore: loadingMore
+                    )
+                    if pagination != .hidden {
                         HStack {
                             Spacer()
-                            if loadingMore {
+                            switch pagination {
+                            case .loading:
                                 ProgressView().controlSize(.small)
-                            } else {
+                            case .loadMore:
                                 Button("Load more") { Task { await loadMore() } }
                                     .foregroundStyle(Color.crimsonSoft)
+                            case .hidden:
+                                EmptyView()
                             }
                             Spacer()
                         }
                         .task {
-                            if !loadingMore { await loadMore() }
+                            if pagination == .loadMore { await loadMore() }
                         }
                     }
                 }
@@ -359,7 +406,28 @@ struct BrowseServerLogic {
         servers: [ServerSnapshot],
         selectedServerID: UUID?
     ) -> Route {
-        .empty
+        guard !servers.isEmpty else { return .empty }
+
+        let selected: ServerSnapshot?
+        if servers.count == 1 {
+            selected = servers[0]
+        } else if let selectedServerID {
+            selected = servers.first { $0.id == selectedServerID }
+        } else {
+            selected = nil
+        }
+        guard let selected else { return .picker }
+        guard let url = selected.baseURL,
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              url.host != nil else {
+            return .invalidURL(serverName: selected.name)
+        }
+        return .feed(.init(
+            serverID: selected.id,
+            url: url,
+            title: selected.name
+        ))
     }
 
     static func feedPresentation(
@@ -367,7 +435,9 @@ struct BrowseServerLogic {
         hasFeed: Bool,
         error: String?
     ) -> FeedPresentation {
-        .content
+        if loading && !hasFeed { return .loading }
+        if let error { return .failure(error) }
+        return .content
     }
 
     static func paginationPresentation(
@@ -375,13 +445,16 @@ struct BrowseServerLogic {
         searchText: String,
         loadingMore: Bool
     ) -> PaginationPresentation {
-        .hidden
+        guard nextPageURL != nil, searchText.isEmpty else { return .hidden }
+        return loadingMore ? .loading : .loadMore
     }
 
     static func toastPresentation(
         completedTitle: String?,
         error: String?
     ) -> ToastPresentation {
-        .none
+        if let completedTitle { return .added(completedTitle) }
+        if let error { return .failure(error) }
+        return .none
     }
 }
