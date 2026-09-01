@@ -50,6 +50,20 @@ if [[ -z "$package_cache_path" ]] && command -v dd-lease >/dev/null 2>&1; then
   package_cache_path="$(dd-lease spm-path)"
 fi
 
+# Where a FAILING lane's evidence is kept. The .xcresult bundle names the failing test and is
+# written by xcodebuild anyway -- and until now it lived in work_dir and was deleted by the
+# cleanup trap on failure as well as on success. So a red run paid up to 600s for a sysdiagnose
+# nobody reads (see -collect-test-diagnostics above) and then threw away the cheap artefact that
+# actually explains the failure. Keep the useful one, skip the expensive one.
+#
+# Never falls back to the boot volume: this Mac has repeatedly hit "disk full" and .xcresult
+# bundles are tens of megabytes. No external drive means no artefact plus a warning, which is a
+# worse debugging experience and a better failure mode.
+failure_artifact_dir="${SPEEDREAD_FAILURE_ARTIFACT_DIR:-}"
+if [[ -z "$failure_artifact_dir" && -d "/Volumes/Crucial X8" ]]; then
+  failure_artifact_dir="/Volumes/Crucial X8/agent-artifacts/speedread-lane-failures"
+fi
+
 work_dir="$(mktemp -d "${TMPDIR:-/tmp}/speedread-coverage.XXXXXX")"
 cleanup() {
   rm -rf "$work_dir"
@@ -67,6 +81,21 @@ watch_log="$work_dir/watch-tests.log"
 common_build_arguments=(
   -project "$project"
   -parallel-testing-enabled NO
+  # xcodebuild defaults to `-collect-test-diagnostics on-failure`, which runs
+  # `simctl diagnose --timeout=600` on EVERY red run. OBSERVED on this machine: it presents
+  # as a hang with no output, indistinguishable from a wedged CoreSimulator.
+  #
+  # This is a GATE, so going red is its job, not an edge case -- and it runs two lanes, so a
+  # bad push can buy up to 20 minutes of sysdiagnose against a 40-minute CI timeout. That
+  # turns a clear test failure into an ambiguous timeout, which is the real harm.
+  #
+  # Deliberately NOT a universal rule: a peer project keeps the collector ON in CI on the
+  # reasonable grounds that a failure you cannot reproduce locally is exactly when you want
+  # diagnostics. What decides it here is that NOTHING CONSUMES THE OUTPUT -- this workflow has
+  # no artifact upload, so the collector writes a sysdiagnose into the runner's work dir that
+  # no human will ever open. If we ever want CI diagnostics, the fix is to upload them and pay
+  # the cost on purpose, not to re-enable a collector nobody reads.
+  -collect-test-diagnostics never
 )
 if [[ -n "$derived_data_path" ]]; then
   common_build_arguments+=( -derivedDataPath "$derived_data_path" )
@@ -74,6 +103,44 @@ fi
 if [[ -n "$package_cache_path" ]]; then
   common_build_arguments+=( -clonedSourcePackagesDirPath "$package_cache_path" )
 fi
+
+keep_artifact() {
+  local src="$1" dest="$2" what="$3"
+  if [[ -e "$src" ]]; then
+    cp -R "$src" "$dest/" 2>/dev/null \
+      || echo "warning: could not copy $what from $src" >&2
+  else
+    # The `else` is the whole point. A bare `if [ -e ] ; then cp; fi` produces IDENTICAL output
+    # -- none -- for "there was genuinely nothing to preserve" and "I built the wrong path", so a
+    # preservation step can keep nothing forever while reporting success. For an ACTION, skipping
+    # silently is usually right; for an ARTEFACT, the skip IS the failure, so silence is the bug.
+    echo "warning: expected $what at $src but it does not exist -- nothing preserved" >&2
+  fi
+}
+
+preserve_failure_evidence() {
+  local label="$1" result="$2" log="$3"
+
+  if [[ -z "$failure_artifact_dir" ]]; then
+    echo "warning: no external volume for failure artefacts, so $label's .xcresult was not kept." >&2
+    echo "         Set SPEEDREAD_FAILURE_ARTIFACT_DIR to keep it somewhere off the boot drive." >&2
+    return 0
+  fi
+
+  local stamp dest
+  stamp="$(date +%Y%m%d-%H%M%S)"
+  dest="$failure_artifact_dir/$stamp-$(echo "$label" | tr ' /' '--')"
+
+  # Preserving evidence must never be the thing that fails the run -- the lane already failed
+  # and that verdict is what matters.
+  if ! mkdir -p "$dest" 2>/dev/null; then
+    echo "warning: could not create $dest; $label's .xcresult was not kept." >&2
+    return 0
+  fi
+  keep_artifact "$result" "$dest" "$label result bundle"
+  keep_artifact "$log" "$dest" "$label log"
+  echo "kept $label failure evidence: $dest" >&2
+}
 
 run_lane() {
   local label="$1"
@@ -93,6 +160,7 @@ run_lane() {
     >"$log" 2>&1; then
     echo "error: $label failed; final build output follows" >&2
     tail -n 120 "$log" >&2
+    preserve_failure_evidence "$label" "$result" "$log"
     return 1
   fi
 
