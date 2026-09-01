@@ -1,6 +1,16 @@
 import XCTest
 
 final class LibraryAdaptiveLayoutUITests: XCTestCase {
+    // XCUIDevice.orientation is PROCESS-WIDE and survives the test that set it, so without this
+    // the next test class starts in landscape. A trailing Thread.sleep used to mask it by letting
+    // the simulator settle before the suite moved on; removing that sleep (it made this a capture
+    // holder) exposed the real defect underneath. Restoring state belongs in teardown, not in a
+    // sleep at the end of the happy path.
+    override func tearDown() {
+        XCUIDevice.shared.orientation = .portrait
+        super.tearDown()
+    }
+
     @MainActor
     func testLibrarySupportsPortraitAndLandscape() throws {
         let device = XCUIDevice.shared

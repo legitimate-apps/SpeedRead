@@ -1137,6 +1137,52 @@ them; my `find` searched `$TMPDIR`, which macOS points at `/var/folders/...`. Th
 disk the whole time and the tool was fine. Same shape as every other one today: a plausible story
 arrived before a check that was one command away.
 
+## 5v. CI went red and it was MY fault, not the code's — and the preservation step paid for itself
+
+The `UI lanes` job failed in CI at 20:23:21Z. Two tests in `ReaderTapToRSVPUITests`:
+`Lost connection to the application` and `unexpected termination of com.legitimateapps.SpeedRead`.
+
+**The evidence existed only because `preserve_failure_evidence` had been committed twenty minutes
+earlier.** Without it the lane log lived in a `mktemp` dir the cleanup trap deletes, so a red CI job
+would have left a failure with no readable cause. It kept `UI.log` and `UI.xcresult` on the external
+volume, and they named both failing tests and the exact failure mode. That step went in on a peer's
+argument, and I would have called it noise a day earlier.
+
+**Diagnosis, with the checks that separated the readings:**
+
+| hypothesis | check | result |
+|---|---|---|
+| a code change crashed the app | crash reports in the 20:19-20:23 window | **none** |
+| the only crash today is unrelated | read it | 16:09, `HermeticNetworkGuard` -> `fatalError` — leg 12's positive control firing **by design** |
+| the app was KILLED, not crashed | `Lost connection` + `unexpected termination` with no `.ips` | consistent |
+| **I caused it** | CI's UI job 20:19-20:23 vs my isolated mutation-gate re-runs | **same window** |
+
+Confirmed by the discriminating test rather than by the story: **the same commit passes both UI
+lanes on a quiet machine** (4 iOS, 1 watch, OBSERVED). So the failure was contention, and the
+contention was mine.
+
+⚠️ **My own build-ceiling rule permitted this and was still wrong.** "Proceed when fewer than two
+xcodebuild processes are running" let me start a simulator-booting mutation gate while CI held the
+other slot — putting the machine *at* the ceiling during **UI tests, which are the heaviest case
+there is** and the one where the app under test is a separate process that can simply be killed.
+The INVALID mutant an hour earlier had the identical signature (`Test crashed with signal kill
+before establishing connection`). Same cause, twice, an hour apart, and I did not connect them
+until CI made it expensive.
+
+**Revised rule: do not run local simulator work while CI is running at all.** CI is not one of two
+slots to fill; it is the machine being busy.
+
+**What was NOT done, deliberately:** no retry flag, no `-retry-tests-on-failure`. The lane failed
+for a real reason and retries would convert a machine-pressure signal into silence. The fleet-level
+fix (six uncoordinated runners on a two-build machine) is with the dispatcher and the operator.
+
+**One real latent defect surfaced by reading the log**, separate from the cause:
+`LibraryAdaptiveLayoutUITests` set `XCUIDevice.orientation = .landscapeLeft` and never restored it.
+Orientation is process-wide and survives the test, so the next class started in landscape — the CI
+log shows `Interface orientation changed to Landscape Right` during a later teardown. The trailing
+`Thread.sleep` I removed (it was what made the test a capture holder) had been masking it. Fixed in
+`tearDown`, where restoring state belongs.
+
 ## 5i. Post-reboot hydration + leg 11 (2026-09-01)
 
 **Fleet reboot, second compaction boundary, full transcript mined — nothing lost.** All five record
