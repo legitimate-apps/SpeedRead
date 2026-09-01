@@ -310,3 +310,78 @@ private struct ToastView: View {
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
+
+struct BrowseServerLogic {
+    struct ServerSnapshot: Equatable {
+        let id: UUID
+        let name: String
+        let baseURL: URL?
+
+        init(server: OPDSServer) {
+            id = server.id
+            name = server.name
+            baseURL = server.baseURL
+        }
+    }
+
+    struct FeedDestination: Equatable {
+        let serverID: UUID
+        let url: URL
+        let title: String
+    }
+
+    enum Route: Equatable {
+        case empty
+        case picker
+        case feed(FeedDestination)
+        case invalidURL(serverName: String)
+    }
+
+    enum FeedPresentation: Equatable {
+        case loading
+        case failure(String)
+        case content
+    }
+
+    enum PaginationPresentation: Equatable {
+        case hidden
+        case loading
+        case loadMore
+    }
+
+    enum ToastPresentation: Equatable {
+        case none
+        case added(String)
+        case failure(String)
+    }
+
+    static func route(
+        servers: [ServerSnapshot],
+        selectedServerID: UUID?
+    ) -> Route {
+        .empty
+    }
+
+    static func feedPresentation(
+        loading: Bool,
+        hasFeed: Bool,
+        error: String?
+    ) -> FeedPresentation {
+        .content
+    }
+
+    static func paginationPresentation(
+        nextPageURL: URL?,
+        searchText: String,
+        loadingMore: Bool
+    ) -> PaginationPresentation {
+        .hidden
+    }
+
+    static func toastPresentation(
+        completedTitle: String?,
+        error: String?
+    ) -> ToastPresentation {
+        .none
+    }
+}
