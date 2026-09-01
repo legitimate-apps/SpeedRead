@@ -5,27 +5,36 @@ struct WatchLibraryView: View {
     @EnvironmentObject var syncService: WatchSyncService
     @State private var showRSVP = false
 
-    private var currentBook: WatchBook? { syncService.currentBook }
-
     var body: some View {
         NavigationStack {
-            Group {
-                switch WatchLibraryLogic.state(
-                    isReceiving: syncService.isReceiving,
-                    library: syncService.library
-                ) {
-                case .receiving:
-                    receivingState
-                case .empty:
-                    emptyState
-                case .books:
-                    bookList
-                }
-            }
+            WatchLibraryContent(syncService: syncService, showRSVP: $showRSVP)
             .navigationTitle("Library")
             .containerBackground(Color.inkBlack.gradient, for: .navigation)
             .navigationDestination(for: WatchBook.self) { book in
                 WatchBookDetailView(book: book)
+            }
+        }
+    }
+}
+
+struct WatchLibraryContent: View {
+    @ObservedObject var syncService: WatchSyncService
+    @Binding var showRSVP: Bool
+
+    private var currentBook: WatchBook? { syncService.currentBook }
+
+    var body: some View {
+        Group {
+            switch WatchLibraryLogic.state(
+                isReceiving: syncService.isReceiving,
+                library: syncService.library
+            ) {
+            case .receiving:
+                receivingState
+            case .empty:
+                emptyState
+            case .books:
+                bookList
             }
         }
     }

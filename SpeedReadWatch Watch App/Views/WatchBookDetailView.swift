@@ -19,15 +19,52 @@ struct WatchBookDetailView: View {
     }
 
     var body: some View {
+        WatchBookDetailContent(
+            book: latestBook,
+            onRead: {
+                WatchBookDetailLogic.select(book, in: &syncService.library)
+                syncService.persistLibrary()
+                WKInterfaceDevice.current().play(.success)
+                dismiss()
+            },
+            onRequestRemove: {
+                showDeleteConfirmation = true
+            }
+        )
+        .confirmationDialog("Remove this book?", isPresented: $showDeleteConfirmation) {
+            Button("Remove", role: .destructive) {
+                WatchBookDetailLogic.remove(book, from: &syncService.library)
+                syncService.persistLibrary()
+                dismiss()
+            }
+        }
+        .containerBackground(spineColor.gradient, for: .navigation)
+    }
+}
+
+struct WatchBookDetailContent: View {
+    let book: WatchBook
+    let onRead: () -> Void
+    let onRequestRemove: () -> Void
+
+    func read() {
+        onRead()
+    }
+
+    func requestRemoval() {
+        onRequestRemove()
+    }
+
+    var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                Text(latestBook.title)
+                Text(book.title)
                     .font(.displayFont(size: 18, weight: .semibold))
                     .foregroundStyle(Color.parchment)
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
 
-                Text(latestBook.author)
+                Text(book.author)
                     .font(.displayFont(size: 13, weight: .regular))
                     .foregroundStyle(Color.parchment.opacity(0.7))
                     .multilineTextAlignment(.center)
@@ -39,7 +76,7 @@ struct WatchBookDetailView: View {
 
                 HStack {
                     VStack(spacing: 2) {
-                        Text("\(WatchBookDetailPresentation.progressPercentage(for: latestBook))%")
+                        Text("\(WatchBookDetailPresentation.progressPercentage(for: book))%")
                             .font(.numeric(size: 18))
                             .foregroundStyle(Color.agedGold)
                         Text("Progress")
@@ -49,7 +86,7 @@ struct WatchBookDetailView: View {
                     .frame(maxWidth: .infinity)
 
                     VStack(spacing: 2) {
-                        Text(latestBook.wordCount.formatted())
+                        Text(book.wordCount.formatted())
                             .font(.numeric(size: 18))
                             .foregroundStyle(Color.parchment)
                         Text("Words")
@@ -65,19 +102,16 @@ struct WatchBookDetailView: View {
                             .fill(Color.parchment.opacity(0.15))
                         RoundedRectangle(cornerRadius: 2)
                             .fill(Color.agedGold)
-                            .frame(width: geo.size.width * latestBook.progress)
+                            .frame(width: geo.size.width * book.progress)
                     }
                 }
                 .frame(height: 4)
                 .padding(.horizontal)
 
                 Button {
-                    WatchBookDetailLogic.select(book, in: &syncService.library)
-                    syncService.persistLibrary()
-                    WKInterfaceDevice.current().play(.success)
-                    dismiss()
+                    read()
                 } label: {
-                    Text(WatchBookDetailLogic.readingActionTitle(lastReadIndex: latestBook.lastReadIndex))
+                    Text(WatchBookDetailLogic.readingActionTitle(lastReadIndex: book.lastReadIndex))
                         .font(.system(size: 15, weight: .semibold, design: .serif))
                         .frame(maxWidth: .infinity)
                 }
@@ -85,23 +119,15 @@ struct WatchBookDetailView: View {
                 .tint(Color.crimsonSoft)
 
                 Button(role: .destructive) {
-                    showDeleteConfirmation = true
+                    requestRemoval()
                 } label: {
                     Text("Remove from Watch")
                         .font(.caption)
                         .foregroundStyle(Color.crimsonSoft.opacity(0.7))
                 }
                 .buttonStyle(.plain)
-                .confirmationDialog("Remove this book?", isPresented: $showDeleteConfirmation) {
-                    Button("Remove", role: .destructive) {
-                        WatchBookDetailLogic.remove(book, from: &syncService.library)
-                        syncService.persistLibrary()
-                        dismiss()
-                    }
-                }
             }
             .padding(.top, 8)
         }
-        .containerBackground(spineColor.gradient, for: .navigation)
     }
 }

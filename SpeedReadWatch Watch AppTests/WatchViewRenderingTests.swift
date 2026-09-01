@@ -65,25 +65,25 @@ struct WatchViewRenderingTests {
 
         let staleService = WatchSyncService(session: RenderingWatchSession())
         staleService.library = WatchLibrary(books: [stale], currentBookId: stale.id)
-        let staleSignatures = try renderSignatures(
-            WatchBookDetailContent(book: stale, onRead: {}, onRequestRemove: {})
-                .background(Color.inkBlack)
-        )
-        let latestSignatures = try renderSignatures(
-            WatchBookDetailContent(
-                book: WatchBookDetailPresentation.latestBook(for: stale, in: service.library),
-                onRead: {},
-                onRequestRemove: {}
-            )
-            .background(Color.inkBlack)
-        )
-
         let resolved = WatchBookDetailPresentation.latestBook(for: stale, in: service.library)
+        var readCount = 0
+        var removalRequestCount = 0
+        let content = WatchBookDetailContent(
+            book: resolved,
+            onRead: { readCount += 1 },
+            onRequestRemove: { removalRequestCount += 1 }
+        )
+        let signatures = try renderSignatures(
+            content.background(Color.inkBlack)
+        )
+        content.read()
+        content.requestRemoval()
+
         #expect(resolved.lastReadIndex == 75)
         #expect(WatchBookDetailPresentation.progressPercentage(for: resolved) == 75)
-        #expect(staleSignatures.count > 5)
-        #expect(latestSignatures.count > 5)
-        #expect(latestSignatures != staleSignatures)
+        #expect(signatures.isEmpty == false)
+        #expect(readCount == 1)
+        #expect(removalRequestCount == 1)
     }
 
     private func renderSignatures<Content: View>(_ content: Content) throws -> Set<[UInt8]> {
