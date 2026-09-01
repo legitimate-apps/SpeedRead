@@ -60,15 +60,9 @@ struct ServerListView: View {
                 .font(.caption)
                 .foregroundStyle(Color.walnutLight)
                 .lineLimit(1)
-            if server.requiresAuth {
-                Text("user: \(server.username)")
-                    .font(.caption2)
-                    .foregroundStyle(Color.walnutLight)
-            } else {
-                Text("anonymous")
-                    .font(.caption2)
-                    .foregroundStyle(Color.walnutLight)
-            }
+            Text(ServerListLogic.accountDetail(username: server.username))
+                .font(.caption2)
+                .foregroundStyle(Color.walnutLight)
         }
         .padding(.vertical, 4)
     }
@@ -102,11 +96,23 @@ struct ServerListView: View {
     }
 
     private func deleteServers(at offsets: IndexSet) {
-        for index in offsets {
-            let server = servers[index]
+        for server in ServerListLogic.serversToDelete(at: offsets, from: servers) {
             try? KeychainStore.deletePassword(for: server.keychainTag)
             modelContext.delete(server)
         }
         try? modelContext.save()
+    }
+}
+
+struct ServerListLogic {
+    static func accountDetail(username: String) -> String {
+        username.isEmpty ? "anonymous" : "user: \(username)"
+    }
+
+    static func serversToDelete(
+        at offsets: IndexSet,
+        from displayedServers: [OPDSServer]
+    ) -> [OPDSServer] {
+        offsets.map { displayedServers[$0] }
     }
 }
