@@ -33,6 +33,14 @@ jobs:
       - name: No assertion-free tests
         run: python3 Scripts/assertion-audit.py .
 
+      # A test can exist, be wired to a target, sit in a plan, and still never run. Both
+      # seams have bitten this project: the watch unit target was in no plan and read as
+      # 0.00% for months, and later UI.xctestplan / WatchUI.xctestplan were invoked by no
+      # lane at all, so the test covering the operator's crown-direction bug could not have
+      # failed a build. Neither gap was visible in any report.
+      - name: Every target in a plan, every plan in a lane
+        run: python3 Scripts/lane-audit.py
+
       # The external volume is where DerivedData is routed. If it is not mounted, xcodebuild
       # would silently fall back to filling the boot drive, so fail loudly instead.
       - name: External volume mounted
@@ -77,3 +85,28 @@ jobs:
       # "covered" lines were GHOST, i.e. launch-path rendering with no assertions behind it.
       - name: Hermetic lanes + attributable coverage gate
         run: Scripts/coverage.sh 82
+
+  ui:
+    name: UI lanes
+    runs-on: [self-hosted, macOS, speedread]
+    # Serial after the hermetic gate rather than parallel: this Mac cannot sustain more than
+    # about two concurrent simulator-driving agents, and it is also the operator's own
+    # machine. A UI lane that races the coverage lane gets both OS-killed.
+    needs: hermetic
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: External volume mounted
+        run: |
+          if [ ! -d "/Volumes/Crucial X8" ]; then
+            echo "::error::/Volumes/Crucial X8 is not mounted — refusing to build onto the boot drive."
+            exit 1
+          fi
+
+      # Deliberately NOT part of Scripts/coverage.sh. A UI test drives the whole app through
+      # its host process, so every view it walks past records as covered with nothing
+      # asserting on it — the GHOST shape the attributable gate exists to reject. These lanes
+      # report pass/fail and never touch the coverage number.
+      - name: iOS + watchOS UI lanes
+        run: Scripts/ui-lanes.sh
