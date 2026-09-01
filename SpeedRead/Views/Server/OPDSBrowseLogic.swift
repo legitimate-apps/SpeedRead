@@ -54,6 +54,6 @@ nonisolated enum OPDSBrowseLogic {
         guard let baseURL else { return nil }
         return baseURL.absoluteString
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            + "/opds/search/{searchTerms}"
+            + "/search/{searchTerms}"
     }
 }
