@@ -199,3 +199,12 @@ Each round is its own session/PR. This doc gets the Changelog updated.
   gate re-measured from a cleared ledger: 21 killed / 1 expected survivor / 0 invalid / 0 unexpected,
   unchanged by the feature. 238 iOS + 45 watch + 1 UI test; 298 tests, 0 assertion-free; combined
   attributable 83.73%; CI floor ratcheted 80 -> 82.
+- **2026-08-31** — Leg 9: **reach**. Presentation logic extracted out of `LibraryView`,
+  `BrowseServerView`, `ServerEditView`, `WatchLibraryView`, `WatchBookDetailView` and
+  `SampleBookLoader` into directly-testable types. iOS reach 51.36% -> **62.23%**, watch reach
+  47.69% -> **79.03%**, combined attributable 83.73% -> **84.43%** (it ROSE while the denominator
+  grew), 283 -> 304 tests, 0 assertion-free. Mutation gate unchanged at 21 killed / 1 expected
+  survivor / 0 unexpected, re-measured from a cleared ledger. Fixed a real user-facing defect found
+  while extracting: the OPDS fallback search URL duplicated the catalog segment
+  (`…/opds/opds/search/…`), so search silently 404'd on any server not advertising a search link.
+

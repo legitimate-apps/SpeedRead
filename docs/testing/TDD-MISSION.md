@@ -361,6 +361,52 @@ the inversion the operator asked for. The test carries the provenance in a comme
 **Gate re-measured from a cleared ledger: 21 killed · 1 expected survivor · 0 INVALID · 0 unexpected**,
 identical to the leg-7 run. Chapters weakened nothing.
 
+## 5g. Leg 9 — REACH (VERIFIED BY MANAGER 2026-08-31)
+
+The diagnosis that drove it: coverage here was **narrow, not shallow**. Attributable was strong
+(83.73%) but tests only *reached* half the app, so the win was making more of it nameable rather
+than asserting harder inside files already covered. 26 files were named by no test, almost entirely
+the SwiftUI view layer — untestable in shape, not untested.
+
+| | before | after |
+|---|---|---|
+| iOS REACH | 51.36% (29/49 files) | **62.23%** (34/51) |
+| watch REACH | 47.69% (11/18) | **79.03%** (16/20) |
+| combined ATTRIBUTABLE | 83.73% | **84.43%** |
+| combined HEADLINE | 49.20% | 60.79% |
+| tests | 283 | **304**, 0 assertion-free |
+
+Attributable *rose* while reach expanded, which is the outcome worth wanting: the newly-reached files
+arrived well covered instead of diluting the number. Gate re-measured from a cleared ledger:
+21 killed / 1 expected survivor / 0 invalid / 0 unexpected.
+
+**Real bug found while extracting, as on every previous leg** (`b622a26`): `OPDSBrowseLogic` built its
+fallback search URL by appending `/opds/search/{searchTerms}` to a base URL that already ends in
+`/opds`, producing `…/opds/opds/search/…`. Search against any OPDS server that does not advertise a
+search link would 404 silently. Found only because the logic was pulled out of the view to be
+testable — which is the argument for extraction stated better than any coverage number.
+
+⚠️ **The leg was KILLED mid-verification and left a live mutation in `WordTimer.swift`.** See §5h.
+
+## 5h. The recovery path failed a second time, the same way (2026-08-31)
+
+A killed gate run left mutation 6 (`1.3 → 1.6`) applied to `SpeedRead/Engine/WordTimer.swift`. The
+on-disk backup did its job and named the file. `--restore` then answered:
+
+```
+CANNOT RESTORE 6-WordTimer.swift: 2 candidates
+```
+
+Six sources are symlinked into the watch target, so `WordTimer.swift` exists at two paths and the
+backup filename carried only the basename. **The recovery path failed on exactly the file family
+most likely to need it, and only at the moment it was needed** — the second time this tool has had a
+recovery mechanism that worked solely when nothing had gone wrong.
+
+Root cause is the one already recorded twice in this ledger: **re-deriving a location that was
+already known.** The backup filename now encodes the repo-relative path; a legacy basename backup
+refuses rather than guessing, and says the backup is itself the pristine copy so a human can finish
+by hand. Verified in both polarities.
+
 ## 6. Seam pattern (settled fleet-wide — one pattern, not two)
 
 Default-argument injection; no test-only hooks on production types. A dependency becomes a parameter
