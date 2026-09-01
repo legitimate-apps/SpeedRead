@@ -103,16 +103,3 @@ struct ServerListView: View {
         try? modelContext.save()
     }
 }
-
-struct ServerListLogic {
-    static func accountDetail(username: String) -> String {
-        username.isEmpty ? "anonymous" : "user: \(username)"
-    }
-
-    static func serversToDelete(
-        at offsets: IndexSet,
-        from displayedServers: [OPDSServer]
-    ) -> [OPDSServer] {
-        offsets.map { displayedServers[$0] }
-    }
-}
