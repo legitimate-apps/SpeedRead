@@ -103,13 +103,25 @@ def main():
         if not b.exists() or not any(b.iterdir()):
             print("nothing to restore"); sys.exit(0)
         for f in sorted(b.iterdir()):
-            # backup name is "<index>-<basename>"; find its source by basename
-            base = f.name.split("-", 1)[1]
-            hits = [x for x in REPO.rglob(base) if ".build" not in str(x)]
-            if len(hits) != 1:
-                print(f"CANNOT RESTORE {f.name}: {len(hits)} candidates"); continue
-            hits[0].write_text(f.read_text()); f.unlink()
-            print("restored", hits[0])
+            # Backup name is "<index>--<url-encoded repo-relative path>". Decode it rather than
+            # searching for it; an ambiguous search is what broke this path before.
+            if "--" in f.name:
+                rel = f.name.split("--", 1)[1].replace("%2F", "/")
+                target = REPO / rel
+            else:
+                # Legacy "<index>-<basename>" backup from an older run. Fall back to a search, but
+                # refuse rather than guess when it is ambiguous.
+                base = f.name.split("-", 1)[1]
+                hits = [x for x in REPO.rglob(base) if ".build" not in str(x)]
+                if len(hits) != 1:
+                    print(f"CANNOT RESTORE {f.name}: {len(hits)} candidates — restore it by hand "
+                          f"(the backup IS the pristine copy; diff it against HEAD first)")
+                    continue
+                target = hits[0]
+            if not target.is_file():
+                print(f"CANNOT RESTORE {f.name}: {target} does not exist"); continue
+            target.write_text(f.read_text()); f.unlink()
+            print("restored", target)
         sys.exit(0)
 
     muts = json.load(open(args.mutations))
@@ -173,7 +185,12 @@ def main():
             print(f"[{i}/{len(muts)}] {m['label']}: SKIPPED (anchor not unique)")
             continue
 
-        backup = backups / f"{i}-{target.name}"
+        # The backup filename encodes the repo-RELATIVE PATH, not the basename. Six sources are
+        # symlinked into the watch target, so a basename is ambiguous — and --restore, the one path
+        # that runs after a crash, failed with "2 candidates" on exactly that. Same root cause as
+        # the coverage classifier globbing basenames instead of reading the authoritative path:
+        # never re-derive a location you already had.
+        backup = backups / f"{i}--{m['file'].replace('/', '%2F')}"
         backup.write_text(original)
         target.write_text(original.replace(m["old"], m["new"]))
         log = scratch / f"mut-{i}.log"
