@@ -2,7 +2,7 @@
 
 Coverage says a line ran. This says an assertion would have NOTICED if it were wrong.
 
-Run 2026-08-31 11:26 · 22 mutations · 21 killed · 1 survived (1 of them expected) · 0 not counted · **0 unexpected**
+Run 2026-08-31 20:48 · 22 mutations · 21 killed · 1 survived (1 of them expected) · 0 not counted · **0 unexpected**
 
 Every verdict in this table was measured by this run.
 
