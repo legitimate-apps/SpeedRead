@@ -64,6 +64,31 @@ These are testable statements. Breaking one is a defect regardless of what it en
 5. **Tappable words are `Button`s**, never `onTapGesture` — Voice Control, focus and keyboard
    navigation depend on it.
 6. **Layout timing is expressed with `.task(id:)`**, never `DispatchQueue.main.asyncAfter`.
+7. **A test must be able to fail the build, and five separate things have to be true for that.**
+
+   ```
+   target exists -> in a test plan -> plan invoked by a lane -> lane executes tests
+                                                             -> test aimed at the copy that
+                                                                ships on that platform
+   ```
+
+   Each arrow has broken here at least once, and none announced itself: the watch unit target sat
+   in no plan and read as 0.00% for months; `UI`/`WatchUI` were wired and invoked by nothing, so
+   the test covering the operator's crown-direction bug could never have gone red; a non-compiling
+   mutant made `xcodebuild` exit non-zero and scored as a KILL; and `SpineColorTests` cleared every
+   wiring arrow while pointing at the iOS copy of a file whose watch copy held the defect.
+   Enforced by `Scripts/lane-audit.py` and `Scripts/shared-source-audit.py`, each with a positive
+   control that must name the real historical gap.
+8. **Extracted decision logic lives in its OWN file, never beside the view it serves.** Attributable
+   coverage — the number this project is gated on — is measured per file, so a tested type sharing a
+   file with SwiftUI body markup drags every untested line of that markup into the denominator.
+   MEASURED 2026-09-01: identical logic read 97.50%/100.00% in its own file and 5.76%/15.18% inline,
+   and the inline version alone pushed the gate below its floor. Co-location makes the metric report
+   worse the more logic you extract, which is exactly backwards.
+9. **Files shared between the app and the watch are ONE file, symlinked — never two copies**, even
+   byte-identical ones. A copy that is identical today is a copy that drifts tomorrow, and the
+   drift is invisible: tests name one of the two. `SpineColor.swift` is the standing exception and
+   is a known defect, not a decision.
 
 ## 5. Standing goals
 

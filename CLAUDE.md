@@ -156,7 +156,12 @@ xcodebuild test \
   -parallel-testing-enabled NO
 
 # Run both hermetic destinations, print worst-first per-file coverage, and enforce a gate.
-Scripts/coverage.sh 80
+# CI runs exactly this line; the floor is ATTRIBUTABLE coverage, never headline.
+Scripts/coverage.sh 82
+
+# Run both UI plans. Deliberately NOT part of coverage.sh: a UI test drives the whole app
+# through its host, so every view it walks past records as covered with nothing asserting.
+Scripts/ui-lanes.sh
 ```
 
 `Scripts/coverage.sh` accepts `SPEEDREAD_IOS_DESTINATION` and
@@ -165,6 +170,30 @@ Scripts/coverage.sh 80
 `dd-lease` when available. The script runs the iOS and watchOS lanes serially.
 
 Pre-allowed in `.claude/settings.local.json`: `Bash(xcodebuild test:*)`.
+
+### Honesty gates — cheap, no simulator, run before any build
+
+```bash
+python3 Scripts/assertion-audit.py .      # no test may be assertion-free, or end on a sleep
+python3 Scripts/lane-audit.py             # every target in a plan, every plan in a lane
+python3 Scripts/shared-source-audit.py    # no filename may exist in both trees as two real files
+```
+
+These exist because a test can be real, correct, and still incapable of failing a build. Four
+separate things have to be true, and each has broken here at least once:
+
+```
+target exists -> in a test plan -> plan invoked by a lane -> lane executes tests
+                                                          -> and the test is aimed at the
+                                                             copy that ships on that platform
+```
+
+`lane-audit.py` covers the first four; `shared-source-audit.py` covers the fifth, by refusing to
+let a shared file exist as two real copies — **including byte-identical ones**, because identical
+today is a copy that drifts tomorrow with nothing to notice. Both take exemptions only as a dict
+entry carrying a written reason, and both fail on an exemption naming something that no longer
+exists. `assertion-audit.py` additionally flags a test that sleeps and then asserts nothing, which
+is the mechanical signature of a screenshot-capture holder wearing a test's name.
 
 ## Debug launch arguments
 
