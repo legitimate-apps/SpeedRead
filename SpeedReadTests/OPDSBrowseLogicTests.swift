@@ -57,6 +57,21 @@ struct OPDSBrowseLogicTests {
         ) == .fetch(URL(string: "https://search.example/?q=science%20fiction")!))
     }
 
+    @Test func searchEncodesWithThePathCharacterSetNotTheQueryOne() {
+        // The other encoding test uses a space, which BOTH .urlPathAllowed and .urlQueryAllowed
+        // render as %20 -- so it passes identically under either set and pins nothing. A mutation
+        // swapping the two survived the suite for exactly that reason.
+        //
+        // MEASURED: "?" is the discriminator. .urlPathAllowed -> %3F, .urlQueryAllowed -> literal
+        // "?". Leaving it literal would end the path and silently truncate the search term into a
+        // second query component, so this is a real behavioural difference, not a formatting one.
+        #expect(OPDSBrowseLogic.searchAction(
+            query: "who goes there?",
+            advertisedTemplate: "https://search.example/{searchTerms}",
+            baseURL: nil
+        ) == .fetch(URL(string: "https://search.example/who%20goes%20there%3F")!))
+    }
+
     @Test func searchFallsBackToNormalizedServerPathAndCanBeUnavailable() {
         #expect(OPDSBrowseLogic.searchAction(
             query: "swift",
