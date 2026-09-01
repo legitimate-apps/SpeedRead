@@ -12,7 +12,6 @@ enum WatchSpineColorLogic {
     static let themeSource = ThemeSource.classicOnlyUntilThemeSelectionIsSynced
 
     static func color(for title: String) -> Color {
-        // TDD scaffold: the red test pins classic-palette resolution before either view adopts it.
-        .clear
+        SpineColor.color(for: title)
     }
 }

@@ -51,7 +51,7 @@ struct WatchLibraryContent: View {
                     } label: {
                         HStack(spacing: 10) {
                             RoundedRectangle(cornerRadius: 2)
-                                .fill(SpineColor.color(for: book.title))
+                                .fill(WatchSpineColorLogic.color(for: book.title))
                                 .frame(width: 4, height: 44)
 
                             VStack(alignment: .leading, spacing: 2) {
@@ -109,7 +109,7 @@ struct WatchLibraryContent: View {
     private func bookRow(_ book: WatchBook) -> some View {
         HStack(spacing: 10) {
             RoundedRectangle(cornerRadius: 2)
-                .fill(SpineColor.color(for: book.title))
+                .fill(WatchSpineColorLogic.color(for: book.title))
                 .frame(width: 4, height: 40)
 
             VStack(alignment: .leading, spacing: 2) {

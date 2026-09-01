@@ -11,7 +11,7 @@ struct WatchBookDetailView: View {
     @State private var showDeleteConfirmation = false
 
     private var spineColor: Color {
-        SpineColor.color(for: book.title)
+        WatchSpineColorLogic.color(for: book.title)
     }
 
     private var latestBook: WatchBook {
