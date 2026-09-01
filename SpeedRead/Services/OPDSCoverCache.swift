@@ -12,7 +12,12 @@ final class OPDSCoverCache {
 
     private var images: [URL: Image] = [:]
     private var insertionOrder: [URL] = []
-    private let softCap: Int = 200
+    private let softCap: Int
+
+    init(softCap: Int = 200) {
+        precondition(softCap >= 0, "Cover cache capacity cannot be negative")
+        self.softCap = softCap
+    }
 
     func image(for url: URL) -> Image? {
         images[url]
