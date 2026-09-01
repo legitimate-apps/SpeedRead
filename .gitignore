@@ -18,3 +18,8 @@ xcuserdata/
 *.mobileprovision
 docs/testing/mutation-report.jsonl
 Scripts/__pycache__/
+
+# Mutation-gate resume ledgers. NEVER commit one: a later run replays its verdicts
+# instead of measuring them, which silently launders a previous run (or a delegate) into
+# what reads as a fresh independent result.
+docs/testing/*.jsonl

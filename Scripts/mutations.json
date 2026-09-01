@@ -23,7 +23,7 @@
     "new": "        let clampedIdx = min(orpIndex(for: word), count)",
     "label": "ORP: focus clamp off-by-one (OOB risk)",
     "expect": "SURVIVED",
-    "why": "EQUIVALENT MUTANT — not a test gap, and no test can close it. bucket(s) <= s-1 for every s >= 1, and leadingPunct + strippedLength <= count, so orpIndex <= count-1 always; the clamp never fires and both forms behave identically. Proven analytically (pure counting, so character-set independent) and empirically over 1,411,111 words — exhaustive to length 6 over an adversarial alphabet plus 300k random to length 40 — with zero counterexamples and a tightest slack of exactly 0. The clamp stays as cheap insurance; the invariant that makes it dead is what a test should pin."
+    "why": "EQUIVALENT MUTANT \u2014 not a test gap, and no test can close it. bucket(s) <= s-1 for every s >= 1, and leadingPunct + strippedLength <= count, so orpIndex <= count-1 always; the clamp never fires and both forms behave identically. Proven analytically (pure counting, so character-set independent) and empirically over 1,411,111 words \u2014 exhaustive to length 6 over an adversarial alphabet plus 300k random to length 40 \u2014 with zero counterexamples and a tightest slack of exactly 0. The clamp stays as cheap insurance; the invariant that makes it dead is what a test should pin."
   },
   {
     "file": "SpeedRead/Engine/WordTimer.swift",
@@ -132,5 +132,41 @@
     "old": "        return top - min(max(raw, 0), top)",
     "new": "        return min(max(raw, 0), top)",
     "label": "CrownSeek: direction un-inverted (the operator-reported bug returns)"
+  },
+  {
+    "file": "SpeedRead/Views/Server/OPDSBrowseLogic.swift",
+    "old": "            with: query.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? query",
+    "new": "            with: query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query",
+    "label": "OPDSBrowseLogic: search encoding character set path -> query"
+  },
+  {
+    "file": "SpeedRead/Views/Server/OPDSBrowseLogic.swift",
+    "old": "            + \"/search/{searchTerms}\"",
+    "new": "            + \"/opds/search/{searchTerms}\"",
+    "label": "OPDSBrowseLogic: fallback search path duplicates the OPDS component"
+  },
+  {
+    "file": "SpeedRead/Views/Server/BrowseServerLogic.swift",
+    "old": "        if servers.count == 1 {",
+    "new": "        if servers.count == 2 {",
+    "label": "BrowseServerLogic: automatic-selection count 1 -> 2"
+  },
+  {
+    "file": "SpeedRead/Views/Server/ServerEditLogic.swift",
+    "old": "        passwordForTag: (String) -> String? = KeychainStore.password(for:)",
+    "new": "        passwordForTag: (String) -> String? = { _ in nil }",
+    "label": "ServerEditLogic: DEFAULT ARGUMENT stops reading the production credential store"
+  },
+  {
+    "file": "SpeedRead/Views/Server/ServerEditLogic.swift",
+    "old": "        Int(now.timeIntervalSince1970)",
+    "new": "        Int(now.timeIntervalSince1970 / 1_000)",
+    "label": "ServerEditLogic: sort-index time unit seconds -> kiloseconds"
+  },
+  {
+    "file": "SpeedRead/Views/Server/ServerEditLogic.swift",
+    "old": "        generatedTag: String = UUID().uuidString",
+    "new": "        generatedTag: String = \"\"",
+    "label": "ServerEditLogic: DEFAULT ARGUMENT generates an empty temporary keychain tag"
   }
 ]
