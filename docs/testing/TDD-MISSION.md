@@ -1882,3 +1882,32 @@ matters. Then the sheet moved to the navigation content: one presenter, one bind
 Lesson worth its own line: **a screenshot is a behavioural test with a human oracle.** The unit
 suite was at 84% attributable and 373 tests when this was found, and none of them could see it,
 because presentation is a UIKit fact, not a SwiftUI-body fact.
+
+**Found while re-verifying, not yet fixed:** running the watch hermetic lane un-cloned on the
+leased device replaced its real library with the `"Received" / "Author"` two-word book from
+`WatchSyncServiceCharacterizationTests` (lines 99, 117). Those tests drive a service whose store
+points at the real `Documents/watchlibrary.json`; `WatchLibraryTests` injects a temp directory
+and does not leak. CI is unaffected (XCUITest and clean clones), but a "hermetic" suite that
+writes user data on the device it runs on is not hermetic. Fix: inject the store URL in the
+characterization tests. Queued behind the release leg.
+
+## 5ag. The Settings gear was drawn three points past the edge of the watch (2026-09-04)
+
+Found by the capture driver's failure, not by a test: `Failed to scroll to visible … Button
+{{211.0, 64.5}, {36.0, 36.0}} label: 'Settings'` on a 208pt-wide Series 10 (46mm). `RSVPWordView`
+lays out twelve fixed-width characters each side of the pivot — at the watch's 18pt that is 302pt
+of width — and the paused surface's `VStack` takes its widest child, so the X…gear `HStack` spanned
+302pt centred on a 208pt screen. The X survived on the left; the gear left the screen on the right.
+Present in the tree, drawn nowhere, tappable by nobody. Long-press still opened settings, which is
+why nobody noticed. Red first: `testSettingsControlIsOnScreenWhenPaused` walks the real path and
+asserts the control's frame lies inside the window and is hittable — failed on both. First fix
+— `.frame(maxWidth: .infinity).clipped()` — compiled, ran, and changed nothing: the control stayed
+at x=211. A flexible frame does not shrink a child that insists on being wider; it adopts the
+child's width, so there was nothing to clip. A frame dump then showed the surface's OWN close
+button at **x=−39**: both edge controls were off-screen, and the X visible in the screenshot was
+the sheet's system close, not ours. Second fix: a fixed-width frame at the device's screen width,
+which is authoritative, then clip. Lesson: a fix that compiles and runs green-looking on a screen
+you did not measure is a hypothesis. Measure the frame.
+
+Follow-up, not done here: `maxSideChars` is a constant. It should derive from available width so
+long words are shown rather than clipped at the edges on small screens.
