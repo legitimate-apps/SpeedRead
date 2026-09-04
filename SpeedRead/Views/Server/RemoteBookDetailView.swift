@@ -17,9 +17,8 @@ struct RemoteBookDetailView: View {
     @State private var coverImage: Image?
 
     var body: some View {
-        let supportedAcquisitions = RemoteBookDetailLogic.supportedAcquisitions(
-            from: entry.acquisitions
-        )
+        let availability = OPDSFormatAvailabilityLogic.classify(entry.acquisitions)
+        let supportedAcquisitions = availability.readable
         ZStack {
             themeManager.currentTheme.backgroundColor.ignoresSafeArea()
             ScrollView {
@@ -60,8 +59,10 @@ struct RemoteBookDetailView: View {
                             .font(.footnote)
                             .foregroundStyle(Color.crimsonSoft)
                     }
-                    if supportedAcquisitions.isEmpty {
-                        Text("No supported formats. SpeedRead can read EPUB, PDF, TXT, and RTF.")
+                    if !availability.unreadableDisplayNames.isEmpty {
+                        unavailableFormats(availability.unreadableDisplayNames)
+                    } else if supportedAcquisitions.isEmpty {
+                        Text("This book has no downloadable formats.")
                             .font(.footnote)
                             .foregroundStyle(Color.walnutLight)
                     }
@@ -92,6 +93,31 @@ struct RemoteBookDetailView: View {
                 .font(.system(size: 100))
                 .foregroundStyle(Color.walnutLight)
                 .frame(height: 280)
+        }
+    }
+
+    @ViewBuilder
+    private func unavailableFormats(_ displayNames: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                ForEach(displayNames, id: \.self) { name in
+                    Text(name)
+                        .font(.system(size: 10, weight: .medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.walnutLight.opacity(0.15), in: Capsule())
+                        .foregroundStyle(Color.walnutLight)
+                }
+            }
+            Text(OPDSFormatAvailabilityLogic.unavailableFormatMessage)
+                .font(.footnote)
+                .foregroundStyle(Color.walnutLight)
+            Link(
+                OPDSFormatAvailabilityLogic.supportRequestLabel,
+                destination: OPDSFormatAvailabilityLogic.supportRequestURL
+            )
+            .font(.footnote.weight(.medium))
+            .foregroundStyle(Color.crimsonSoft)
         }
     }
 

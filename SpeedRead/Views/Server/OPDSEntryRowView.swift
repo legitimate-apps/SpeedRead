@@ -32,12 +32,15 @@ struct OPDSEntryRowView: View {
                 if !entry.acquisitions.isEmpty {
                     HStack(spacing: 6) {
                         ForEach(Array(entry.acquisitions.enumerated()), id: \.offset) { _, acq in
+                            let tint = OPDSFormatAvailabilityLogic.isReadable(acq)
+                                ? Color.crimsonSoft
+                                : Color.walnutLight
                             Text(acq.displayFormat)
                                 .font(.system(size: 10, weight: .medium))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.crimsonSoft.opacity(0.15), in: Capsule())
-                                .foregroundStyle(Color.crimsonSoft)
+                                .background(tint.opacity(0.15), in: Capsule())
+                                .foregroundStyle(tint)
                         }
                     }
                 }

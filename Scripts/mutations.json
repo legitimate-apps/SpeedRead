@@ -246,5 +246,47 @@
     "old": "        let normalizedExtension = fileExtension.lowercased()",
     "new": "        let normalizedExtension = fileExtension",
     "label": "Formats: extension matching becomes case-sensitive"
+  },
+  {
+    "file": "SpeedRead/Services/ReviewPromptLogic.swift",
+    "old": "    private static let requestLaunchCount = 3",
+    "new": "    private static let requestLaunchCount = 2",
+    "label": "review: asks on the 2nd launch instead of the 3rd"
+  },
+  {
+    "file": "SpeedRead/Services/ReviewPromptLogic.swift",
+    "old": "        guard storedLaunchCount < terminalLaunchCount else {",
+    "new": "        guard storedLaunchCount <= terminalLaunchCount else {",
+    "label": "review: off-by-one lets the stored count grow past the cap"
+  },
+  {
+    "file": "SpeedRead/Services/ReviewPromptLogic.swift",
+    "old": "        let thisLaunchCount = currentLaunchCount + 1",
+    "new": "        let thisLaunchCount = currentLaunchCount + 2",
+    "label": "review: this launch counts as two"
+  },
+  {
+    "file": "SpeedRead/Services/ReviewPromptLogic.swift",
+    "old": "        guard hasClaimedLaunch == false else { return false }",
+    "new": "        guard hasClaimedLaunch == true else { return false }",
+    "label": "review: process gate admits every appearance but the first"
+  },
+  {
+    "file": "SpeedRead/Views/Server/OPDSFormatAvailabilityLogic.swift",
+    "old": "            if isReadable(acquisition) {",
+    "new": "            if !isReadable(acquisition) {",
+    "label": "formats: readable and unreadable swap sides"
+  },
+  {
+    "file": "SpeedRead/Views/Server/OPDSFormatAvailabilityLogic.swift",
+    "old": "            .filter { seenNames.insert($0).inserted }",
+    "new": "            .filter { _ in true }",
+    "label": "formats: duplicate badge names stop collapsing"
+  },
+  {
+    "file": "SpeedRead/Views/Server/OPDSFormatAvailabilityLogic.swift",
+    "old": "    static let supportRequestURL = URL(string: \"https://www.legitimateapps.com/contact\")!",
+    "new": "    static let supportRequestURL = URL(string: \"https://www.legitimateapps.com/support\")!",
+    "label": "formats: support link points at the wrong page"
   }
 ]

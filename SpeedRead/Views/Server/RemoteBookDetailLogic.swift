@@ -4,7 +4,7 @@ struct RemoteBookDetailLogic {
     static func supportedAcquisitions(
         from acquisitions: [OPDSAcquisition]
     ) -> [OPDSAcquisition] {
-        acquisitions.filter { SupportedFormat(mimeType: $0.mimeType) != nil }
+        OPDSFormatAvailabilityLogic.classify(acquisitions).readable
     }
 
     static func resolvedAcquisition(

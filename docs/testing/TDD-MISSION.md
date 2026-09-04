@@ -1794,3 +1794,51 @@ report** — a retry nobody sees is a retry that hides a degrading machine.
 Controlled three ways: fires on the real `mut-7.log`, stays quiet on a healthy lane, and stays
 quiet on a genuine compile error — the last matters most, because retrying a real INVALID would
 mask exactly what the verdict exists to catch.
+
+## 5ae. Leg 15 — a rating prompt, honest format badges, and two mutants that covered for each other (2026-09-04)
+
+Operator decisions, 2026-09-04 (verbatim where it matters): ship 1.2 with both features folded in ·
+rating prompt "once they launch it the third time, not triggered on anything but like onAppear for
+the main view or whatever or root view" · unreadable OPDS formats "grayed out" with a route to ask
+for support — pointed at `https://www.legitimateapps.com/contact` because the GitHub repo is private
+and making it public would publish PII in commit history and break the self-hosted-runner rule.
+
+**Shipped:** `Services/ReviewPromptLogic.swift` (decision + once-per-process gate),
+`Views/Server/OPDSFormatAvailabilityLogic.swift` (readable/unreadable split, deduplicated badge
+names, the support URL as a tested constant). `RemoteBookDetailLogic.supportedAcquisitions` now
+delegates to the one classifier instead of running its own filter. Badges in the browse row and
+detail view tint by readability; the detail view shows the copy and a `Link`.
+
+**Method, honestly:** Sol was OOM-killed mid-leg with the review half complete and the OPDS half at
+tests-but-no-implementation. Every edit survived on disk — author before verify, again. I finished
+the implementation myself against Sol's tests (deviation from routing; the remaining work was
+spec'd to the line and a second dispatch meant another 30-minute cycle on a machine that had just
+killed one). **RED was not observed** for these ten tests. The mutation gate is the substitute and
+is stronger — it is red-first performed systematically after the fact.
+
+**Mutation gate: 7 killed · 0 survived**, measured from an empty ledger on a fresh device.
+
+The first pass was **5 killed · 2 survived**, and both survivors had one cause:
+
+```swift
+guard storedLaunchCount < terminalLaunchCount else { … }          // caps at 4
+let thisLaunchCount = min(currentLaunchCount + 1, terminalLaunchCount)   // caps at 4
+```
+
+Two mechanisms clamping the same value. Mutate the guard's comparison and the `min()` still answers
+4; mutate the `min()` away and the guard already returned. Each mutant was equivalent **only because
+the other line existed** — no test could distinguish either, and no test should have to. Kept the
+guard (it also prevents `Int.max + 1` trapping), deleted the `min()`, and **retargeted** the
+orphaned mutation onto the surviving line rather than dropping it — a mutation that vanishes because
+its anchor is gone is how a suite stops being pinned with nobody noticing.
+
+**Two instrument mistakes in this leg, both mine:**
+- Deleted `docs/testing/mutation-report.jsonl` and re-ran — **6 of 7 verdicts REPLAYED**. The ledger
+  follows `--out`, so it lived in the scratchpad. The gate said so on every row and I still nearly
+  read a stale SURVIVED as a measurement. Now: `find` for `mutation-report*.jsonl` and verify the
+  find is empty before the run.
+- A `| tail` swallowed a nonzero exit when the scoped mutation list had been wiped by a reboot; the
+  wrapper said `exit=0` over a traceback. Third instance of this exact trap in the ledger.
+
+iOS lane on the final tree: 318 tests in 41 suites (was 308). Honesty gates 6/6.
+Mutations 41 → 48.
