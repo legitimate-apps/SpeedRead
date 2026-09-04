@@ -1224,7 +1224,26 @@ binary. Careful, symmetric design: same warm DerivedData, same leased simulator,
 arms, so the only variable was "run it twice". **Both runs executed zero tests** — 378s in
 `IDETestOperationsObserver`, then "the test runner hung before establishing connection", exit 65.
 `sample(1)` showed the main thread recursing in `-[DVTFilePath _locked_tentativelyInvalidate…]`
-under `os_unfair_lock_lock`, walking a 4.6 GB / 68,366-file DerivedData tree 56.8 hours old.
+under `os_unfair_lock_lock`, with a 4.6 GB / 68,366-file DerivedData tree 56.8 hours old.
+
+> **RETRACTED 2026-09-04, and I should have marked it ASSUMED when I wrote it.** The stack was
+> OBSERVED; the *cause* was not. The peer's v2 ran on a FRESH tree (`dd_files_at_start=0`), an
+> ephemeral simulator and a passing capacity gate, and **hung anyway** — 0 tests in ~540s. The
+> DerivedData-size mechanism is refuted by their own next experiment.
+>
+> Worse, the fact that made it persuasive was false. They told me twice that the same SHA "passed
+> the unit lane in CI on this machine 20 minutes earlier". `gh run list --json createdAt` says
+> 2026-09-01T21:19:06Z — **2 days 7 hours earlier**, not 20 minutes. They read the run for its
+> conclusion and never looked at its timestamp, taking "most recent run" for "recent run". The
+> load-bearing contrast — green in CI and hung locally on the same host the same day, therefore
+> neither the code nor the machine — never existed.
+>
+> I copied it into this ledger as established because it arrived with a `sample(1)` stack attached,
+> and a real observation next to a claim lends it credibility it has not earned. That is exactly
+> `[[reference-evidence-class-in-the-sentence]]`, and the discipline it prescribes — write the
+> evidence class into the claim — is the thing that would have caught it. What survives: the
+> DVTFilePath stack, the substrate-vs-known-good-recipe design error, and the executed-count
+> catch. What does not: any claim that the machine was exonerated, or that tree size was the cause.
 
 Their diagnosis of their own design error is the transferable part, and I am recording it in their
 words: *symmetry between the two samples bought nothing once both sat on a substrate that could not
@@ -1391,3 +1410,192 @@ Had I not measured, three false cases would have gone into a brief as the spec's
 delegate could not have caught them because I supplied the oracle — exactly
 `[[reference-briefs-carry-the-managers-oracle]]`. The probe cost one `swift` invocation.
 No test names that file today.
+
+## 5y. Leg 13 killed at load 64 — the ceiling is not a count of builds (2026-09-04)
+
+Leg 13's code landed; its **verification** was killed by the OS for memory. Fourth leg reaped this
+session. State at the kill (OBSERVED):
+
+```
+load averages: 64.74 71.43 39.40
+vm.swapusage:  total 14336.00M  used 13971.06M  free 364.94M   (swap had GROWN from 11264M)
+real xcodebuild processes: 1 (not mine)
+```
+
+`CLAUDE.md` says the local ceiling is "about two concurrent build/simulator agents". **Measured
+tonight, two was too many** — and the count was never the right unit. What was actually resident:
+
+| holder | artefact | size |
+|---|---|---|
+| peer session `fd0f3e53` | `peer-cleanclone` DerivedData | 4.5G |
+| peer session `fd0f3e53` | `peer-tests` DerivedData | 4.6G |
+| unleased | `peer-probe-coverage-probe` DerivedData | 4.4G |
+| peer session | `eph-cleanclone-56164` booted simulator | ~4.5G measured |
+| this session | `speedread-tests` DerivedData | 340M |
+
+Two *builds*, but four multi-gigabyte working sets. **The ceiling is aggregate resident footprint —
+DerivedData trees, booted simulators, and the compile itself — not a process count.** A count
+happens to correlate when every project is the same size, which is why the rule survived until a
+4.6 GB tree sat next to a 340 MB one.
+
+### The part neither of us could have read better
+
+I dispatched at load 3.37, swap 557M free, one unrelated build running. That was an honest read and
+it was the right call on the evidence. The peer had told me their v2 "has a capacity gate and will
+wait for you rather than race you", and it did not hold. Neither fact is the lesson.
+
+> **A capacity check is a snapshot taken at dispatch; a 30-minute build is exposed to everything
+> that starts during the other 29.** No amount of care at t=0 bounds what arrives at t=5, because
+> neither session can see the other's queued work.
+
+So the fix is not a better reading before dispatch. It is one of: a machine-wide lock (nobody has
+built one), or **accepting that kills happen and making legs cheap to resume** — which is what
+already saved this one. The `thread_id` was captured at dispatch per the harness rule, the code was
+written before the build started, and the loss is one `coverage.sh` run rather than a leg.
+
+**Design consequence I am adopting: put the authoring before the verifying, always, and never let a
+delegate hold the only copy of a decision.** Sol wrote all four call sites and the logic type before
+touching a simulator; every one of those edits survived the kill. Had the brief said "verify as you
+go", the kill would have taken the work with it.
+
+### What leg 13 actually produced, unverified
+
+`AnnotationListLogic` (56 lines, own file) with `ordered`/`bookmarksToDelete`/`highlightsToDelete`/
+`positionLabel`/`rangeLabel`; all four annotation lists routed through it; both computed
+`sortedBookmarks`/`sortedHighlights` properties gone, replaced by a `let` in `body` that the
+`.onDelete` closure captures — one snapshot, which is the fix.
+
+Sol went **beyond the spec** on ordering: after `wordIndex` and `createdAt` it falls back to
+`id.uuidString`, making the order total even for two annotations sharing a position *and* a
+timestamp. My spec required only the `createdAt` tiebreak. The addition is correct and no test
+exercises it — noted as a mutation candidate rather than pretended to be covered.
+
+**Status: code complete, ZERO of it verified.** No build, no test run, no coverage figure. Nothing
+here is a claim about behaviour until `Scripts/coverage.sh 82` is green.
+
+## 5z. The lane hangs on the Crucial X8, and the constant nobody varied (2026-09-04)
+
+Leg 13's verification did not fail. It **hung**, and the signature is unambiguous:
+
+```
+pid 90529   elapsed 23:25   CPU time 0:06.89   %CPU 0.0
+output lines: 0
+```
+
+Twenty-three minutes of wall clock for seven seconds of CPU. Blocked, not working. The DerivedData
+tree was `/Volumes/Crucial X8/DerivedData/speedread-tests` — **343 MB**.
+
+A peer session independently isolated the same effect on a different repo by varying one thing:
+`-derivedDataPath` on the boot volume instead of the X8. Their lane went from 6–9 minutes of hanging
+with 0 tests, every time, to `Executed 1121 tests … ** TEST SUCCEEDED **` in 2m56s, matching their
+CI ground truth exactly. Seven failures across two surfaces (xcodebuild's `DVTFilePath` walk, and
+Python's `os.scandir` raising `InterruptedError` inside `dd-lease`) collapse to one cause.
+
+**My 343 MB tree matters to their investigation**, because it removes the hypothesis they had spent
+the night on: their tree was 4.6 GB and they had assumed size. 343 MB behaves identically. Whatever
+this is, it is a property of the volume, not of tree size. Their leading guess is TCC on a removable
+volume re-evaluated when a launchd service restarts — `stat` still works while directory listing
+stalls. ASSUMED; the volume correlation is OBSERVED and reproducible on two repos.
+
+Timeline that fits: the X8 mount dir ctime is 2026-09-03 14:45:15 and all six self-hosted runners
+restarted 2026-09-03 20:15:2x, both **after** the last known-good CI run on 2026-09-01 21:24:46.
+
+> **This contradicts standing project policy.** `CLAUDE.md` and the operator's global doc both route
+> DerivedData to the X8, and the rule includes "don't silently fall back to the boot drive". So this
+> fallback is deliberate, temporary, and stated out loud rather than silent — boot volume has 41 GB
+> available and the tree is under 1 GB. It is for the operator to decide whether the policy changes.
+
+### The lesson, which is the peer's and is the best thing either of us produced tonight
+
+They varied fresh DerivedData, ephemeral simulators, a clean clone, a capacity gate, CI versus
+local — and every single variant held the X8 fixed, because "DerivedData lives on the X8" is
+*policy*, and policy reads as background rather than as a variable.
+
+> **What is constant across all of my failing runs BECAUSE a rule says it should be?**
+
+That question is now part of this project's debugging checklist. A convention is the hardest
+variable to see precisely because following it feels like not making a choice.
+
+### Two self-inflicted errors in the same five minutes, recorded
+
+1. I killed the hung build with `pkill -x xcodebuild` and took the peer's actively-compiling build
+   with it — both PIDs were on my screen one command earlier. `-x` made the matcher precise and did
+   nothing about the verb's scope. **Identify by pattern, act by PID.** Told them immediately, with
+   a discriminator, because a SIGTERMed run resembles the hang they were collecting evidence for and
+   a bad sample that agrees with a correct conclusion is the hardest kind to find later.
+2. I ran the gate as `Scripts/coverage.sh 82 2>&1 | tail -60`. The task reported **exit code 0**
+   while the log ended in `** BUILD INTERRUPTED **` — `tail`'s status, not the script's. Third
+   instance of the wrapper trap, in the same session I wrote the rule down. A display convenience
+   silently became the status reporter.
+
+The failure-evidence preservation step worked correctly and kept the artifact:
+`/Volumes/Crucial X8/agent-artifacts/speedread-lane-failures/20260904-003843-iOS-hermetic-unit-lane`.
+
+## 5aa. Writing a doc comment lowered the coverage figure (2026-09-04)
+
+The boot-volume run executed 288 iOS + 65 watchOS tests, `** TEST SUCCEEDED **` on both lanes —
+and then failed the gate:
+
+```
+Combined ATTRIBUTABLE: 78.41% (7368/9397)      Required: 82%
+```
+
+Against 84.42% two days earlier. Nothing about the app got worse. What happened is that
+`BookmarkListView.swift` (0/298) and `HighlightListView.swift` (0/373) entered the ATTRIBUTABLE
+denominator. Remove those 671 zero-covered lines and iOS reads 5604/6585 = 85.10%.
+
+A file counts as attributable when a test **names a type it declares**, and the match ran against
+raw test source. The only mentions of those two types anywhere in the suite are in a doc comment
+**I wrote three hours earlier**:
+
+```swift
+/// Specification for the decisions shared by the four annotation lists: `BookmarkListView`
+/// and `HighlightListView` (RSVP) and `ReaderBookmarkPicker` / `ReaderHighlightPicker`
+```
+
+Arithmetic that identifies it without guessing: iOS excludes 10195−7256 = 2939 unnamed lines; the
+GHOST files account for 761 of them; the 0%-covered file list totals 2849, so 2849 − (2939 − 761) =
+**671 named-and-zero-covered lines — exactly 298 + 373.**
+
+### Why this is the worst-shaped bug of the night
+
+> **An accurate doc comment lowered the measured coverage, and the fastest route back to green is
+> to delete the comment.**
+
+Every other instrument failure this session cost a wrong number. This one puts a thumb on the scale
+against documentation and rewards laundering, and the laundering looks like tidying. Any metric
+that reads prose will eventually be gamed by editing prose — including by a well-meaning agent that
+"just cleans up a comment" to unblock CI and never learns what it did.
+
+### Fixed properly, in the instrument
+
+`strip_comments` now walks the source before matching. It has to walk rather than regex, for two
+reasons that are both live in this repo: Swift block comments **nest**, and `//` appears inside
+every `https://` string literal — a naive stripper eats the rest of that line and deletes real
+references. String literals are deliberately **kept**, because a type named in a string is a real
+reference (accessibility identifiers).
+
+`python3 Scripts/attributable-coverage.py --self-test` is a fifth CI honesty gate: 9 cases asserting
+**both directions**, verified by breaking the stripper each way —
+
+| injected fault | caught |
+|---|---|
+| line comments not stripped (the original bug) | 3 assertions |
+| `//` inside strings treated as a comment | 1 assertion (`https://x` destroyed) |
+
+### The uncomfortable part I am not hiding
+
+After the fix, those two views become *unnamed* and vanish from ATTRIBUTABLE entirely — and since
+they have zero covered lines they do not even appear under GHOST. **The number goes back up by
+excluding two genuinely untested files.** That is the metric behaving as designed, and it is
+exactly why the framing has three numbers: REACH is the one that still carries them, as
+`42 of 55 files named`. `BookmarkListView` and `HighlightListView` have no behavioural tests, leg
+13 did not give them any, and no single number will say so.
+
+### And a preservation step guarding the wrong event
+
+The lanes passed; the gate failed; `coverage.sh` deleted its work dir and every coverage JSON with
+it, so diagnosing a threshold failure cost a full rebuild. Failure evidence was preserved for a
+*lane* failure and nothing for a *gate* failure — the case where the lanes are green and the only
+question is which files moved. The JSONs are kilobytes. `preserve_gate_evidence` now keeps them.
+Same shape as the `if [ -e ]` with no `else`: the step existed and was guarding the wrong event.

@@ -14,19 +14,123 @@ import re
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--format", choices=("text", "json"), default="text")
-parser.add_argument("report")
+parser.add_argument("report", nargs="?")
+parser.add_argument("--self-test", dest="self_test", action="store_true",
+                    help="run the strip_comments positive control and exit")
 parser.add_argument("repo_root", nargs="?", default=pathlib.Path(__file__).resolve().parents[1])
 arguments = parser.parse_args()
+
+def strip_comments(source):
+    """Remove Swift comments so a type MENTIONED IN PROSE is not counted as a test naming it.
+
+    This is not cosmetic. A file counts as "named" if a test references its declared type,
+    and the match ran against raw source, so a doc comment reading "shared by BookmarkListView
+    and HighlightListView" marked BOTH of those views as tested. They have 0/298 and 0/373
+    coverage, so 671 zero-covered lines entered the ATTRIBUTABLE denominator and dropped the
+    combined figure from ~84.4% to 78.41%, failing the gate.
+
+    The incentive that creates is the dangerous part: writing an accurate doc comment lowers
+    measured coverage, and the quickest way to "fix" the build is to delete the comment. That
+    is laundering, and the instrument should not invite it.
+
+    Swift block comments NEST, and `//` occurs inside string literals (every https:// URL), so
+    this walks the source rather than running a regex over it. Strings are preserved: a type
+    name in a string literal is a real reference (accessibility identifiers, for instance).
+    """
+    out = []
+    i = 0
+    n = len(source)
+    depth = 0
+    while i < n:
+        c = source[i]
+        nxt = source[i + 1] if i + 1 < n else ""
+        if depth:
+            if c == "/" and nxt == "*":
+                depth += 1; i += 2; continue
+            if c == "*" and nxt == "/":
+                depth -= 1; i += 2; continue
+            i += 1; continue
+        if c == "/" and nxt == "*":
+            depth = 1; i += 2; continue
+        if c == "/" and nxt == "/":
+            while i < n and source[i] != "\n":
+                i += 1
+            continue
+        if c == '"':
+            out.append(c); i += 1
+            while i < n:
+                if source[i] == "\\":
+                    out.append(source[i:i + 2]); i += 2; continue
+                out.append(source[i])
+                if source[i] == '"':
+                    i += 1; break
+                if source[i] == "\n":
+                    i += 1; break
+                i += 1
+            continue
+        out.append(c); i += 1
+    return "".join(out)
+
+
+SELF_TEST_CASES = [
+    # (label, source, must_survive, must_vanish)
+    ("line comment", "// BookmarkListView\nlet a = 1\n", ["let a"], ["BookmarkListView"]),
+    ("doc comment", "/// shared by BookmarkListView\nstruct T {}\n", ["struct T"], ["BookmarkListView"]),
+    ("block comment", "/* BookmarkListView */ let b = 2\n", ["let b"], ["BookmarkListView"]),
+    # Swift block comments NEST; a non-nesting stripper stops at the first */ and leaks the rest.
+    ("nested block", "/* outer /* inner BookmarkListView */ still HighlightListView */ let c = 3\n",
+     ["let c"], ["BookmarkListView", "HighlightListView"]),
+    # The // inside a URL must not eat the rest of the line -- this is the common false positive.
+    ('url in string', 'let u = "https://x/BookmarkListView"\nlet d = 4\n', ["let d", "https://x"], []),
+    # A type named in a STRING is a real reference (accessibility identifiers), so it survives.
+    ("string literal reference", 'let id = "BookmarkListView"\n', ["BookmarkListView"], []),
+    ("code reference", "BookmarkListView()\n", ["BookmarkListView"], []),
+    ("escaped quote then slashes", 'let e = "a \\" // still string"\nlet f = 5\n', ["let f"], []),
+    ("comment after code on one line", "let g = 6 // BookmarkListView\n", ["let g"], ["BookmarkListView"]),
+]
+
+
+def run_self_test():
+    """Positive control for strip_comments.
+
+    A stripper that fails OPEN (leaves prose in) silently re-creates the bug it exists to fix:
+    a doc comment marks an untested file as tested and the coverage figure moves. A stripper
+    that fails CLOSED (eats code) deletes real references and files vanish from the metric.
+    Both directions are asserted here, per case, against text that would differ if it were wrong.
+    """
+    failures = 0
+    for label, source, must_survive, must_vanish in SELF_TEST_CASES:
+        cleaned = strip_comments(source)
+        for fragment in must_survive:
+            if fragment not in cleaned:
+                print(f"FAIL [{label}] expected to survive: {fragment!r} -- got {cleaned!r}")
+                failures += 1
+        for fragment in must_vanish:
+            if fragment in cleaned:
+                print(f"FAIL [{label}] expected to vanish: {fragment!r} -- got {cleaned!r}")
+                failures += 1
+    if failures:
+        print(f"FAIL: {failures} strip_comments self-test assertions failed")
+        return 1
+    print(f"PASS: strip_comments self-test -- {len(SELF_TEST_CASES)} cases, both directions asserted")
+    return 0
+
+
+if arguments.self_test:
+    raise SystemExit(run_self_test())
+
+if arguments.report is None:
+    raise SystemExit("error: a coverage report is required unless --self-test is given")
 
 with open(arguments.report) as report_file:
     report = json.load(report_file)
 repo = pathlib.Path(arguments.repo_root)
 
-test_src = "\n".join(
+test_src = strip_comments("\n".join(
     p.read_text(errors="replace")
     for p in repo.rglob("*.swift")
     if "Tests" in str(p) and ".build" not in str(p)
-)
+))
 
 DECL = re.compile(r'^\s*(?:public |internal |private |fileprivate |final |nonisolated )*'
                   r'(?:struct|class|enum|actor|protocol|extension)\s+(\w+)', re.M)

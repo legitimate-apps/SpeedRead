@@ -16,10 +16,21 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Build output goes on the external volume. The boot drive on this Mac is small and has
-  # repeatedly hit "disk full"; DerivedData is one of the biggest offenders.
-  SPEEDREAD_DERIVED_DATA_PATH: /Volumes/Crucial X8/DerivedData/speedread-ci
-  SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH: /Volumes/Crucial X8/dev-caches/spm-clones
+  # DerivedData was on the external volume because the boot drive is small and DerivedData is
+  # one of the biggest offenders. That routing is TEMPORARILY REVERSED, deliberately and not
+  # silently, because as of 2026-09-03 xcodebuild HANGS when DerivedData lives on the X8.
+  #
+  # MEASURED here 2026-09-04, same repo, same commit, same simulator, one variable changed:
+  #   X8   -> 23m25s elapsed for 6.89s CPU, 0.0%%, ZERO tests executed, no output
+  #   boot -> ** TEST SUCCEEDED **, 288 iOS + 65 watchOS tests
+  # A peer session reproduced the same effect on an unrelated repo and traced it to a
+  # DVTFilePath walk stalling and to os.scandir raising InterruptedError on this volume.
+  # Tree size is NOT the mechanism: 343 MB here behaves exactly like their 4.6 GB.
+  # Suspected cause is TCC on a removable volume re-evaluated when the runners restarted
+  # (mount ctime 2026-09-03 14:45, runners restarted 20:15, last green CI 2026-09-01) --
+  # ASSUMED, not established. Revert this block once the volume is trusted again.
+  SPEEDREAD_DERIVED_DATA_PATH: ${{ runner.temp }}/speedread-ci-derived-data
+  SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH: ${{ runner.temp }}/speedread-ci-spm-clones
 
 jobs:
   hermetic:
@@ -58,12 +69,23 @@ jobs:
       - name: Executed-test parser reports true counts
         run: Scripts/executed-tests-control.sh
 
-      # The external volume is where DerivedData is routed. If it is not mounted, xcodebuild
-      # would silently fall back to filling the boot drive, so fail loudly instead.
-      - name: External volume mounted
+      # A file counts as "named by a test" if a test references its declared type -- and the
+      # match ran over RAW source, so a doc comment reading "shared by BookmarkListView and
+      # HighlightListView" marked both of those 0%-covered views as tested and dropped the
+      # combined figure 6 points. The incentive that creates is the dangerous one: an accurate
+      # comment lowers coverage, and the fastest way to green is to delete the comment.
+      - name: Coverage classifier ignores prose, not code
+        run: python3 Scripts/attributable-coverage.py --self-test
+
+      # This guard used to protect DerivedData's routing. DerivedData now lives on the boot
+      # volume (see the env block), so it protects the FAILURE-ARTIFACT path instead -- which
+      # is still on the X8 and is still where a red lane's log and result bundle are kept.
+      # Re-scoped rather than deleted: a guard removed for a good reason gets re-added later
+      # for the old one.
+      - name: External volume mounted (failure artifacts)
         run: |
           if [ ! -d "/Volumes/Crucial X8" ]; then
-            echo "::error::/Volumes/Crucial X8 is not mounted — refusing to build onto the boot drive."
+            echo "::error::/Volumes/Crucial X8 is not mounted — failure artifacts (lane logs, result bundles) have nowhere to go."
             exit 1
           fi
 
@@ -114,10 +136,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: External volume mounted
+      # Same re-scoping as the hermetic job: DerivedData is on the boot volume while the X8
+      # hangs xcodebuild (see the env block); this guard now protects the failure-artifact path.
+      - name: External volume mounted (failure artifacts)
         run: |
           if [ ! -d "/Volumes/Crucial X8" ]; then
-            echo "::error::/Volumes/Crucial X8 is not mounted — refusing to build onto the boot drive."
+            echo "::error::/Volumes/Crucial X8 is not mounted — failure artifacts (lane logs, result bundles) have nowhere to go."
             exit 1
           fi
 

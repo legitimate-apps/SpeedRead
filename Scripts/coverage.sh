@@ -344,6 +344,28 @@ fi
 IFS=$'\t' read -r ios_attributable_covered ios_attributable_executable <<<"$ios_attributable_totals"
 IFS=$'\t' read -r watch_attributable_covered watch_attributable_executable <<<"$watch_attributable_totals"
 
+# A lane failure preserves its log and result bundle. A GATE failure preserved nothing -- and
+# the gate failing is the case you most need to diagnose, because the lanes were green and the
+# question is which files moved. The JSONs are kilobytes; the rebuild they save is ~15 minutes.
+# This is the same shape as the `if [ -e ]` with no else: the preservation step existed, and it
+# was guarding the wrong event.
+preserve_gate_evidence() {
+  local why="$1"
+  [[ -n "$failure_artifact_dir" ]] || return 0
+  local dest="$failure_artifact_dir/$(date +%Y%m%d-%H%M%S)-coverage-gate"
+  mkdir -p "$dest" || { echo "warning: could not create $dest" >&2; return 0; }
+  printf '%s\n' "$why" >"$dest/why.txt"
+  local kept=0
+  for f in "$ios_json" "$watch_json" "$ios_attributable_json" "$watch_attributable_json"; do
+    if [[ -f "$f" ]]; then
+      cp "$f" "$dest/" && kept=$((kept + 1))
+    else
+      echo "warning: expected coverage json at $f but it does not exist" >&2
+    fi
+  done
+  echo "kept coverage-gate evidence ($kept files): $dest" >&2
+}
+
 assert_attributable_lane_ran() {
   local target_name="$1"
   local covered="$2"
@@ -390,6 +412,7 @@ echo "Required ATTRIBUTABLE threshold: ${threshold}%"
 
 if (( combined_attributable_executable == 0 )); then
   echo "FAIL: combined attributable coverage has no executable lines" >&2
+  preserve_gate_evidence "combined attributable coverage has no executable lines"
   exit 1
 fi
 
@@ -399,6 +422,7 @@ if awk \
   -v required="$threshold" \
   'BEGIN { exit !(covered * 100 / executable < required + 0) }'; then
   echo "FAIL: combined attributable coverage is below ${threshold}%" >&2
+  preserve_gate_evidence "combined attributable ${combined_attributable_percentage}% < required ${threshold}%"
   exit 1
 fi
 
