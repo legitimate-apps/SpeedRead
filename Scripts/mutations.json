@@ -168,5 +168,41 @@
     "old": "        generatedTag: String = UUID().uuidString",
     "new": "        generatedTag: String = \"\"",
     "label": "ServerEditLogic: DEFAULT ARGUMENT generates an empty temporary keychain tag"
+  },
+  {
+    "file": "SpeedRead/Views/AnnotationListLogic.swift",
+    "old": "                return $0.wordIndex < $1.wordIndex",
+    "new": "                return $0.wordIndex > $1.wordIndex",
+    "label": "Annotations: bookmark order reverses (position ascending -> descending)"
+  },
+  {
+    "file": "SpeedRead/Views/AnnotationListLogic.swift",
+    "old": "                return $0.startWordIndex < $1.startWordIndex",
+    "new": "                return $0.startWordIndex > $1.startWordIndex",
+    "label": "Annotations: highlight order reverses (start ascending -> descending)"
+  },
+  {
+    "file": "SpeedRead/Views/AnnotationListLogic.swift",
+    "old": "        \"Word \\(wordIndex + 1)\"",
+    "new": "        \"Word \\(wordIndex)\"",
+    "label": "Annotations: position label drops the 1-based offset"
+  },
+  {
+    "file": "SpeedRead/Views/AnnotationListLogic.swift",
+    "old": "        \"Words \\(startWordIndex + 1)\u2013\\(endWordIndex + 1)\"",
+    "new": "        \"Words \\(startWordIndex + 1)-\\(endWordIndex + 1)\"",
+    "label": "Annotations: range label en-dash becomes a hyphen"
+  },
+  {
+    "file": "SpeedRead/Views/AnnotationListLogic.swift",
+    "old": "        \"Words \\(startWordIndex + 1)\u2013\\(endWordIndex + 1)\"",
+    "new": "        \"Words \\(startWordIndex + 1)\u2013\\(endWordIndex)\"",
+    "label": "Annotations: range label end index loses its 1-based offset"
+  },
+  {
+    "file": "SpeedRead/Views/AnnotationListLogic.swift",
+    "old": "        offsets.map { displayedBookmarks[$0] }",
+    "new": "        offsets.reversed().map { displayedBookmarks[$0] }",
+    "label": "Annotations: bookmark deletion returns offsets in reverse order"
   }
 ]

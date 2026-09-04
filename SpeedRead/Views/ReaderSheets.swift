@@ -63,13 +63,15 @@ struct ReaderBookmarkPicker: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        let displayedBookmarks = AnnotationListLogic.ordered(book.bookmarks)
+
         NavigationStack {
             List {
-                if book.bookmarks.isEmpty {
+                if displayedBookmarks.isEmpty {
                     Text("No bookmarks yet.")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(book.bookmarks.sorted(by: { $0.wordIndex < $1.wordIndex }), id: \.id) { bookmark in
+                    ForEach(displayedBookmarks, id: \.id) { bookmark in
                         Button {
                             onSelect(bookmark.wordIndex)
                             dismiss()
@@ -79,7 +81,7 @@ struct ReaderBookmarkPicker: View {
                                     .font(.system(size: 15, design: .serif))
                                     .foregroundStyle(.primary)
                                     .lineLimit(2)
-                                Text("Word \(bookmark.wordIndex + 1)")
+                                Text(AnnotationListLogic.positionLabel(wordIndex: bookmark.wordIndex))
                                     .font(.system(size: 11, design: .monospaced))
                                     .foregroundStyle(.secondary)
                             }
@@ -103,13 +105,15 @@ struct ReaderHighlightPicker: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        let displayedHighlights = AnnotationListLogic.ordered(book.highlights)
+
         NavigationStack {
             List {
-                if book.highlights.isEmpty {
+                if displayedHighlights.isEmpty {
                     Text("No highlights yet.")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(book.highlights.sorted(by: { $0.startWordIndex < $1.startWordIndex }), id: \.id) { highlight in
+                    ForEach(displayedHighlights, id: \.id) { highlight in
                         Button {
                             onSelect(highlight.startWordIndex)
                             dismiss()
@@ -119,7 +123,10 @@ struct ReaderHighlightPicker: View {
                                     .font(.system(size: 15, design: .serif))
                                     .foregroundStyle(.primary)
                                     .lineLimit(3)
-                                Text("Words \(highlight.startWordIndex + 1)–\(highlight.endWordIndex + 1)")
+                                Text(AnnotationListLogic.rangeLabel(
+                                    startWordIndex: highlight.startWordIndex,
+                                    endWordIndex: highlight.endWordIndex
+                                ))
                                     .font(.system(size: 11, design: .monospaced))
                                     .foregroundStyle(.secondary)
                             }

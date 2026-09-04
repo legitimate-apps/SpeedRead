@@ -8,16 +8,14 @@ struct HighlightListView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    private var sortedHighlights: [Highlight] {
-        book.highlights.sorted { $0.startWordIndex < $1.startWordIndex }
-    }
-
     var body: some View {
+        let displayedHighlights = AnnotationListLogic.ordered(book.highlights)
+
         NavigationStack {
             ZStack {
                 Color.rsvpBackground.ignoresSafeArea()
 
-                if sortedHighlights.isEmpty {
+                if displayedHighlights.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "highlighter")
                             .font(.system(size: 40))
@@ -33,14 +31,17 @@ struct HighlightListView: View {
                     .padding()
                 } else {
                     List {
-                        ForEach(sortedHighlights) { highlight in
+                        ForEach(displayedHighlights) { highlight in
                             Button {
                                 engine.seek(to: highlight.startWordIndex)
                                 dismiss()
                             } label: {
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack {
-                                        Text("Words \(highlight.startWordIndex + 1)–\(highlight.endWordIndex + 1)")
+                                        Text(AnnotationListLogic.rangeLabel(
+                                            startWordIndex: highlight.startWordIndex,
+                                            endWordIndex: highlight.endWordIndex
+                                        ))
                                             .font(.numeric(size: 13, weight: .medium))
                                             .foregroundStyle(Color.agedGold)
                                         Spacer()
@@ -61,8 +62,11 @@ struct HighlightListView: View {
                             .listRowBackground(Color.walnut.opacity(0.3))
                         }
                         .onDelete { indexSet in
-                            for index in indexSet {
-                                modelContext.delete(sortedHighlights[index])
+                            for highlight in AnnotationListLogic.highlightsToDelete(
+                                at: indexSet,
+                                from: displayedHighlights
+                            ) {
+                                modelContext.delete(highlight)
                             }
                         }
                     }
