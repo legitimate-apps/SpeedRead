@@ -49,6 +49,15 @@ jobs:
       - name: Shared sources are one file, not two
         run: python3 Scripts/shared-source-audit.py
 
+      # Every "the lane is green" claim rests on a parser that counts executed tests, and a
+      # parser that fails OPEN certifies an empty lane as healthy. That bug shipped here once:
+      # awk regex literals passed as function arguments evaluated against $0 first, so the
+      # parser returned 1 for every log including an empty one. It was caught only because a
+      # control asserted an expected COUNT rather than "a number came out" -- so that control
+      # is standing now instead of something someone remembered to run.
+      - name: Executed-test parser reports true counts
+        run: Scripts/executed-tests-control.sh
+
       # The external volume is where DerivedData is routed. If it is not mounted, xcodebuild
       # would silently fall back to filling the boot drive, so fail loudly instead.
       - name: External volume mounted

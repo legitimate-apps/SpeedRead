@@ -168,6 +168,19 @@ run_lane() {
     return 1
   fi
 
+  # xcodebuild exits 0 for a plan that executed nothing, and a zero-test run reads as green
+  # all the way to the coverage figure. Without this the gate can still fail -- but it fails
+  # saying "coverage is below 82%", which is the wrong diagnosis and sends the next person
+  # hunting a regression that does not exist. Name the real failure instead.
+  local executed
+  executed="$(awk -f "$script_dir/lib/executed-tests.awk" "$log")"
+  if [[ "$executed" -eq 0 ]]; then
+    echo "error: $label exited 0 but executed 0 tests -- the plan ran nothing" >&2
+    preserve_failure_evidence "$label" "$result" "$log"
+    return 1
+  fi
+  echo "  $label: $executed tests executed"
+
   grep -E 'Test run with [0-9]+ tests|Executed [0-9]+ tests|\*\* TEST SUCCEEDED \*\*' "$log" \
     | tail -n 4 \
     || true

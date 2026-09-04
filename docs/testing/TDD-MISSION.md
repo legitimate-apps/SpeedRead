@@ -1216,3 +1216,112 @@ instruction is the only reason leg 10 landed five commits despite being killed. 
 hazard (`server.baseURL!` force-unwrapped twice in `BrowseServerView`) **explicitly as unverified by
 me**, with an instruction not to treat my framing as the answer — the correction from §5e.
 
+
+## 5w. The control I built for the wrong lane, and a peer's broken probe that found it (2026-09-03)
+
+A peer session set out to measure whether coverage figures are stable across two runs of the same
+binary. Careful, symmetric design: same warm DerivedData, same leased simulator, same flags in both
+arms, so the only variable was "run it twice". **Both runs executed zero tests** — 378s in
+`IDETestOperationsObserver`, then "the test runner hung before establishing connection", exit 65.
+`sample(1)` showed the main thread recursing in `-[DVTFilePath _locked_tentativelyInvalidate…]`
+under `os_unfair_lock_lock`, walking a 4.6 GB / 68,366-file DerivedData tree 56.8 hours old.
+
+Their diagnosis of their own design error is the transferable part, and I am recording it in their
+words: *symmetry between the two samples bought nothing once both sat on a substrate that could not
+run tests at all.* Their CI ran the same SHA green twenty minutes earlier with a capacity gate, an
+ephemeral simulator, per-run DerivedData and a CoreSimulator preflight. The probe had none of them.
+**Replicate the known-good recipe; vary only the thing under test.**
+
+### The half that landed on this project
+
+Their second point: *a null result and a broken run are indistinguishable from a diff of the
+outputs.* Two empty coverage reports diff clean, and "identical — the measurement is deterministic"
+is exactly what that looks like.
+
+So I checked whether my own gate could do the same thing, and it could — differently, and worse
+than I would have guessed:
+
+| | behaviour on a zero-test run |
+|---|---|
+| `Scripts/ui-lanes.sh` | asserts executed>0, names it: "executed 0 tests — the plan ran nothing" |
+| `Scripts/coverage.sh` (**the gate CI runs**) | no such control |
+
+`coverage.sh` does fail closed — `assert_attributable_lane_ran` catches covered==0 while
+executable>0. But it fails saying **"combined attributable coverage is below 82%"**, which is the
+wrong diagnosis. It sends the next person hunting a regression that does not exist.
+
+**I had already built the right control, after the awk fail-open in §5p, and applied it only to the
+lane that does not gate CI.** That is the same shape as §5o: a fix found, recorded, and not applied
+where it mattered. Twice now, so it is a pattern rather than an incident — when a control is worth
+building, the next question is *which other surfaces have this hole*, asked immediately, not later.
+
+### What was built
+
+- `Scripts/lib/executed-tests.awk` — the parser, now ONE copy. Folding it into `coverage.sh` would
+  have created a second, and two copies of a parser drift. `shared-source-audit.py` enforces exactly
+  this for Swift and does not watch `Scripts/`, which is how it nearly happened here.
+- Both lanes now assert executed>0 and name the real failure.
+- `Scripts/executed-tests-control.sh` — 10 fixture checks asserting **expected counts**, wired as a
+  fourth CI honesty gate. Standing, not something a human remembers to run.
+
+**The control was verified by breaking the parser.** Reintroducing the exact regex-literal bug made
+6 of 10 checks fail, every one returning 1. The 4 that still passed were the empty log and the
+no-test-summary logs — **a control built only from those would have certified the broken parser.**
+The discriminating checks are the ones asserting 42, 351, 17 and 362: a specific number, never a
+property. That is the difference between a control and a formality.
+
+## 5x. Leg 13 — two concepts, four implementations, and a delete that shifts under itself
+
+Roadmap B16 was filed as "duplicated bookmark/highlight lists". What is actually there is worse:
+
+| view | surface | ordering | delete | tested behaviour |
+|---|---|---|---|---|
+| `BookmarkListView` | RSVP | `wordIndex` | yes | none — named by no test |
+| `ReaderBookmarkPicker` | reader | `wordIndex` | **no** | pixel-signature smoke only |
+| `HighlightListView` | RSVP | `startWordIndex` | yes | none — named by no test |
+| `ReaderHighlightPicker` | reader | `startWordIndex` | **no** | pixel-signature smoke only |
+
+The behaviour has already diverged — you can delete an annotation from RSVP but not from the
+reader — which is what `[[reference-shared-copies-diverge-where-dedup-gave-up]]` predicts. The only
+assertions on the reader pair were `#expect(signatures.count > 2)`: they catch a crash and nothing else.
+
+**A latent bug fell out of reading them side by side — and my first statement of it was wrong.**
+Both RSVP lists delete like this:
+
+```swift
+.onDelete { indexSet in
+    for index in indexSet { modelContext.delete(sortedBookmarks[index]) }
+}
+```
+
+`sortedBookmarks` is a *computed property* over `book.bookmarks`, re-evaluated on every subscript.
+Delete offset 0 and the array shrinks, so offset 1 addresses what was offset 2 — wrong annotation
+deleted, or out of range.
+
+I wrote "reachable from edit-mode multi-select" into both the ledger and Sol's brief before
+checking. **OBSERVED, after: there is no `EditButton` anywhere in the app** (`grep -rn
+"EditButton\|editMode" SpeedRead/Views/` returns nothing), so `.onDelete` is reachable only by
+swipe, which passes exactly one index. **The bug is latent, not user-reachable today.** It becomes
+live the moment anyone adds an `EditButton` — which is a normal thing to add and carries no warning
+that it arms a data-loss bug two files away.
+
+That is the fifth time this session a plausible explanation arrived ahead of a check that was
+already in hand, and the cheapest one yet: the codebase was open, and the grep was six seconds.
+The correction does not change what to build — resolving offsets against one snapshot is still
+right, still matches `ServerListLogic.serversToDelete`, and makes the failure unrepresentable
+rather than merely absent — but it changes the honest claim from "fixes a live bug" to "closes a
+latent one and unifies the rule", and Sol was briefed on the wrong version.
+
+11 tests written first (`SpeedReadTests/AnnotationListLogicTests.swift`), specifying a type that
+does not exist — ordering including a creation-time tiebreak (Swift's sort is introsort and NOT
+stable, so two annotations at one position could reshuffle between renders), snapshot-resolved
+deletion, 1-based display labels, and the U+2013 EN DASH verified in the source bytes of both files
+(`e2 80 93`). Dispatched to Sol as spec, not script; the brief forbids editing the tests, forbids
+unifying the two surfaces' deliberately different visual designs, and forbids adding delete to the
+reader — whether the reader *should* delete is a product question for the operator, not one to
+answer by implication.
+
+**Found while scoping and deferred to leg 14:** `RemoteBookDetailView.ensureExtension` routes on
+`NSString.pathExtension`, so a filename containing a period — "Book v1.2", "Vol. 2", an author
+initial — reports a non-empty extension and never gets its mime-derived one patched in. The
+importer then mis-routes it. No test names that file today.

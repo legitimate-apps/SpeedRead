@@ -142,28 +142,11 @@ run_lane() {
     return
   fi
 
-  # A lane that executes ZERO tests exits 0 and reads as green. That is the same class of
-  # failure this whole script exists to close, so the script must not contain it: prove
-  # tests actually ran before calling the lane passed.
-  # Pull the count out of the matched text itself rather than by field position — XCTest
-  # and Swift Testing put the number in different columns, and a positional parse that
-  # silently reads the wrong token would report 0 and fail a lane that was actually fine.
+  # A lane that executes ZERO tests exits 0 and reads as green. Prove tests actually ran
+  # before calling the lane passed. The parser and the reasoning behind it live in
+  # Scripts/lib/executed-tests.awk; Scripts/executed-tests-control.sh keeps it honest.
   local executed
-  executed="$(awk '
-    function biggest(pattern,   where, len, n) {
-      where = match($0, pattern)
-      if (where == 0) return
-      len = RLENGTH
-      n = 0 + substr($0, where, len)
-      if (n > total) total = n
-    }
-    # Patterns are STRINGS, not /regex/ literals. Passing a literal to an awk function
-    # evaluates it as a match against $0 first, so the function would receive 1 or 0 and
-    # silently parse the digit "1" out of every log — a wrong NON-ZERO, which reads as a
-    # healthy lane. Caught only because the parser control asserted the expected count.
-    { biggest("[0-9]+ tests?,"); biggest("[0-9]+ tests? (passed|failed)") }
-    END { print total + 0 }
-  ' "$log")"
+  executed="$(awk -f "$script_dir/lib/executed-tests.awk" "$log")"
 
   if [[ "$executed" -eq 0 ]]; then
     echo "error: $label reported success but executed 0 tests — the plan ran nothing" >&2

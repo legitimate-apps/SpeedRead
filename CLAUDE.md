@@ -177,6 +177,7 @@ Pre-allowed in `.claude/settings.local.json`: `Bash(xcodebuild test:*)`.
 python3 Scripts/assertion-audit.py .      # no test may be assertion-free, or end on a sleep
 python3 Scripts/lane-audit.py             # every target in a plan, every plan in a lane
 python3 Scripts/shared-source-audit.py    # no filename may exist in both trees as two real files
+Scripts/executed-tests-control.sh         # the executed-test parser reports true counts
 ```
 
 These exist because a test can be real, correct, and still incapable of failing a build. Four
@@ -187,6 +188,12 @@ target exists -> in a test plan -> plan invoked by a lane -> lane executes tests
                                                           -> and the test is aimed at the
                                                              copy that ships on that platform
 ```
+
+A sixth thing has to be true and is not on that line at all: the count of executed tests has to
+be *real*. Both lanes decide "this lane is green" from a parser, and a parser that fails open
+certifies an empty lane — so `Scripts/lib/executed-tests.awk` is the single copy of it and
+`executed-tests-control.sh` asserts expected counts against fixture logs, including the exact
+regex-literal bug that once made it return 1 for every input.
 
 `lane-audit.py` covers the first four; `shared-source-audit.py` covers the fifth, by refusing to
 let a shared file exist as two real copies — **including byte-identical ones**, because identical
