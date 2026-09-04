@@ -93,9 +93,23 @@ def tests_ran(logpath):
     Same family as the INVALID check, one level down. (Owed to the peer-project TDD session, which hit
     it as `xcodebuild` returning EXIT=65 and "** TEST FAILED **" for a run that started zero
     tests — indistinguishable from real failure unless you count.)
+
+    Counting, not phrase-matching. The previous version returned True when the log merely
+    CONTAINED "Test run with" — which "Test run with 0 tests passed" also contains. A mutation
+    that made the suite execute nothing and exit non-zero would have been scored KILLED: the
+    strongest verdict, awarded for running zero tests. Same fail-open the phrase was added to
+    close, one level in. Scripts/lib/executed-tests.awk is the single parser and
+    Scripts/executed-tests-control.sh asserts its counts against real captured logs.
     """
-    log = _log(logpath)
-    return ("Test run with" in log) or ("Test Case '-[" in log) or ("Executed " in log)
+    parser = pathlib.Path(__file__).resolve().parent / "lib" / "executed-tests.awk"
+    try:
+        out = subprocess.run(["awk", "-f", str(parser), str(logpath)],
+                             capture_output=True, text=True, check=True).stdout.strip()
+        return int(out or "0") > 0
+    except (subprocess.CalledProcessError, ValueError, FileNotFoundError) as exc:
+        # Never fail open: if the count cannot be established, this is not proof tests ran.
+        print(f"warning: could not count executed tests in {logpath}: {exc}", file=sys.stderr)
+        return False
 
 def main():
     ap = argparse.ArgumentParser()
