@@ -15,23 +15,6 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # DerivedData was on the external volume because the boot drive is small and DerivedData is
-  # one of the biggest offenders. That routing is TEMPORARILY REVERSED, deliberately and not
-  # silently, because as of 2026-09-03 xcodebuild HANGS when DerivedData lives on the X8.
-  #
-  # MEASURED here 2026-09-04, same repo, same commit, same simulator, one variable changed:
-  #   X8   -> 23m25s elapsed for 6.89s CPU, 0.0%%, ZERO tests executed, no output
-  #   boot -> ** TEST SUCCEEDED **, 288 iOS + 65 watchOS tests
-  # A peer session reproduced the same effect on an unrelated repo and traced it to a
-  # DVTFilePath walk stalling and to os.scandir raising InterruptedError on this volume.
-  # Tree size is NOT the mechanism: 343 MB here behaves exactly like their 4.6 GB.
-  # Suspected cause is TCC on a removable volume re-evaluated when the runners restarted
-  # (mount ctime 2026-09-03 14:45, runners restarted 20:15, last green CI 2026-09-01) --
-  # ASSUMED, not established. Revert this block once the volume is trusted again.
-  SPEEDREAD_DERIVED_DATA_PATH: ${{ runner.temp }}/speedread-ci-derived-data
-  SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH: ${{ runner.temp }}/speedread-ci-spm-clones
-
 jobs:
   hermetic:
     name: Hermetic lanes + honesty gates
@@ -40,48 +23,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Cheap gates first — this needs no simulator and fails in seconds rather than minutes.
-      - name: No assertion-free tests
-        run: python3 Scripts/assertion-audit.py .
+      # DerivedData goes on the BOOT VOLUME, not the Crucial X8. That reverses standing project
+      # policy deliberately and loudly: as of 2026-09-03 xcodebuild HANGS when DerivedData lives
+      # on the X8. MEASURED here 2026-09-04, same repo, same commit, same simulator, one variable:
+      #   X8   -> 23m25s elapsed for 6.89s CPU, 0.0%, ZERO tests executed, no output
+      #   boot -> ** TEST SUCCEEDED **, 288 iOS + 65 watchOS tests
+      # Reproduced by a peer on an unrelated repo (DVTFilePath stall; os.scandir raising
+      # InterruptedError on this volume). Tree size is NOT the mechanism -- 343 MB here behaves
+      # exactly like their 4.6 GB. Suspected TCC on a removable volume, re-evaluated when the
+      # runners restarted -- ASSUMED, not established. Revert once the volume is trusted.
+      #
+      # Set in a STEP, not in workflow-level env: the `runner` context does not exist up there
+      # (only github, inputs, secrets, vars). Writing ${{ runner.temp }} in workflow env made
+      # the file unparseable, so GitHub created no run at all -- CI silently stopped existing
+      # rather than failing. RUNNER_TEMP is wiped between jobs, so growth is bounded per job.
+      - name: Route DerivedData off the external volume
+        run: |
+          echo "SPEEDREAD_DERIVED_DATA_PATH=$RUNNER_TEMP/speedread-ci-derived-data" >> "$GITHUB_ENV"
+          echo "SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH=$RUNNER_TEMP/speedread-ci-spm-clones" >> "$GITHUB_ENV"
 
-      # A test can exist, be wired to a target, sit in a plan, and still never run. Both
-      # seams have bitten this project: the watch unit target was in no plan and read as
-      # 0.00% for months, and later UI.xctestplan / WatchUI.xctestplan were invoked by no
-      # lane at all, so the test covering the operator's crown-direction bug could not have
-      # failed a build. Neither gap was visible in any report.
-      - name: Every target in a plan, every plan in a lane
-        run: python3 Scripts/lane-audit.py
-
-      # The fifth arrow: a test can clear every wiring check above and still be aimed at the
-      # wrong copy. SpineColor.swift lived as two real files, iOS grew a themed-palette overload
-      # the watch copy never got, and SpineColorTests names only the iOS one -- so the same book
-      # rendered a different colour on each device with nothing able to notice. Fails on
-      # byte-identical copies too: identical today is a copy that drifts tomorrow.
-      - name: Shared sources are one file, not two
-        run: python3 Scripts/shared-source-audit.py
-
-      # Every "the lane is green" claim rests on a parser that counts executed tests, and a
-      # parser that fails OPEN certifies an empty lane as healthy. That bug shipped here once:
-      # awk regex literals passed as function arguments evaluated against $0 first, so the
-      # parser returned 1 for every log including an empty one. It was caught only because a
-      # control asserted an expected COUNT rather than "a number came out" -- so that control
-      # is standing now instead of something someone remembered to run.
-      - name: Executed-test parser reports true counts
-        run: Scripts/executed-tests-control.sh
-
-      # A file counts as "named by a test" if a test references its declared type -- and the
-      # match ran over RAW source, so a doc comment reading "shared by BookmarkListView and
-      # HighlightListView" marked both of those 0%-covered views as tested and dropped the
-      # combined figure 6 points. The incentive that creates is the dangerous one: an accurate
-      # comment lowers coverage, and the fastest way to green is to delete the comment.
-      - name: Coverage classifier ignores prose, not code
-        run: python3 Scripts/attributable-coverage.py --self-test
-
-      # This guard used to protect DerivedData's routing. DerivedData now lives on the boot
-      # volume (see the env block), so it protects the FAILURE-ARTIFACT path instead -- which
-      # is still on the X8 and is still where a red lane's log and result bundle are kept.
-      # Re-scoped rather than deleted: a guard removed for a good reason gets re-added later
-      # for the old one.
+      # Cheap gates first — no simulator, fails in seconds rather than minutes.
+      #
+      # Scripts/honesty-gates.sh is the SINGLE list of what must be true before a build is worth
+      # starting; each gate's history lives in the header of the script it runs. The list is not
+      # duplicated here on purpose — it used to live in CI steps AND in CLAUDE.md prose, and a
+      # list in two places is a list that disagrees with itself.
+      #
+      # Note the one gate this step CANNOT be trusted to provide: actionlint. If this very file
+      # is unparseable, GitHub creates no run and nothing below executes. Run the script locally
+      # before pushing; that is where workflow validity is actually enforced.
+      - name: Honesty gates
+        run: Scripts/honesty-gates.sh
       - name: External volume mounted (failure artifacts)
         run: |
           if [ ! -d "/Volumes/Crucial X8" ]; then
@@ -135,6 +107,25 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+
+      # DerivedData goes on the BOOT VOLUME, not the Crucial X8. That reverses standing project
+      # policy deliberately and loudly: as of 2026-09-03 xcodebuild HANGS when DerivedData lives
+      # on the X8. MEASURED here 2026-09-04, same repo, same commit, same simulator, one variable:
+      #   X8   -> 23m25s elapsed for 6.89s CPU, 0.0%, ZERO tests executed, no output
+      #   boot -> ** TEST SUCCEEDED **, 288 iOS + 65 watchOS tests
+      # Reproduced by a peer on an unrelated repo (DVTFilePath stall; os.scandir raising
+      # InterruptedError on this volume). Tree size is NOT the mechanism -- 343 MB here behaves
+      # exactly like their 4.6 GB. Suspected TCC on a removable volume, re-evaluated when the
+      # runners restarted -- ASSUMED, not established. Revert once the volume is trusted.
+      #
+      # Set in a STEP, not in workflow-level env: the `runner` context does not exist up there
+      # (only github, inputs, secrets, vars). Writing ${{ runner.temp }} in workflow env made
+      # the file unparseable, so GitHub created no run at all -- CI silently stopped existing
+      # rather than failing. RUNNER_TEMP is wiped between jobs, so growth is bounded per job.
+      - name: Route DerivedData off the external volume
+        run: |
+          echo "SPEEDREAD_DERIVED_DATA_PATH=$RUNNER_TEMP/speedread-ci-derived-data" >> "$GITHUB_ENV"
+          echo "SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH=$RUNNER_TEMP/speedread-ci-spm-clones" >> "$GITHUB_ENV"
 
       # Same re-scoping as the hermetic job: DerivedData is on the boot volume while the X8
       # hangs xcodebuild (see the env block); this guard now protects the failure-artifact path.

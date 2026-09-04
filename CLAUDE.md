@@ -174,11 +174,25 @@ Pre-allowed in `.claude/settings.local.json`: `Bash(xcodebuild test:*)`.
 ### Honesty gates — cheap, no simulator, run before any build
 
 ```bash
+Scripts/honesty-gates.sh    # runs all six, cheapest first. RUN THIS BEFORE EVERY PUSH.
+```
+
+It is the single list; CI runs the same script. Individually:
+
+```bash
+actionlint                                # workflow files parse and their contexts exist
 python3 Scripts/assertion-audit.py .      # no test may be assertion-free, or end on a sleep
 python3 Scripts/lane-audit.py             # every target in a plan, every plan in a lane
 python3 Scripts/shared-source-audit.py    # no filename may exist in both trees as two real files
 Scripts/executed-tests-control.sh         # the executed-test parser reports true counts
+python3 Scripts/attributable-coverage.py --self-test   # the classifier reads code, not comments
 ```
+
+**`actionlint` is the one gate CI cannot run for itself.** If `ci.yml` is unparseable GitHub
+creates no run at all, so a CI step that lints the workflow never executes — CI does not fail, it
+silently stops existing, and the push looks entirely normal. That happened here on 2026-09-04:
+`${{ runner.temp }}` in a workflow-level `env:` block, where the `runner` context does not exist.
+Three days of "green" meant "never ran". Run the gates locally before pushing.
 
 These exist because a test can be real, correct, and still incapable of failing a build. Four
 separate things have to be true, and each has broken here at least once:
@@ -188,6 +202,10 @@ target exists -> in a test plan -> plan invoked by a lane -> lane executes tests
                                                           -> and the test is aimed at the
                                                              copy that ships on that platform
 ```
+
+A seventh thing has to be true before any of the six matter: **the workflow file has to be valid**,
+or none of the gates run and their absence is invisible. That is `actionlint`, and it is why the
+gates must be run locally rather than trusted to CI.
 
 A sixth thing has to be true and is not on that line at all: the count of executed tests has to
 be *real*. Both lanes decide "this lane is green" from a parser, and a parser that fails open

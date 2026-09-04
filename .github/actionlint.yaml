@@ -1,0 +1,5 @@
+# actionlint cannot know this repo's self-hosted runner labels, and an unknown-label warning on
+# every run would bury a real error in noise -- which is how a gate stops being read.
+self-hosted-runner:
+  labels:
+    - speedread

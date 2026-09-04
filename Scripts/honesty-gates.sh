@@ -1,0 +1,52 @@
+#!/bin/bash
+#
+# Every cheap gate, in one place. No simulator, no build, seconds to run.
+#
+# This script is the SINGLE LIST of what must be true before a build is worth starting. It
+# exists because the list kept living in two places -- CLAUDE.md prose and ci.yml steps -- and
+# a list in two places is a list that disagrees with itself.
+#
+# RUN IT BEFORE EVERY PUSH, not only in CI. One of these gates cannot work from inside CI at
+# all: if .github/workflows/ci.yml is unparseable, GitHub creates no run, so a CI step that
+# lints the workflow never executes. That is not hypothetical -- it happened here on
+# 2026-09-04, when ${{ runner.temp }} in a workflow-level env block (where the runner context
+# does not exist) made the file invalid. CI did not fail; it silently stopped existing, and the
+# push looked completely normal. A gate that only runs inside the thing it guards is not a gate.
+
+set -uo pipefail
+
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+failures=0
+run_gate() {
+  local name="$1"; shift
+  printf '\n=== %s ===\n' "$name"
+  if "$@"; then
+    return 0
+  fi
+  echo "GATE FAILED: $name" >&2
+  failures=$((failures + 1))
+}
+
+# Ordered cheapest-first, and workflow validity first of all: if the workflow is broken,
+# nothing else you learn here will run in CI anyway.
+if command -v actionlint >/dev/null 2>&1; then
+  run_gate "Workflow files are valid (actionlint)" actionlint
+else
+  echo "warning: actionlint not installed -- workflow validity UNCHECKED." >&2
+  echo "         brew install actionlint. This gate is the one CI cannot run for itself." >&2
+  failures=$((failures + 1))
+fi
+
+run_gate "No assertion-free tests"                  python3 Scripts/assertion-audit.py .
+run_gate "Every target in a plan, every plan in a lane" python3 Scripts/lane-audit.py
+run_gate "Shared sources are one file, not two"     python3 Scripts/shared-source-audit.py
+run_gate "Executed-test parser reports true counts" Scripts/executed-tests-control.sh
+run_gate "Coverage classifier ignores prose, not code" python3 Scripts/attributable-coverage.py --self-test
+
+printf '\n'
+if (( failures != 0 )); then
+  echo "FAIL: $failures honesty gate(s) failed" >&2
+  exit 1
+fi
+echo "PASS: all honesty gates"

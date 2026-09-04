@@ -1599,3 +1599,63 @@ it, so diagnosing a threshold failure cost a full rebuild. Failure evidence was 
 *lane* failure and nothing for a *gate* failure — the case where the lanes are green and the only
 question is which files moved. The JSONs are kilobytes. `preserve_gate_evidence` now keeps them.
 Same shape as the `if [ -e ]` with no `else`: the step existed and was guarding the wrong event.
+
+## 5ab. I disabled CI and it looked exactly like a normal push (2026-09-04)
+
+Pushed four commits at 04:49:59Z. Watched the runner logs. Nothing. Not a failure — **nothing**.
+
+```
+_work mtime:            2026-09-01T20:36:48Z     (three days stale)
+newest Worker log:      2026-09-01 20:39:23Z
+runner:                 alive, "Listening for Jobs" since 00:15:30Z
+runner heard since push: nothing
+```
+
+`actionlint` named it in one line:
+
+```
+ci.yml:32:36: context "runner" is not allowed here.
+  available contexts are "github", "inputs", "secrets", "vars"
+```
+
+My DerivedData fix put `${{ runner.temp }}` in the **workflow-level `env:` block**, where the
+`runner` context does not exist. GitHub could not parse the file, so it created no run at all.
+
+> **CI did not go red. CI stopped existing.** The push succeeded, the tree was clean, the local
+> gates were green, and every signal I habitually check was normal. The only evidence was an
+> absence, and absences are what nobody looks at.
+
+This is the sharpest instance yet of the thing this whole ledger is about — I have been building
+gates all night against tests that cannot fail, and I shipped a change that made *every* gate
+unable to run, in the one file that decides whether any of them run.
+
+### The structural point: a gate cannot live only inside the thing it guards
+
+I could have "fixed" this by adding an actionlint step to `ci.yml`. **That step would never have
+executed**, because an unparseable workflow means no run. The validity check has to sit *outside*
+CI, which means locally, before the push.
+
+`Scripts/honesty-gates.sh` is now the single list of all six gates, cheapest first, actionlint
+first of all. CI runs the same script rather than restating the list — it previously lived in CI
+steps *and* in CLAUDE.md prose, and a list in two places is a list that disagrees with itself. If
+actionlint is not installed the script **fails** rather than skipping: an unrunnable gate that
+returns success is the exact shape of everything deleted from this repo this week.
+
+`.github/actionlint.yaml` declares the `speedread` self-hosted label, because an unknown-label
+warning on every run buries the real error — which is how a gate stops being read.
+
+### Two smaller things fixed while in there
+
+- I had left `SPEEDREAD_LANE_MARKER: ci` in the workflow env purely so a comment had somewhere to
+  attach. Dead config to host prose. Removed; the rationale moved to the step it explains.
+- The X8 guard's message still read "refusing to build onto the boot drive" after DerivedData had
+  deliberately moved *to* the boot drive. A guard whose message contradicts its purpose is worse
+  than no guard, because the next reader trusts the message and not the code.
+
+### Standing question this earns
+
+`actionlint` was installed on this machine the whole time and I had never run it. The question to
+ask of any config that gates execution — workflow, launchd plist, test plan, Xcode scheme — is not
+"does it look right" but **"what would tell me if this file stopped being honoured at all?"** If
+the answer is "the thing it configures would go quiet", that is not a signal, and a validator that
+runs outside it is owed.
