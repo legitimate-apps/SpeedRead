@@ -1842,3 +1842,10 @@ its anchor is gone is how a suite stops being pinned with nobody noticing.
 
 iOS lane on the final tree: 318 tests in 41 suites (was 308). Honesty gates 6/6.
 Mutations 41 → 48.
+
+**Behavioural verification, OBSERVED 2026-09-04 18:28 EDT** on leased sim `C81647D8`, Debug build
+from `045a4f7`, three cold launches with `-hasCompletedOnboarding YES`: launches 1 and 2 show the
+library and nothing else; launch 3 shows the native StoreKit rating sheet over the library;
+`reviewPromptLaunchCount` in the app's Preferences plist reads `3` afterwards. Frames in
+`docs/testing/evidence/leg15-*.jpg`. The unit tests pin the decision; this pins the wiring the
+unit tests cannot see.
