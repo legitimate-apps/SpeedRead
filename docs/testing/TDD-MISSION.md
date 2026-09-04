@@ -1723,3 +1723,74 @@ released; zero simulators booted afterwards.
 **What this run does NOT establish:** `BookmarkListView` and `HighlightListView` still have no
 behavioural tests of their own. The mutations cover the extracted logic, not the views' rendering.
 REACH continues to carry that as `40 of 55 files named`.
+
+## 5ad. Leg 14 — one answer to "which formats can we read" (2026-09-04)
+
+Three places decided independently which formats SpeedRead can read, and they already disagreed:
+
+| location | form | knew |
+|---|---|---|
+| `DocumentImporter` | `switch ext` | pdf, epub, txt/text, rtf |
+| `RemoteBookDetailView` | mime whitelist | the same five mime types |
+| `OPDSAtomParser.displayFormat` | mime switch | **also MOBI, AZW, HTML** — which we cannot read |
+
+`SupportedFormat` is now the single source; the importer routes through it and the OPDS detail
+view filters through it. `displayFormat` still advertises MOBI/AZW/HTML — that is a display-only
+UX question, deliberately raised and NOT decided here.
+
+### Two real bugs closed, both specified before the code
+
+**A version number is not a file extension.** `ensureExtension` returned the filename unchanged
+whenever `pathExtension` was non-empty, and MEASURED, `"Book v1.2"` has pathExtension `"2"` — so an
+EPUB served under that name never got `.epub` appended and `DocumentImporter` threw
+`unsupportedFormat`. The right question is not "is there an extension" but "is there one the
+importer can route". (`"Vol. 2"` and `"J. R. R. Tolkien"` do NOT trigger it — pathExtension
+excludes a trailing token containing a space. Three of my four original examples were wrong and the
+probe caught them before they reached the spec.)
+
+**Case-sensitive title derivation.** `filename.replacingOccurrences(of: ".\(ext)")` with `ext`
+already lowercased meant `"Dracula.TXT"` matched nothing and the extension stayed in the title. Sol
+replaced the whole expression with `deletingPathExtension`, which is better than what the spec asked
+for. It also chose `acquisitions.indices.contains(index)` over the upper-bound-only guard I
+specified, closing the negative-index crash more directly.
+
+### Verification
+
+20 tests written before the code. `Scripts/coverage.sh 82`:
+
+```
+iOS 308 tests · watchOS 65 tests · Combined ATTRIBUTABLE 84.56% (7444/8803) · PASS
+```
+
+**Run twice on the same commit and leased device: 7444/8803 both times, 0 differing rows across 81
+files.** So coverage measurement is deterministic *on this repo* too, independently replicating a
+peer's null on a different repo with a different framework mix. That licenses treating any per-file
+delta as signal rather than re-running to check for flakiness.
+
+Sol reported 84.63% (7450/8803) — same denominator, **6 more covered lines**. Since my own figure is
+reproducible, that difference is real rather than spread; the cause is NOT established, most likely
+a different simulator than my leased clone. Recorded rather than averaged away.
+
+Mutations: **7 of 7 KILLED**, none survived.
+
+### The simulator degrades with repeated installs, and the gate now handles it
+
+Mutation 7 came back INVALID with:
+
+```
+FBSOpenApplicationErrorDomain Code=6 "Application failed preflight checks"  reason: Busy
+```
+
+on a **leased** device, after six consecutive successful mutations — so leasing was not the whole
+story. Re-run on a freshly leased simulator: KILLED. Same signature had appeared in leg 13's
+mutation 3. Twice is a pattern, not a flake.
+
+`simulator_refused_to_launch()` now distinguishes that from a real build failure and recycles the
+device (`simctl shutdown` + `boot`) for **one** scoped retry. Deliberately narrow: a blanket retry
+would hide real flakiness, so it fires only on a reproduced signature whose fix is known to work,
+it still records INVALID if the retry also fails, and **every retry is printed and written into the
+report** — a retry nobody sees is a retry that hides a degrading machine.
+
+Controlled three ways: fires on the real `mut-7.log`, stays quiet on a healthy lane, and stays
+quiet on a genuine compile error — the last matters most, because retrying a real INVALID would
+mask exactly what the verdict exists to catch.

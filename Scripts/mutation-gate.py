@@ -84,6 +84,41 @@ def compiled(logpath, filename):
     log = _log(logpath)
     return "SwiftCompile" in log and filename in log
 
+def recycle_simulator(lane):
+    """Shut the destination device down and boot it again, so a degraded device gets a fresh
+    SpringBoard. Only works for an id-based destination -- a name-based one is exactly the
+    shared-device situation that causes this, and it is said out loud rather than guessed at."""
+    destination = _dest(lane)
+    udid = next((value.strip() for key, _, value in
+                 (part.partition("=") for part in destination.split(","))
+                 if key.strip() == "id"), None)
+    if not udid:
+        print(f"warning: destination {destination!r} is not id-based, so the device cannot be "
+              f"recycled. Lease a simulator (sim-lease create) and pass its id.", file=sys.stderr)
+        return
+    for verb in ("shutdown", "boot"):
+        subprocess.run(["xcrun", "simctl", verb, udid], capture_output=True, text=True)
+
+
+def simulator_refused_to_launch(logpath):
+    """Distinguish 'the simulator would not start the app' from 'the mutation broke the build'.
+
+    Both surface as a non-zero exit with zero tests executed, so both score INVALID -- correct,
+    but it conflates an environmental fault with a real one and a long run then bleeds verdicts.
+    OBSERVED twice on 2026-09-04, on a LEASED simulator, after ~6 consecutive test-runner
+    installs onto the same device:
+
+        FBSOpenApplicationErrorDomain Code=6 "Application failed preflight checks"
+        reason: Busy
+
+    Re-running the identical mutation on a freshly leased device returned KILLED both times, so
+    the device degrades with repeated installs rather than the mutation being untestable.
+    """
+    log = _log(logpath)
+    return ("Application failed preflight checks" in log
+            or "Failed to install or launch the test runner" in log)
+
+
 def tests_ran(logpath):
     """Proof the SUITE ACTUALLY EXECUTED, which is a different fact from 'the build failed'.
 
@@ -161,6 +196,7 @@ def main():
     # 5.9s, so the CLOCK saw it before any grep did. Recording per-mutation elapsed makes that
     # visible without needing to know in advance what to grep for.
     timings: dict[str, float | None] = {}
+    retried: list[str] = []   # mutations that needed a device recycle -- reported, never hidden
     ledger = pathlib.Path(args.out).with_suffix(".jsonl")
     done = {}
     if ledger.exists():
@@ -233,8 +269,24 @@ def main():
             rc = run_suite(log, args.plan, lane)
             recompiled = compiled(log, pathlib.Path(m["file"]).name)
             ran = tests_ran(log)
+            # A simulator that refuses to launch the app is an environmental fault, not a
+            # verdict about this mutation. Recycle the device and try ONCE more -- narrowly, on
+            # that one signature, never as a general retry. A blanket retry would hide real
+            # flakiness; this one is scoped to a condition that has been reproduced and whose
+            # fix (a fresh device) has been shown to work.
+            if not ran and simulator_refused_to_launch(log):
+                print(f"[{i}/{len(muts)}] {m['label']}: simulator refused to launch the app — "
+                      f"recycling the device and retrying once", flush=True)
+                recycle_simulator(lane)
+                rc = run_suite(log, args.plan, lane)
+                recompiled = compiled(log, pathlib.Path(m["file"]).name)
+                ran = tests_ran(log)
+                retried.append(m["label"])
+
             if not recompiled:
                 verdict, note = "INVALID", "mutation did not reach the compiler — result means nothing"
+            elif not ran and simulator_refused_to_launch(log):
+                verdict, note = "INVALID", "simulator refused to launch the app twice — environmental, not the mutation"
             elif not ran:
                 verdict, note = "INVALID", "no test ever executed — a build failure is not a kill"
             elif rc != 0:
@@ -284,6 +336,15 @@ def main():
                     f"agent's work, delete the ledger and re-run so every verdict is measured fresh.\n\n")
         else:
             f.write("Every verdict in this table was measured by this run.\n\n")
+        if retried:
+            f.write(f"⚠️ **{len(retried)} mutation(s) needed a simulator recycle before a verdict "
+                    f"could be measured.** The device refused to launch the app "
+                    f"(`Application failed preflight checks: Busy`) after repeated test-runner "
+                    f"installs; a shutdown/boot cleared it. The verdicts below are real, but the "
+                    f"machine was degrading while they were taken:\n\n")
+            for label in retried:
+                f.write(f"- {label}\n")
+            f.write("\n")
         f.write("| mutation | verdict | expected | measured | note |\n|---|---|---|---|---|\n")
         for label, verdict, note in results:
             exp = expected.get(label, "KILLED")
@@ -306,6 +367,12 @@ def main():
                 f.write(f"- **{label}** — {seconds:.0f}s, {seconds/median:.1f}x the median\n")
     print(f"\n{len(killed)} killed · {len(survivors)} survived · {len(invalid)} invalid/skipped · "
           f"{len(unexpected)} UNEXPECTED → {args.out}")
+    # A retry that nobody sees is a retry that hides a degrading machine. Say it every time.
+    if retried:
+        print(f"  ⚠️  {len(retried)} mutation(s) needed a simulator recycle before a verdict "
+              f"could be measured — the device degrades with repeated installs:")
+        for label in retried:
+            print(f"       - {label}")
     for label, verdict, note in unexpected:
         print(f"  ⚠️  {label}: {verdict} (expected {expected.get(label,'KILLED')})")
     for label, seconds in slow:
