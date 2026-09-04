@@ -25,8 +25,17 @@ except Exception:
 # under a home directory — it bakes the macOS username into the repo, and it breaks the
 # moment the checkout moves.
 REPO = pathlib.Path(__file__).resolve().parent.parent
-DD   = os.environ.get("SPEEDREAD_DERIVED_DATA_PATH", "/Volumes/Crucial X8/DerivedData/speedread-tests")  # external volume, no username
-SPM  = os.environ.get("SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH", "/Volumes/Crucial X8/dev-caches/spm-clones")
+# TEMPORARY, 2026-09-04: this defaulted to /Volumes/Crucial X8/DerivedData/speedread-tests.
+# xcodebuild HANGS when DerivedData lives on that volume -- measured here, same repo and commit,
+# one variable changed: X8 gave 23m25s elapsed for 6.89s CPU and ZERO tests; the boot volume gave
+# ** TEST SUCCEEDED **. A default that hangs for 20+ minutes with no error is worse than a default
+# that is merely wrong, so the default moves rather than relying on every caller to override it.
+# Revert to the external volume once the X8 is trusted again. See docs/testing/TDD-MISSION.md 5z.
+DD   = os.environ.get("SPEEDREAD_DERIVED_DATA_PATH",
+                      os.path.join(os.environ.get("TMPDIR", "/tmp"), "speedread-derived-data"))
+# Same volume, same reason as DD above: SPM clones are walked during package resolution.
+SPM  = os.environ.get("SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH",
+                      os.path.join(os.environ.get("TMPDIR", "/tmp"), "speedread-spm-clones"))
 def _dest(lane):
     """Read destinations LAZILY. They were read at import once, which meant --restore —
     the one path that runs after a crash, needing no simulator at all — died with a
