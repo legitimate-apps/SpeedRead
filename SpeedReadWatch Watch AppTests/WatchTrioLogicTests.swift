@@ -128,3 +128,13 @@ struct WatchAppLaunchLogicTests {
         #expect(book.dateAdded == Date(timeIntervalSince1970: 0))
     }
 }
+
+@Suite("Watch launch destination")
+struct WatchLaunchDestinationTests {
+    @Test("Seeded-library argument shows the library, not the fixture surface")
+    func seededLibraryArgumentShowsTheLibrary() {
+        #expect(WatchAppLaunchLogic.destination(arguments: ["--ui-test-seeded-library"]) == .seededLibrary)
+        #expect(WatchAppLaunchLogic.destination(arguments: []) == .library)
+        #expect(WatchAppLaunchLogic.destination(arguments: ["--ui-test-crown-direction"]) == .crownDirectionFixture)
+    }
+}

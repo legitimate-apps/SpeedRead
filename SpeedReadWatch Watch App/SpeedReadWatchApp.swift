@@ -7,8 +7,9 @@ struct SpeedReadWatch_Watch_AppApp: App {
 
     init() {
         #if DEBUG
-        launchesCrownDirectionFixture = WatchAppLaunchLogic.destination() == .crownDirectionFixture
-        if launchesCrownDirectionFixture {
+        let destination = WatchAppLaunchLogic.destination()
+        launchesCrownDirectionFixture = destination == .crownDirectionFixture
+        if destination != .library {
             let book = WatchAppLaunchLogic.crownDirectionFixture()
             syncService.library = WatchLibrary(books: [book], currentBookId: book.id)
         }

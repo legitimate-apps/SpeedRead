@@ -8,6 +8,13 @@ struct WatchLibraryView: View {
     var body: some View {
         NavigationStack {
             WatchLibraryContent(syncService: syncService, showRSVP: $showRSVP)
+            // One presenter for one binding. Attached to a Section inside a List, this modifier
+            // was applied per row host on watchOS 26: two hosts raced to present, UIKit refused
+            // the second ("already presenting"), and the user got an empty, undismissable sheet.
+            .sheet(isPresented: $showRSVP) {
+                WatchRSVPView()
+                    .environmentObject(syncService)
+            }
             .navigationTitle("Library")
             .containerBackground(Color.inkBlack.gradient, for: .navigation)
             .navigationDestination(for: WatchBook.self) { book in
@@ -75,14 +82,11 @@ struct WatchLibraryContent: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("watch-now-reading")
                     .listRowBackground(Color.walnut.opacity(0.5))
                 } header: {
                     Text("Now Reading")
                         .foregroundStyle(Color.agedGold)
-                }
-                .sheet(isPresented: $showRSVP) {
-                    WatchRSVPView()
-                        .environmentObject(syncService)
                 }
             }
 

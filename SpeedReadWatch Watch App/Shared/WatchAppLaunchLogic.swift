@@ -3,16 +3,22 @@ import Foundation
 /// Pure launch decisions for the watch app, including the DEBUG crown-direction UI fixture.
 enum WatchAppLaunchLogic {
     static let crownDirectionArgument = "--ui-test-crown-direction"
+    /// Seeds the fixture book into the library and shows the LIBRARY, not the RSVP surface, so a
+    /// UI test can walk the real path a user takes: tap Now Reading -> RSVP presents.
+    static let seededLibraryArgument = "--ui-test-seeded-library"
 
     enum Destination: Equatable {
         case library
+        case seededLibrary
         case crownDirectionFixture
     }
 
     static func destination(
         arguments: [String] = ProcessInfo.processInfo.arguments
     ) -> Destination {
-        arguments.contains(crownDirectionArgument) ? .crownDirectionFixture : .library
+        if arguments.contains(crownDirectionArgument) { return .crownDirectionFixture }
+        if arguments.contains(seededLibraryArgument) { return .seededLibrary }
+        return .library
     }
 
     static func crownDirectionFixture() -> WatchBook {

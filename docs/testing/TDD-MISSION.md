@@ -1849,3 +1849,36 @@ library and nothing else; launch 3 shows the native StoreKit rating sheet over t
 `reviewPromptLaunchCount` in the app's Preferences plist reads `3` afterwards. Frames in
 `docs/testing/evidence/leg15-*.jpg`. The unit tests pin the decision; this pins the wiring the
 unit tests cannot see.
+
+## 5af. The watch could not open a book — found by taking a screenshot (2026-09-04)
+
+Recapturing App Store screenshots meant walking the watch the way a user does: pair, receive a
+book, tap **Now Reading**. What appeared was a sheet with system chrome and nothing in it — no word,
+no play button, no WPM — and Close did nothing. The a11y tree carried **three** "Close" buttons.
+The watch log carried the cause:
+
+```
+UIKit:Presentation  Attempt to present <PresentationHostingController> on <SPHostingViewController>
+                    … which is already presenting <PresentationHostingController: 0x10585b200>.
+```
+
+`.sheet(isPresented: $showRSVP)` was attached to a `Section` inside the library `List`. On
+watchOS 26 that modifier is applied per row host, so two hosts raced to present one binding; the
+phantom won and UIKit refused the real RSVP sheet. Present since `6ea9479`, long before this mission.
+
+**Every route to reading on the watch goes through that sheet.** The detail view's "Read" button
+only selects the book and pops back to the library. So the shipped watch reading flow is broken on
+current watchOS, and nothing knew: the only watch UI test launches straight into RSVP through the
+`--ui-test-crown-direction` fixture and never touches the library. This is the gap
+`project_speedread_2026_08_state` recorded as "watch E2E still unverified", now with a body.
+
+**Red first, for the right reason.** A new `--ui-test-seeded-library` destination seeds the same
+fixture book but shows the *library*; `NowReadingOpensRSVPUITests` taps the row and asserts
+`watch-rsvp-position` exists. First run failed on its own precondition (the row's label is
+"title, 50%", not the bare title) — a red that fails before reaching the claim proves nothing, so
+the row got `watch-now-reading` and the run was repeated until it failed on the assertion that
+matters. Then the sheet moved to the navigation content: one presenter, one binding.
+
+Lesson worth its own line: **a screenshot is a behavioural test with a human oracle.** The unit
+suite was at 84% attributable and 373 tests when this was found, and none of them could see it,
+because presentation is a UIKit fact, not a SwiftUI-body fact.
