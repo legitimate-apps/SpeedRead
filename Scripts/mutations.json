@@ -204,5 +204,47 @@
     "old": "        offsets.map { displayedBookmarks[$0] }",
     "new": "        offsets.reversed().map { displayedBookmarks[$0] }",
     "label": "Annotations: bookmark deletion returns offsets in reverse order"
+  },
+  {
+    "file": "SpeedRead/Views/Server/RemoteBookDetailLogic.swift",
+    "old": "        if SupportedFormat(fileExtension: existingExtension) != nil {",
+    "new": "        if !existingExtension.isEmpty {",
+    "label": "Formats: ensureExtension reverts to 'any extension counts' (the original bug)"
+  },
+  {
+    "file": "SpeedRead/Views/Server/RemoteBookDetailLogic.swift",
+    "old": "        guard acquisitions.indices.contains(index) else {",
+    "new": "        guard index < acquisitions.count else {",
+    "label": "Formats: selection guard checks only the upper bound (negative index)"
+  },
+  {
+    "file": "SpeedRead/Views/Server/RemoteBookDetailLogic.swift",
+    "old": "        let usableBase = base.isEmpty ? \"Untitled\" : base",
+    "new": "        let usableBase = base",
+    "label": "Formats: empty filename+title yields a bare dotfile again"
+  },
+  {
+    "file": "SpeedRead/Views/Server/RemoteBookDetailLogic.swift",
+    "old": "            .replacingOccurrences(of: \"/\", with: \"_\")",
+    "new": "            .replacingOccurrences(of: \"/\", with: \"/\")",
+    "label": "Formats: path separators in a title are no longer sanitised"
+  },
+  {
+    "file": "SpeedRead/Services/SupportedFormat.swift",
+    "old": "            return [\"txt\", \"text\"]",
+    "new": "            return [\"txt\"]",
+    "label": "Formats: .text stops resolving to plain text"
+  },
+  {
+    "file": "SpeedRead/Services/SupportedFormat.swift",
+    "old": "            return [\"application/rtf\", \"text/rtf\"]",
+    "new": "            return [\"application/rtf\"]",
+    "label": "Formats: text/rtf stops resolving to rich text"
+  },
+  {
+    "file": "SpeedRead/Services/SupportedFormat.swift",
+    "old": "        let normalizedExtension = fileExtension.lowercased()",
+    "new": "        let normalizedExtension = fileExtension",
+    "label": "Formats: extension matching becomes case-sensitive"
   }
 ]
