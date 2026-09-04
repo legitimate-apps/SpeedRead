@@ -16,27 +16,10 @@ struct RemoteBookDetailView: View {
     @State private var downloadError: String?
     @State private var coverImage: Image?
 
-    private var supportedAcquisitions: [OPDSAcquisition] {
-        entry.acquisitions.filter {
-            switch $0.mimeType {
-            case "application/epub+zip",
-                 "application/pdf",
-                 "text/plain",
-                 "application/rtf",
-                 "text/rtf": return true
-            default: return false
-            }
-        }
-    }
-
-    private var selectedAcquisition: OPDSAcquisition? {
-        guard selectedAcquisitionIndex < supportedAcquisitions.count else {
-            return supportedAcquisitions.first
-        }
-        return supportedAcquisitions[selectedAcquisitionIndex]
-    }
-
     var body: some View {
+        let supportedAcquisitions = RemoteBookDetailLogic.supportedAcquisitions(
+            from: entry.acquisitions
+        )
         ZStack {
             themeManager.currentTheme.backgroundColor.ignoresSafeArea()
             ScrollView {
@@ -113,7 +96,14 @@ struct RemoteBookDetailView: View {
     }
 
     private var downloadButton: some View {
-        Button {
+        let supportedAcquisitions = RemoteBookDetailLogic.supportedAcquisitions(
+            from: entry.acquisitions
+        )
+        let selectedAcquisition = RemoteBookDetailLogic.resolvedAcquisition(
+            at: selectedAcquisitionIndex,
+            in: supportedAcquisitions
+        )
+        return Button {
             Task { await performDownload() }
         } label: {
             HStack {
@@ -157,13 +147,23 @@ struct RemoteBookDetailView: View {
     }
 
     private func performDownload() async {
-        guard let acquisition = selectedAcquisition else { return }
+        let supportedAcquisitions = RemoteBookDetailLogic.supportedAcquisitions(
+            from: entry.acquisitions
+        )
+        guard let acquisition = RemoteBookDetailLogic.resolvedAcquisition(
+            at: selectedAcquisitionIndex,
+            in: supportedAcquisitions
+        ) else { return }
         downloading = true
         downloadError = nil
         let client = OPDSClient()
         do {
             let payload = try await client.download(from: acquisition.url, on: server)
-            let filename = ensureExtension(payload.filename, mimeType: acquisition.mimeType)
+            let filename = RemoteBookDetailLogic.ensureExtension(
+                payload.filename,
+                mimeType: acquisition.mimeType,
+                fallbackTitle: entry.title
+            )
             let importer = DocumentImporter(modelContext: modelContext)
             let book = try importer.importData(payload.data, filename: filename)
             onAdded(book.title)
@@ -176,26 +176,5 @@ struct RemoteBookDetailView: View {
             downloadError = error.localizedDescription
         }
         downloading = false
-    }
-
-    /// CWNG sometimes serves files without a proper extension on the filename
-    /// (e.g. trailing-slash URLs). The importer routes on extension, so we
-    /// patch one in from the mime type when needed.
-    private func ensureExtension(_ filename: String, mimeType: String) -> String {
-        let nsName = filename as NSString
-        let ext = nsName.pathExtension.lowercased()
-        if !ext.isEmpty {
-            return filename
-        }
-        let mimeExt: String
-        switch mimeType {
-        case "application/epub+zip": mimeExt = "epub"
-        case "application/pdf": mimeExt = "pdf"
-        case "application/rtf", "text/rtf": mimeExt = "rtf"
-        case "text/plain": mimeExt = "txt"
-        default: mimeExt = "bin"
-        }
-        let base = filename.isEmpty ? entry.title.replacingOccurrences(of: "/", with: "_") : filename
-        return "\(base).\(mimeExt)"
     }
 }
