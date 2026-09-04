@@ -1659,3 +1659,67 @@ ask of any config that gates execution — workflow, launchd plist, test plan, X
 "does it look right" but **"what would tell me if this file stopped being honoured at all?"** If
 the answer is "the thing it configures would go quiet", that is not a signal, and a validator that
 runs outside it is owed.
+
+## 5ac. Leg 13 mutation results — 6/6 killed, and three attempts to get there honestly
+
+```
+6 killed · 0 survived · 0 invalid/skipped · 0 UNEXPECTED · 0 replayed
+elapsed: 51s 37s 33s 35s 34s 36s   (no outlier — no mutant went off doing hidden I/O)
+```
+
+`AnnotationListLogic`'s ordering (both overloads), both 1-based labels, the U+2013 en-dash, and
+snapshot-resolved deletion are all genuinely covered. Getting that number took three runs, and each
+failure was a different honest refusal by the harness rather than a flake to shrug at.
+
+### Attempt 1 — OS-killed mid-mutation, and it left a live mutation in the tree
+
+Memory pressure reaped the run between mutations. `AnnotationListLogic.ordered(_ highlights:)` was
+left with its comparison flipped in the working tree — **a one-line diff indistinguishable from a
+deliberate edit of mine.** A `git add` before looking would have committed a reversed comparison
+under my own name.
+
+`--restore` put it back in one command and **needed no simulator**. That is the design rule
+`[[reference-mutation-gate-design]]` already recorded — *the recovery path must not need what the
+normal path needs* — being exercised for the first time since it was written. An earlier version
+read `SPEEDREAD_IOS_DESTINATION` at import, so `--restore`, the one path that runs after a crash,
+died with a `KeyError` before it could restore anything.
+
+**Standing rule: after any killed run, `--restore` before anything else, and certainly before
+`git add`.**
+
+### Attempt 2 — 6 killed, but one verdict was REPLAYED, not measured
+
+The gate resumed from its JSONL ledger and printed
+`KILLED (REPLAYED from ledger, not re-measured)`. **It labelled itself**, unprompted, which is the
+honest-third-verdict design working — a gate that silently replayed would have handed me "6 killed"
+with one verdict laundered from a run the OS had killed. I deleted the ledger rather than report it.
+
+### Attempt 3 — one INVALID, and the cause was my own shortcut
+
+```
+[3/6] position label drops the 1-based offset:
+      INVALID — no test ever executed — a build failure is not a kill
+```
+
+Cause, read from `/tmp/mut-3.log` rather than assumed:
+
+```
+Simulator device failed to launch com.legitimateapps.SpeedRead
+  FBSOpenApplicationErrorDomain Code=6 "Application failed preflight checks"
+  reason: Busy
+```
+
+Not a compile error, nothing to do with the mutation. **I had passed a NAME-based destination
+(`name=iPhone 17 Pro`) instead of leasing a simulator**, so the run raced whatever else on this
+shared machine wanted that device. The house rule exists for exactly this and I skipped it for
+convenience.
+
+> A two-verdict gate would have recorded that build failure as a pass. The INVALID verdict's second
+> real catch — see §5u for its first.
+
+Attempt 4 leased `cc-speedread-i17p-1ec8`, deleted the ledger, and measured all six fresh. Lease
+released; zero simulators booted afterwards.
+
+**What this run does NOT establish:** `BookmarkListView` and `HighlightListView` still have no
+behavioural tests of their own. The mutations cover the extracted logic, not the views' rendering.
+REACH continues to carry that as `40 of 55 files named`.
