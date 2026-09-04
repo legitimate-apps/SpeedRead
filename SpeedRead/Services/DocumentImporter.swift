@@ -1,7 +1,6 @@
 //  DocumentImporter.swift
 import Foundation
 import SwiftData
-import UniformTypeIdentifiers
 
 struct DocumentImporter {
     let modelContext: ModelContext
@@ -24,26 +23,25 @@ struct DocumentImporter {
     }
 
     private func importBytes(_ data: Data, filename: String) throws -> Book {
-        let ext = (filename as NSString).pathExtension.lowercased()
-
-        let extractor: TextExtractor
-        switch ext {
-        case "pdf":
-            extractor = PDFExtractor()
-        case "epub":
-            extractor = EPUBExtractor()
-        case "txt", "text":
-            extractor = TextFileExtractor()
-        case "rtf":
-            extractor = RTFExtractor()
-        default:
+        let fileExtension = (filename as NSString).pathExtension
+        guard let format = SupportedFormat(fileExtension: fileExtension) else {
             throw ExtractionError.unsupportedFormat
         }
 
+        let extractor: TextExtractor
+        switch format {
+        case .pdf:
+            extractor = PDFExtractor()
+        case .epub:
+            extractor = EPUBExtractor()
+        case .plainText:
+            extractor = TextFileExtractor()
+        case .richText:
+            extractor = RTFExtractor()
+        }
+
         let result = try extractor.extractText(from: data)
-        let defaultTitle = ext.isEmpty
-            ? filename
-            : filename.replacingOccurrences(of: ".\(ext)", with: "")
+        let defaultTitle = (filename as NSString).deletingPathExtension
         let title = result.title ?? defaultTitle
         let author = result.author ?? "Unknown Author"
 

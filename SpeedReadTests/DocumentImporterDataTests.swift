@@ -15,6 +15,23 @@ private func inMemoryContext() throws -> ModelContext {
 @Suite("DocumentImporter.importData")
 struct DocumentImporterDataTests {
 
+    /// `defaultTitle` stripped the extension with
+    /// `filename.replacingOccurrences(of: ".\(ext)")` where `ext` had already been lowercased,
+    /// so a server sending "Dracula.TXT" matched nothing and the extension stayed in the book's
+    /// title. Servers do send uppercase extensions; the routing already handled them, only the
+    /// title derivation did not.
+    @Test func anUppercaseExtensionIsStrippedFromTheDerivedTitle() throws {
+        let context = try inMemoryContext()
+        let importer = DocumentImporter(modelContext: context)
+        // No "Title:" header, so the importer must fall back to deriving from the filename.
+        let data = Data("Just some body text with no title header at all.".utf8)
+
+        let book = try importer.importData(data, filename: "Dracula.TXT")
+
+        #expect(book.title == "Dracula")
+        #expect(book.title.lowercased().contains(".txt") == false)
+    }
+
     @Test func importsPlainTextFromData() throws {
         let context = try inMemoryContext()
         let importer = DocumentImporter(modelContext: context)
