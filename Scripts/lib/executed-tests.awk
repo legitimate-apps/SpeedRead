@@ -27,9 +27,16 @@ function biggest(pattern,   where, len, n) {
   if (n > total) total = n
 }
 
+# Every pattern below is copied from a REAL captured log in this repo, not written from
+# memory. The first version of this file invented the Swift Testing format as
+# "N tests passed" and MISSED the format this project actually emits -- "N tests in M
+# suites passed" -- so the parser returned 0 for a perfectly healthy hermetic lane. The
+# fixtures in executed-tests-control.sh had the same invented string, so the control
+# confirmed the parser against fabricated ground truth and reported PASS.
 {
-  biggest("[0-9]+ tests?,")              # XCTest:        "Executed 42 tests, with 0 failures"
-  biggest("[0-9]+ tests? (passed|failed)")  # Swift Testing: "Test run with 351 tests passed"
+  biggest("[0-9]+ tests?,")                    # XCTest:        "Executed 4 tests, with 2 failures"
+  biggest("[0-9]+ tests? in [0-9]+ suites?")   # Swift Testing: "Test run with 144 tests in 20 suites passed"
+  biggest("[0-9]+ tests? (passed|failed)")     # Swift Testing without a suite count
 }
 
 END { print total + 0 }

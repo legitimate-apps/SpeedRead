@@ -10,6 +10,13 @@
 # literal bug that shipped here produced 1 for every input, including an empty file; a
 # control that checked "is the output a number?" would have passed it.
 #
+# EVERY fixture below is a verbatim line from a real captured log in this repo. The first
+# version of this file invented the Swift Testing summary as "Test run with 351 tests passed",
+# a format this project never emits -- the real one is "Test run with 144 tests in 20 suites
+# passed". The parser missed it and returned 0 for a healthy lane, and this control reported
+# PASS, because both the parser and its control were written from the same wrong memory.
+# A control whose ground truth is invented tests only that the author was self-consistent.
+#
 # Cheap, hermetic, no simulator, no build. Runs in CI alongside the other honesty gates.
 
 set -euo pipefail
@@ -63,7 +70,7 @@ Touch /Volumes/X8/DerivedData/Build/Products/Debug-iphonesimulator/App.app
 '
 
 check "a lane that ran zero tests is reported as zero, not as success" 0 \
-'Test run with 0 tests passed after 0.001 seconds.
+'✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
 ** TEST SUCCEEDED **
 '
 
@@ -73,29 +80,42 @@ check "XCTest summary line" 42 \
 'Executed 42 tests, with 0 failures (0 unexpected) in 1.234 (1.235) seconds
 '
 
-check "Swift Testing summary line" 351 \
-'✔ Test run with 351 tests passed after 12.345 seconds.
+# VERBATIM from docs/testing/COVERAGE-BASELINE.md -- what the iOS hermetic lane really prints.
+# This is the format the first version of this control invented and therefore did not test.
+check "Swift Testing summary, the format this project actually emits" 144 \
+'✔ Test run with 144 tests in 20 suites passed after 0.776 seconds.
 '
 
-check "singular test is not missed by the plural pattern" 1 \
-'Executed 1 test, with 0 failures (0 unexpected) in 0.101 (0.102) seconds
+# VERBATIM from the same file -- the watchOS hermetic lane. Note the SINGULAR "suite".
+check "singular suite is not missed by the plural pattern" 4 \
+'✔ Test run with 4 tests in 1 suite passed after 0.005 seconds.
 '
 
-check "a failing run still reports how many tests executed" 17 \
-'✘ Test run with 17 tests failed after 3.210 seconds.
+# VERBATIM from docs/testing/READING-TDD-EVIDENCE.md -- a red run still reports its count.
+check "a failing Swift Testing run still reports how many tests executed" 11 \
+'✘ Test run with 11 tests in 1 suite failed after 0.027 seconds with 29 issues.
+'
+
+# VERBATIM from the archived iOS UI lane log on the X8 (20260901-162224).
+check "XCTest singular test" 1 \
+'Executed 1 test, with 0 failures (0 unexpected)
+'
+
+check "XCTest plural with failures" 4 \
+'Executed 4 tests, with 2 failures (0 unexpected)
 '
 
 # A single xcodebuild log carries per-suite lines AND a final total; the largest is the total.
-check "the largest count wins across many summary lines" 351 \
+check "the largest count wins across many summary lines" 144 \
 'Executed 12 tests, with 0 failures (0 unexpected) in 0.5 (0.5) seconds
 Executed 40 tests, with 0 failures (0 unexpected) in 1.5 (1.5) seconds
-✔ Test run with 351 tests passed after 12.345 seconds.
+✔ Test run with 144 tests in 20 suites passed after 0.776 seconds.
 '
 
 # Both harnesses in one log, which is what the iOS lane actually produces.
 check "mixed XCTest and Swift Testing output takes the true maximum" 362 \
 'Executed 11 tests, with 0 failures (0 unexpected) in 0.4 (0.4) seconds
-✔ Test run with 362 tests passed after 30.0 seconds.
+✔ Test run with 362 tests in 21 suites passed after 30.0 seconds.
 '
 
 # --- Report --------------------------------------------------------------------------------

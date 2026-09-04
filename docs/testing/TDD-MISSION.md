@@ -1267,8 +1267,52 @@ building, the next question is *which other surfaces have this hole*, asked imme
 **The control was verified by breaking the parser.** Reintroducing the exact regex-literal bug made
 6 of 10 checks fail, every one returning 1. The 4 that still passed were the empty log and the
 no-test-summary logs — **a control built only from those would have certified the broken parser.**
-The discriminating checks are the ones asserting 42, 351, 17 and 362: a specific number, never a
-property. That is the difference between a control and a formality.
+The discriminating checks are the ones asserting a specific number, never a property. That is the
+difference between a control and a formality.
+
+### And then the control certified a parser that could not read this project's own logs
+
+Thirty minutes after writing the above, while looking for a real log to check the *watchOS* format
+against, I found this in `docs/testing/COVERAGE-BASELINE.md`:
+
+```text
+✔ Test run with 144 tests in 20 suites passed after 0.776 seconds.
+✔ Test run with 4 tests in 1 suite passed after 0.005 seconds.
+```
+
+**The parser returned 0 for that line.** My Swift Testing pattern was `[0-9]+ tests? (passed|failed)`
+— written from memory, matching `"351 tests passed"`. This project emits `"144 tests in 20 suites
+passed"`, where `tests` and `passed` are five words apart. So the new assertion in `coverage.sh`
+would have failed **every healthy hermetic run** with "exited 0 but executed 0 tests".
+
+**The control did not catch it, because the control's fixtures were invented too.** I wrote
+`'✔ Test run with 351 tests passed after 12.345 seconds.'` as the fixture — the same wrong format,
+from the same wrong memory. Parser and control agreed perfectly and were both wrong.
+
+> A control whose ground truth is authored rather than sampled tests only that the author was
+> self-consistent. It is not evidence about the system. **Fixtures must be pulled from real captured
+> output** — and this repo had four such logs sitting in `docs/testing/` and on the X8 the whole time.
+
+This is worse than the bugs it was built to catch, because it wears their defeat as a credential:
+I had just demonstrated the control firing on a broken parser, published that as proof, and the
+demonstration was sound *within* the fabricated world both artefacts shared.
+
+Fixed by rebuilding every fixture verbatim from real logs (`COVERAGE-BASELINE.md`,
+`READING-TDD-EVIDENCE.md`, and the archived iOS UI lane log on the X8), adding the
+`[0-9]+ tests? in [0-9]+ suites?` pattern, and re-verifying against both bugs:
+
+| injected bug | caught? | how it presented |
+|---|---|---|
+| missing `in N suites` pattern (mine) | yes, 4 checks | three returned **0**; one returned **40** instead of 144 |
+| regex literals as function args (§5p's) | yes, 9 checks | every one returned **1** |
+
+The 40 is the one to remember: a plausible non-zero, from a log that *did* contain other test
+counts. A control asserting "a number came out" passes it. Only the expected count catches it.
+
+**Caught by luck of sequencing, not by design.** Sol's leg was mid-build against this very script;
+`awk -f` re-reads the file per invocation, so fixing the `.awk` alone (never the running
+`coverage.sh`, which bash reads incrementally) took effect before the lane finished. Had I looked
+for the watch format ten minutes later, I would have reported a healthy leg as a broken one.
 
 ## 5x. Leg 13 — two concepts, four implementations, and a delete that shifts under itself
 
@@ -1321,7 +1365,29 @@ unifying the two surfaces' deliberately different visual designs, and forbids ad
 reader — whether the reader *should* delete is a product question for the operator, not one to
 answer by implication.
 
-**Found while scoping and deferred to leg 14:** `RemoteBookDetailView.ensureExtension` routes on
-`NSString.pathExtension`, so a filename containing a period — "Book v1.2", "Vol. 2", an author
-initial — reports a non-empty extension and never gets its mime-derived one patched in. The
-importer then mis-routes it. No test names that file today.
+**Found while scoping and deferred to leg 14 — with my first framing of it measured and corrected.**
+`RemoteBookDetailView.ensureExtension` returns the filename unchanged whenever
+`NSString.pathExtension` is non-empty, so a server-supplied filename with no real extension but a
+dot in it never gets its mime-derived extension patched in, and `DocumentImporter` (which routes on
+extension) mis-routes it. The user sees an extraction failure rather than "unsupported format".
+
+I was about to write "Vol. 2", "J. R. R. Tolkien", "A Tale of Two Cities. Abridged" into the spec as
+triggering cases. MEASURED instead (`swift` one-file probe, 2026-09-03):
+
+| filename | `pathExtension` | triggers |
+|---|---|---|
+| `Book v1.2` | `"2"` | **yes** |
+| `Vol. 2` | `""` | no |
+| `J. R. R. Tolkien - The Hobbit` | `""` | no |
+| `A Tale of Two Cities. Abridged` | `""` | no |
+| `file.` | `""` | no |
+| `Dracula.epub` | `"epub"` | no — correct behaviour |
+
+`pathExtension` excludes a trailing token containing a space, so **three of my four examples were
+wrong** and only the version-number shape triggers it. The defect is real and narrower than I had
+it: it needs a dot followed by a space-free token — `Book v1.2`, `Novel.Part2`, `The Hobbit.1937`.
+
+Had I not measured, three false cases would have gone into a brief as the spec's premise, and the
+delegate could not have caught them because I supplied the oracle — exactly
+`[[reference-briefs-carry-the-managers-oracle]]`. The probe cost one `swift` invocation.
+No test names that file today.
