@@ -1,0 +1,24 @@
+{
+  "errors": [],
+  "fontWidths": [
+    1083.69140625,
+    951.9541015625
+  ],
+  "screen": {
+    "width": 1029.4375,
+    "height": 2236.671875,
+    "naturalWidth": 1320,
+    "naturalHeight": 2868
+  },
+  "headlineBottom": 445.46875,
+  "deviceTop": 685.015625,
+  "bandTop": 2438.125,
+  "output": "out/iphone/02.png",
+  "pixels": [
+    1290,
+    2796
+  ],
+  "raw": "raw/iphone/04-rsvp-paused.png",
+  "raw_sha256": "b00ea9696dc165acff99bc48133b44e0cba87a7ae8cf6eff07fce70a2e9ee001",
+  "png_sha256": "302e2e019b954f4a5089e47548a024fd7e8de51b403be9bdee4fbeef56bad701"
+}

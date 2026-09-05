@@ -1,0 +1,24 @@
+{
+  "errors": [],
+  "fontWidths": [
+    1083.69140625,
+    951.9541015625
+  ],
+  "screen": {
+    "width": 1664.203125,
+    "height": 2220.015625,
+    "naturalWidth": 2048,
+    "naturalHeight": 2732
+  },
+  "headlineBottom": 576.671875,
+  "deviceTop": 650.203125,
+  "bandTop": 2357.71875,
+  "output": "out/ipad/05.png",
+  "pixels": [
+    2048,
+    2732
+  ],
+  "raw": "raw/ipad/03-reader-night.png",
+  "raw_sha256": "e1cde638010b90edee3306dcf735f6d9ee0ff04668fd95920345cff0b11cd0a9",
+  "png_sha256": "b189b0fe8cbcbb44ab12f5b6317ab83087443b07b0c7c747bdd1478eb1d34500"
+}

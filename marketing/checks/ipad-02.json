@@ -1,0 +1,24 @@
+{
+  "errors": [],
+  "fontWidths": [
+    1083.69140625,
+    951.9541015625
+  ],
+  "screen": {
+    "width": 1664.203125,
+    "height": 2220.015625,
+    "naturalWidth": 2048,
+    "naturalHeight": 2732
+  },
+  "headlineBottom": 576.671875,
+  "deviceTop": 650.203125,
+  "bandTop": 2357.71875,
+  "output": "out/ipad/02.png",
+  "pixels": [
+    2048,
+    2732
+  ],
+  "raw": "raw/ipad/04-rsvp-paused.png",
+  "raw_sha256": "c36610fc1d5965afaa27a452036a9e8703d62017f2dbe1ec62eadb3ddd07ee53",
+  "png_sha256": "5d7b5be399316fa74e299bac71578a501d766f2c47fc9ef4c7ee83a2f20dae1d"
+}

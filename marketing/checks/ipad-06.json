@@ -1,0 +1,24 @@
+{
+  "errors": [],
+  "fontWidths": [
+    1083.69140625,
+    951.9541015625
+  ],
+  "screen": {
+    "width": 1664.203125,
+    "height": 2220.015625,
+    "naturalWidth": 2048,
+    "naturalHeight": 2732
+  },
+  "headlineBottom": 576.671875,
+  "deviceTop": 650.203125,
+  "bandTop": 2357.71875,
+  "output": "out/ipad/06.png",
+  "pixels": [
+    2048,
+    2732
+  ],
+  "raw": "raw/ipad/06-browse.png",
+  "raw_sha256": "f0cc3f074f26b75824d11f76d4e9d6ad3853d01dfaf27fda42123878f9188201",
+  "png_sha256": "3655a9a1fecf42b866a4ce75b5fc5943a39bebad67fe2bd9c70ea6ed17e2ae5e"
+}

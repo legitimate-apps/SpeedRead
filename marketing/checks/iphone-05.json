@@ -1,0 +1,24 @@
+{
+  "errors": [],
+  "fontWidths": [
+    1083.69140625,
+    951.9541015625
+  ],
+  "screen": {
+    "width": 1029.4375,
+    "height": 2236.671875,
+    "naturalWidth": 1320,
+    "naturalHeight": 2868
+  },
+  "headlineBottom": 445.46875,
+  "deviceTop": 685.015625,
+  "bandTop": 2438.125,
+  "output": "out/iphone/05.png",
+  "pixels": [
+    1290,
+    2796
+  ],
+  "raw": "raw/iphone/03-reader-night.png",
+  "raw_sha256": "b85dc8d8ad0223355aa7adfdb2f041783d3fa8a578e83bf6cf1564a31e126901",
+  "png_sha256": "666c15ebd37b637d6d722cd8b9ea43938f9b469e8050ab5a90cee28b91189428"
+}
