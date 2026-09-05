@@ -42,4 +42,26 @@ final class NowReadingOpensRSVPUITests: XCTestCase {
         )
         XCTAssertTrue(settings.isHittable, "Settings control must be hittable")
     }
+
+    /// RSVP is always a sheet in production, and a watchOS sheet supplies its own close control.
+    /// The surface drew a second one directly beneath it — hidden off-screen until the controls
+    /// row was fixed, then visible as a duplicate. One way to close, not two.
+    func testPresentedRSVPHasExactlyOneCloseControl() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-seeded-library"]
+        app.launch()
+
+        let nowReading = app.buttons["watch-now-reading"].firstMatch
+        XCTAssertTrue(nowReading.waitForExistence(timeout: 5))
+        nowReading.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["watch-rsvp-position"].waitForExistence(timeout: 5))
+
+        // watchOS lists the sheet's own close control more than once in the tree; that is the
+        // system's. The surface must contribute none of its own.
+        XCTAssertGreaterThanOrEqual(app.buttons.matching(identifier: "close-sheet").count, 1)
+        XCTAssertEqual(
+            app.buttons.matching(identifier: "xmark").count, 0,
+            "The surface must not draw its own close beneath the sheet's"
+        )
+    }
 }

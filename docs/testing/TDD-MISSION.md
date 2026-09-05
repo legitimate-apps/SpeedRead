@@ -1911,3 +1911,17 @@ you did not measure is a hypothesis. Measure the frame.
 
 Follow-up, not done here: `maxSideChars` is a constant. It should derive from available width so
 long words are shown rather than clipped at the edges on small screens.
+
+## 5ah. The controls fix exposed a second close button (2026-09-04)
+
+With the row on screen, the paused surface showed two X controls stacked at the top-left: the
+sheet's system close and the surface's own. In production RSVP is always presented as a sheet, so
+the surface's X was always a duplicate — invisible only because it had been laid out at x=−39.
+Explicit close and `onDisappear` commit the same position (`close` only marks the dismissal so the
+disappear path does not commit twice), so the X carried no behaviour the system control lacks.
+Red first: `testPresentedRSVPHasExactlyOneCloseControl`. First assertion was "exactly one" and
+would have failed forever — watchOS lists its own close control three times in the tree — so it
+became "the surface contributes zero `xmark`, the sheet contributes at least one." Removed the X,
+the `onClose` parameter, and the view's now-unused `dismiss`. Watch UI 4/4.
+
+Three findings from one screenshot pass (§5af, §5ag, §5ah), none reachable by a unit test.

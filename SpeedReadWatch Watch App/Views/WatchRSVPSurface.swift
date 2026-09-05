@@ -36,7 +36,6 @@ struct WatchRSVPSurface: View {
 
     var engine: RSVPEngine
     let onTogglePlayback: () -> Void
-    let onClose: () -> Void
     let onOpenSettings: () -> Void
 
     var body: some View {
@@ -67,17 +66,8 @@ struct WatchRSVPSurface: View {
                 }
             } else {
                 VStack(spacing: 0) {
+                    // The sheet supplies the close control; the surface supplies only settings.
                     HStack {
-                        Button(action: onClose) {
-                            Image(systemName: "xmark")
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(Color.rsvpText)
-                                .frame(width: 36, height: 36)
-                                .background(Color.walnut.opacity(0.6), in: Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Close")
-
                         Spacer()
 
                         Button(action: onOpenSettings) {

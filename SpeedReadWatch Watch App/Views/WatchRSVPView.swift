@@ -2,7 +2,6 @@ import SwiftUI
 
 struct WatchRSVPView: View {
     @EnvironmentObject var syncService: WatchSyncService
-    @Environment(\.dismiss) private var dismiss
 
     @State private var session = WatchRSVPSession()
     @State private var showSettings = false
@@ -20,10 +19,6 @@ struct WatchRSVPView: View {
         WatchRSVPSurface(
             engine: engine,
             onTogglePlayback: { sync(session.togglePlayback(book: currentBook)) },
-            onClose: {
-                sync(session.close(book: currentBook))
-                dismiss()
-            },
             onOpenSettings: {
                 session.prepareForSettings()
                 showSettings = true

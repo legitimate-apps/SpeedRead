@@ -16,7 +16,6 @@ struct WatchRSVPAccessibilityTests {
         let surface = WatchRSVPSurface(
             engine: engine,
             onTogglePlayback: {},
-            onClose: {},
             onOpenSettings: {}
         )
 
