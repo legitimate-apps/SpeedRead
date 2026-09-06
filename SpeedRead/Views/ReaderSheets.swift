@@ -62,8 +62,28 @@ struct ReaderBookmarkPicker: View {
     let onSelect: (Int) -> Void
     @Environment(\.dismiss) private var dismiss
 
+    func select(_ bookmark: Bookmark) {
+        onSelect(bookmark.wordIndex)
+    }
+
+    func orderedBookmarks() -> [Bookmark] {
+        AnnotationListLogic.ordered(book.bookmarks)
+    }
+
+    func rowLabel(for bookmark: Bookmark) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(bookmark.previewText)
+                .font(.system(size: 15, design: .serif))
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+            Text(AnnotationListLogic.positionLabel(wordIndex: bookmark.wordIndex))
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(.secondary)
+        }
+    }
+
     var body: some View {
-        let displayedBookmarks = AnnotationListLogic.ordered(book.bookmarks)
+        let displayedBookmarks = orderedBookmarks()
 
         NavigationStack {
             List {
@@ -73,18 +93,10 @@ struct ReaderBookmarkPicker: View {
                 } else {
                     ForEach(displayedBookmarks, id: \.id) { bookmark in
                         Button {
-                            onSelect(bookmark.wordIndex)
+                            select(bookmark)
                             dismiss()
                         } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(bookmark.previewText)
-                                    .font(.system(size: 15, design: .serif))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(2)
-                                Text(AnnotationListLogic.positionLabel(wordIndex: bookmark.wordIndex))
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            }
+                            rowLabel(for: bookmark)
                         }
                     }
                 }
@@ -104,8 +116,31 @@ struct ReaderHighlightPicker: View {
     let onSelect: (Int) -> Void
     @Environment(\.dismiss) private var dismiss
 
+    func select(_ highlight: Highlight) {
+        onSelect(highlight.startWordIndex)
+    }
+
+    func orderedHighlights() -> [Highlight] {
+        AnnotationListLogic.ordered(book.highlights)
+    }
+
+    func rowLabel(for highlight: Highlight) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(highlight.highlightedText)
+                .font(.system(size: 15, design: .serif))
+                .foregroundStyle(.primary)
+                .lineLimit(3)
+            Text(AnnotationListLogic.rangeLabel(
+                startWordIndex: highlight.startWordIndex,
+                endWordIndex: highlight.endWordIndex
+            ))
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(.secondary)
+        }
+    }
+
     var body: some View {
-        let displayedHighlights = AnnotationListLogic.ordered(book.highlights)
+        let displayedHighlights = orderedHighlights()
 
         NavigationStack {
             List {
@@ -115,21 +150,10 @@ struct ReaderHighlightPicker: View {
                 } else {
                     ForEach(displayedHighlights, id: \.id) { highlight in
                         Button {
-                            onSelect(highlight.startWordIndex)
+                            select(highlight)
                             dismiss()
                         } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(highlight.highlightedText)
-                                    .font(.system(size: 15, design: .serif))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(3)
-                                Text(AnnotationListLogic.rangeLabel(
-                                    startWordIndex: highlight.startWordIndex,
-                                    endWordIndex: highlight.endWordIndex
-                                ))
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            }
+                            rowLabel(for: highlight)
                         }
                     }
                 }

@@ -301,6 +301,10 @@ struct ReaderView: View {
     }
 
     private var headerSubtitle: String {
+        Self.readingEstimate(book: book, lastWPM: lastWPM)
+    }
+
+    static func readingEstimate(book: Book, lastWPM: Int) -> String {
         let percent = Int(book.progress * 100)
         let remainingWords = max(0, book.wordCount - book.lastReadWordIndex)
         let wpm = max(ReaderConfig.RSVP.minimumEstimateWPM, lastWPM)

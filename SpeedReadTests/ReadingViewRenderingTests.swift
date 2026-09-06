@@ -78,8 +78,70 @@ struct ReadingViewRenderingTests {
         #expect(ReaderConfig.RSVP.hapticWordInterval > 0)
     }
 
-    @Test func readerSheetsRenderNonemptyNamedStates() async throws {
-        let (container, book) = try makeStoredBook(text: "zero one two", index: 1)
+    @Test func readerViewReadingEstimateClampsSpeedAndReportsFinishBranch() {
+        let longBook = Book(
+            title: "Estimate",
+            author: "Author",
+            extractedText: "zero one two three four five",
+            sourceFileName: "estimate.txt"
+        )
+        // The "finished" string requires remainingWords == 0, i.e. lastReadWordIndex == wordCount.
+        // Set directly here so the branch itself is exercised.
+        longBook.lastReadWordIndex = longBook.wordCount
+        #expect(ReaderView.readingEstimate(book: longBook, lastWPM: 250) == "100% · finished")
+
+        // ...but NO commit path can produce that state. Both writers of lastReadWordIndex cap at
+        // wordCount - 1: ReadingPositionCoordinator.clampedIndex, and WatchSyncService's lastValidIndex.
+        // branch above is unreachable in the shipping app and a reader who finishes a book sees
+        // "83% · <1 min left" here rather than "finished". Pinned rather than deleted: this fails
+        // the day the clamp changes, which is exactly when the display needs revisiting.
+        let committed = ReadingPositionCoordinator.clampedIndex(Int.max, wordCount: longBook.wordCount)
+        #expect(committed == longBook.wordCount - 1)
+        longBook.lastReadWordIndex = committed
+        #expect(ReaderView.readingEstimate(book: longBook, lastWPM: 250) != "100% · finished")
+        #expect(longBook.progress < 1.0)
+
+        let midBook = Book(
+            title: "Estimate",
+            author: "Author",
+            extractedText: Array(repeating: "word", count: 40).joined(separator: " "),
+            sourceFileName: "estimate-2.txt"
+        )
+        midBook.lastReadWordIndex = 10
+        #expect(ReaderView.readingEstimate(book: midBook, lastWPM: 1) == "25% · 1 min left at 60 WPM")
+
+        let nearDone = Book(
+            title: "Estimate",
+            author: "Author",
+            extractedText: "alpha beta gamma",
+            sourceFileName: "estimate-3.txt"
+        )
+        nearDone.lastReadWordIndex = 2
+        #expect(ReaderView.readingEstimate(book: nearDone, lastWPM: 1200) == "66% · <1 min left at 1200 WPM")
+    }
+
+    @Test func readerSheetsRenderEmptyAndNonemptyAnnotationLists() async throws {
+        let (container, book) = try makeStoredBook(text: "zero one two three", index: 1)
+
+        let earlyBookmark = Bookmark(wordIndex: 1, previewText: "one")
+        let lateBookmark = Bookmark(wordIndex: 0, previewText: "zero")
+        let nearHighlight = Highlight(startWordIndex: 3, endWordIndex: 3, highlightedText: "three")
+        let distantHighlight = Highlight(startWordIndex: 0, endWordIndex: 1, highlightedText: "zero one")
+
+        book.bookmarks.append(contentsOf: [earlyBookmark, lateBookmark])
+        book.highlights.append(contentsOf: [nearHighlight, distantHighlight])
+        container.mainContext.insert(earlyBookmark)
+        container.mainContext.insert(lateBookmark)
+        container.mainContext.insert(nearHighlight)
+        container.mainContext.insert(distantHighlight)
+
+        let emptyBook = Book(
+            title: "No annotations",
+            author: "Author",
+            extractedText: "empty",
+            sourceFileName: "empty.txt"
+        )
+        container.mainContext.insert(emptyBook)
 
         let settings = ReaderSettingsSheet(
             fontSize: .constant(ReaderConfig.Classic.defaultFontSize),
@@ -95,11 +157,94 @@ struct ReadingViewRenderingTests {
         )
         #expect(bookmarkSignatures.count > 2)
 
+        let emptyBookmarkSignatures = try await renderPixelSignatures(
+            ReaderBookmarkPicker(book: emptyBook) { _ in }
+                .modelContainer(container)
+        )
+        #expect(emptyBookmarkSignatures.count > 1)
+        #expect(bookmarkSignatures != emptyBookmarkSignatures)
+
+        let bookmarkPicker = ReaderBookmarkPicker(book: book) { _ in }
+        let sortedBookmarks = bookmarkPicker.orderedBookmarks()
+        #expect(sortedBookmarks.map(\.wordIndex) == [0, 1])
+
         let highlightSignatures = try await renderPixelSignatures(
             ReaderHighlightPicker(book: book) { _ in }
                 .modelContainer(container)
         )
         #expect(highlightSignatures.count > 2)
+
+        let emptyHighlightSignatures = try await renderPixelSignatures(
+            ReaderHighlightPicker(book: emptyBook) { _ in }
+                .modelContainer(container)
+        )
+        #expect(emptyHighlightSignatures.count > 1)
+        #expect(highlightSignatures != emptyHighlightSignatures)
+
+        let highlightPicker = ReaderHighlightPicker(book: book) { _ in }
+        let sortedHighlights = highlightPicker.orderedHighlights()
+        #expect(sortedHighlights.map(\.startWordIndex) == [0, 3])
+    }
+
+    @Test func readerSheetsRouteRowSelectionByIndexThroughCallbackMethods() async throws {
+        let (container, book) = try makeStoredBook(text: "zero one two three four five", index: 0)
+
+        let early = Bookmark(wordIndex: 4, previewText: "four")
+        let late = Bookmark(wordIndex: 1, previewText: "one")
+        let rangeOne = Highlight(startWordIndex: 3, endWordIndex: 4, highlightedText: "three four")
+        let rangeTwo = Highlight(startWordIndex: 0, endWordIndex: 1, highlightedText: "zero one")
+
+        book.bookmarks.append(contentsOf: [early, late])
+        book.highlights.append(contentsOf: [rangeOne, rangeTwo])
+        container.mainContext.insert(early)
+        container.mainContext.insert(late)
+        container.mainContext.insert(rangeOne)
+        container.mainContext.insert(rangeTwo)
+
+        var selectedBookmark: Int?
+        var selectedHighlight: Int?
+
+        let bookmarkPicker = ReaderBookmarkPicker(book: book) { index in
+            selectedBookmark = index
+        }
+        bookmarkPicker.select(early)
+        #expect(selectedBookmark == early.wordIndex)
+
+        let highlightPicker = ReaderHighlightPicker(book: book) { index in
+            selectedHighlight = index
+        }
+        highlightPicker.select(rangeTwo)
+        #expect(selectedHighlight == rangeTwo.startWordIndex)
+
+        #expect(selectedBookmark != nil)
+        #expect(selectedHighlight != nil)
+        _ = container
+    }
+
+    @Test func readerSheetRowLabelsRenderDifferentPayloadsForDifferentRows() async throws {
+        let (container, book) = try makeStoredBook(text: "alpha beta gamma delta", index: 0)
+        container.mainContext.insert(book)
+
+        let bookmarkA = Bookmark(wordIndex: 0, previewText: "alpha beta")
+        let bookmarkB = Bookmark(wordIndex: 2, previewText: "gamma delta")
+        let highlightA = Highlight(startWordIndex: 0, endWordIndex: 0, highlightedText: "alpha")
+        let highlightB = Highlight(startWordIndex: 1, endWordIndex: 2, highlightedText: "beta gamma")
+
+        let bookmarkPicker = ReaderBookmarkPicker(book: book) { _ in }
+        let bookmarkASignatures = try await renderPixelSignatures(bookmarkPicker.rowLabel(for: bookmarkA))
+        let bookmarkBSignatures = try await renderPixelSignatures(bookmarkPicker.rowLabel(for: bookmarkB))
+        #expect(!bookmarkASignatures.isEmpty)
+        #expect(!bookmarkBSignatures.isEmpty)
+        #expect(bookmarkASignatures != bookmarkBSignatures)
+
+        let highlightPicker = ReaderHighlightPicker(book: book) { _ in }
+        let highlightASignatures = try await renderPixelSignatures(highlightPicker.rowLabel(for: highlightA))
+        let highlightBSignatures = try await renderPixelSignatures(highlightPicker.rowLabel(for: highlightB))
+        #expect(!highlightASignatures.isEmpty)
+        #expect(!highlightBSignatures.isEmpty)
+        #expect(highlightASignatures != highlightBSignatures)
+
+        _ = container
     }
 
     private func makeStoredBook(text: String, index: Int) throws -> (ModelContainer, Book) {

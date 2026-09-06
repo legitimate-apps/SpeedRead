@@ -42,6 +42,53 @@ struct LibraryViewRenderingTests {
         #expect(host.view.bounds == CGRect(x: 0, y: 0, width: 390, height: 844))
     }
 
+    @Test func libraryImportSessionImportsAValidTextFileAndPersistsABook() throws {
+        let container = try makeStoredContainer()
+        let session = LibraryImportSession()
+        let importURL = try writeTemporaryTextFile(
+            named: "library-import.txt",
+            contents: "reader session import test"
+        )
+        defer { try? FileManager.default.removeItem(at: importURL) }
+
+        session.handleImport(.success([importURL]), modelContext: container.mainContext)
+
+        let books = try container.mainContext.fetch(FetchDescriptor<Book>())
+        #expect(books.count == 1)
+        #expect(books.first?.sourceFileName == "library-import.txt")
+        // TextFileExtractor.detectTitle derives the title from the CONTENT's first line, not the
+        // filename -- the documented behaviour. Asserting the filename here was the test's error.
+        #expect(books.first?.title == "reader session import test")
+        #expect(books.first?.author == "Unknown Author")
+        #expect(session.showError == false)
+    }
+
+    @Test func libraryImportSessionMapsFailureIntoAlertState() throws {
+        let container = try makeStoredContainer()
+        let session = LibraryImportSession()
+        let simulatedError = NSError(
+            domain: "speedread-library-import-tests",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "simulated picker error"]
+        )
+
+        session.handleImport(.failure(simulatedError), modelContext: container.mainContext)
+
+        #expect(session.showError)
+        #expect(session.importError == "simulated picker error")
+    }
+
+    @Test func libraryImportSessionNoSelectionIsNoop() throws {
+        let container = try makeStoredContainer()
+        let session = LibraryImportSession()
+
+        session.handleImport(.success([]), modelContext: container.mainContext)
+
+        let books = try container.mainContext.fetch(FetchDescriptor<Book>())
+        #expect(books.isEmpty)
+        #expect(!session.showError)
+    }
+
     private func hostInWindow<Content: View>(_ host: UIHostingController<Content>) throws -> UIWindow {
         let scene = try #require(
             UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
@@ -79,6 +126,23 @@ struct LibraryViewRenderingTests {
             }
         }
         return signatures
+    }
+
+    private func makeStoredContainer() throws -> ModelContainer {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        return try ModelContainer(
+            for: Book.self, Bookmark.self, Highlight.self, OPDSServer.self,
+            configurations: configuration
+        )
+    }
+
+    private func writeTemporaryTextFile(named: String, contents: String) throws -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent(named)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try #require(contents.data(using: .utf8)).write(to: url)
+        return url
     }
 
     private func waitUntil(

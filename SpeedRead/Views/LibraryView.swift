@@ -14,8 +14,7 @@ struct LibraryView: View {
     @State private var showThemePicker = false
     @State private var showBrowse = false
     @State private var showSettings = false
-    @State private var importError: String?
-    @State private var showError = false
+    @State private var importSession = LibraryImportSession()
     @State private var didLoadSamples = false
     @State private var autoOpenedBook: Book?
 
@@ -105,12 +104,12 @@ struct LibraryView: View {
                 allowedContentTypes: [.pdf, .epub, .plainText, .rtf, .text],
                 allowsMultipleSelection: false
             ) { result in
-                handleImport(result)
+                importSession.handleImport(result, modelContext: modelContext)
             }
-            .alert("Import Error", isPresented: $showError) {
+            .alert("Import Error", isPresented: $importSession.showError) {
                 Button("OK") {}
             } message: {
-                Text(importError ?? "Unknown error")
+                Text(importSession.importError ?? "Unknown error")
             }
             .navigationDestination(for: Book.self) { book in
                 ReaderView(book: book)
@@ -270,7 +269,16 @@ struct LibraryView: View {
     }
     #endif
 
-    private func handleImport(_ result: Result<[URL], Error>) {
+}
+
+/// Owns the file importer result and the alert state presented by the library.
+@MainActor
+@Observable
+final class LibraryImportSession {
+    var importError: String?
+    var showError = false
+
+    func handleImport(_ result: Result<[URL], Error>, modelContext: ModelContext) {
         switch result {
         case .success(let urls):
             guard let url = urls.first else { return }

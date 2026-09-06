@@ -2260,3 +2260,66 @@ system-driven lifecycle timing. Renderer-delivered appearance is observed; it do
 remaining platform-owned links into observed end-to-end interactions. Neither full lane script was run, and
 neither the coverage floor nor the recorded combined percentage was changed. The manager's combined
 run remains the evidence for any ratchet.
+
+## 5ap. A test written to cover a branch found the branch was dead (2026-09-06, leg 23)
+
+Leg 23 was the first *depth* leg: every shipping file was already named by a test, so the work was
+raising coverage on files already counted. Its brief carried a different warning from the naming
+legs — their trap was the denominator, this one's is that **a test which executes a line without
+asserting anything raises the number and protects nothing.** The instruction was: for every test,
+name a mutation it would catch, or do not write it.
+
+That instruction is what produced the finding.
+
+### The bug
+
+A test was written to cover `ReaderView.readingEstimate`'s `"…% · finished"` branch. It failed:
+
+```
+(ReaderView.readingEstimate(book: longBook, lastWPM: 250) → "83% · <1 min left at 250 WPM")
+    == "100% · finished"
+```
+
+The branch fires when `remainingWords == 0`, i.e. `lastReadWordIndex == wordCount`. There are
+exactly two writers of `book.lastReadWordIndex`, and **both cap at `wordCount - 1`**:
+
+* `ReadingPositionCoordinator.clampedIndex` — `min(max(0, index), wordCount - 1)`
+* `WatchSyncService` — `lastValidIndex = max(0, book.wordCount - 1)`
+
+So `book.progress` (`lastReadWordIndex / wordCount`) can never reach 1.0, the `"finished"` branch is
+unreachable in the shipping app, and **a reader who finishes a book sees `"99% · <1 min left"`
+forever.** `RSVPEngine` solves exactly this correctly — `if didFinish { return 1.0 }`, a flag kept
+separate from `currentIndex` — but that flag is transient and never persisted to `Book`. The engine
+knows you finished; the model never records it.
+
+The operator's ruling: persist `finishedAt: Date?` on `Book`, set when the engine finishes and the
+position commits, and have `progress` and `readingEstimate` honour it. Correct semantics, since
+"reached the last word" and "finished the book" stay distinct, and SwiftData takes a new optional
+property by lightweight migration. That fix is its own leg; this one records the finding.
+
+### What the test does now, and why it was not simply deleted
+
+The easy repair was to change the expectation to `"83% · <1 min left"`. That would have gone green
+while **silently abandoning the branch the test existed to cover** — the exact failure this mission
+keeps cataloguing, arriving this time disguised as a fix. What is committed instead asserts both
+halves: the branch itself, driven by setting the state directly, and the fact that no commit path
+can produce that state. The second assertion fails the day the clamp changes, which is precisely
+when the display needs revisiting.
+
+### Two process notes, both mine
+
+**A resume without `-m` silently switches model.** `codex exec resume` takes the config default, not
+the thread's recorded model. The substituted model then hit *its* usage limit and the turn died, so
+the visible symptom was "resume failed on a quota" — which sends you to look at quota rather than at
+the flag you forgot. Codex does warn, but as an `item.completed` event of `type: "error"` inside the
+JSONL, never on stderr. Grep the JSONL for `"type":"error"` after every run.
+
+**The honesty gates cannot catch a build failure.** They are static, and they passed cleanly on work
+that did not compile — `XCTUnwrap` and XCTest's `file:`/`line:` parameters used inside Swift Testing
+suites. Only running the lane finds that. A failed turn is truncated output, not a result, and no
+amount of static checking substitutes for executing it.
+
+And one of my own oracle errors, recorded because it is the third of this shape: I wrote
+`ReaderSession.clampedIndex` into a test after reading the function body without noticing it is
+declared on `ReadingPositionCoordinator`. Reading a definition is not the same as reading which type
+owns it.
