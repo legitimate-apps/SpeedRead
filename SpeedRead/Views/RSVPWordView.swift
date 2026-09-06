@@ -10,68 +10,48 @@ struct RSVPWordView: View {
         self.fontSize = fontSize
     }
 
-    private var font: Font {
-        .rsvpWord(size: fontSize)
-    }
-
-    private var charWidth: CGFloat {
-        fontSize * 0.6
-    }
-
-    private let maxSideChars = 12
-
     var body: some View {
         VStack(spacing: 2) {
             guideMark
-
-            HStack(spacing: 0) {
-                Text(segments.before)
-                    .font(font)
-                    .foregroundStyle(Color.rsvpText.opacity(0.5))
-                    .frame(width: charWidth * CGFloat(maxSideChars), alignment: .trailing)
-
-                Text(segments.focus)
-                    .font(font)
-                    .foregroundStyle(Color.crimson)
-                    .frame(width: charWidth, alignment: .center)
-
-                Text(segments.after)
-                    .font(font)
-                    .foregroundStyle(Color.rsvpText.opacity(0.5))
-                    .frame(width: charWidth * CGFloat(maxSideChars), alignment: .leading)
+            Canvas { context, size in
+                let before = context.resolve(segment(segments.before, color: .rsvpText.opacity(0.5)))
+                let focus = context.resolve(segment(segments.focus, color: .crimson))
+                let after = context.resolve(segment(segments.after, color: .rsvpText.opacity(0.5)))
+                let proposal = CGSize(width: CGFloat.infinity, height: CGFloat.infinity)
+                let focusWidth = focus.measure(in: proposal).width
+                let fit = RSVPWordFit(
+                    before: before.measure(in: proposal).width,
+                    focus: focusWidth,
+                    after: after.measure(in: proposal).width,
+                    availableWidth: size.width
+                )
+                context.translateBy(x: fit.focusCenter, y: size.height / 2)
+                context.scaleBy(x: fit.scale, y: fit.scale)
+                context.draw(before, at: CGPoint(x: -focusWidth / 2, y: 0), anchor: .trailing)
+                context.draw(focus, at: .zero, anchor: .center)
+                context.draw(after, at: CGPoint(x: focusWidth / 2, y: 0), anchor: .leading)
             }
-
+            .frame(height: fontSize * 1.5)
             guideMark
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 16)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(segments.before + segments.focus + segments.after)
+    }
+
+    private func segment(_ string: String, color: Color) -> Text {
+        Text(string).font(.rsvpWord(size: fontSize)).foregroundColor(color)
     }
 
     private var guideMark: some View {
-        HStack(spacing: 0) {
-            Spacer()
-                .frame(width: charWidth * CGFloat(maxSideChars))
-            Rectangle()
-                .fill(Color.crimson)
-                .frame(width: 2, height: 8)
-                .frame(width: charWidth)
-            Spacer()
-                .frame(width: charWidth * CGFloat(maxSideChars))
-        }
-        .padding(.horizontal)
+        Rectangle()
+            .fill(Color.crimson)
+            .frame(width: 2, height: 8)
+            .accessibilityHidden(true)
     }
 }
 
-#Preview("Simple word") {
-    RSVPWordView(segments: ORPCalculator.segments(for: "reading"))
-        .background(Color.rsvpBackground)
-}
-
-#Preview("Short word") {
-    RSVPWordView(segments: ORPCalculator.segments(for: "Hi"))
-        .background(Color.rsvpBackground)
-}
-
 #Preview("Long word") {
-    RSVPWordView(segments: ORPCalculator.segments(for: "presentation"))
+    RSVPWordView(segments: ORPCalculator.segments(for: "electroencephalographically"))
         .background(Color.rsvpBackground)
 }

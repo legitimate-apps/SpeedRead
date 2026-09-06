@@ -49,7 +49,6 @@ struct WatchRSVPSurface: View {
             if engine.state == .playing {
                 RSVPWordView(segments: engine.currentSegments, fontSize: 20)
                     .frame(width: Self.screenWidth)
-                    .clipped()
                     .allowsHitTesting(false)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(engine.currentWord)
@@ -85,14 +84,8 @@ struct WatchRSVPSurface: View {
 
                     Spacer()
 
-                    // RSVPWordView lays out 12 fixed-width characters each side of the pivot: 302pt
-                    // at this size, on a 208pt screen. Left alone it widens the whole VStack and
-                    // pushes BOTH edge controls off the screen (X at x=-39, gear at x=211,
-                    // measured). A flexible `maxWidth` frame adopts an insistent child's width, so
-                    // it changed nothing; a fixed frame is authoritative. Clip the overflow.
                     RSVPWordView(segments: engine.currentSegments, fontSize: 18)
                         .frame(width: Self.screenWidth)
-                        .clipped()
                         .allowsHitTesting(false)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(engine.currentWord)
