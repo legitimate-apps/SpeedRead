@@ -84,6 +84,13 @@ jobs:
       # gated, because a host-app test bundle renders views into it with no assertions behind
       # them.
       #
+      # RATCHET, 2026-09-06: raised 82 -> 84. Measured combined attributable is 85.88%
+      # (8308/9674) after the annotation lists were covered, keeping ~1.9 points of headroom, in
+      # line with the margin the previous ratchet chose for the reasons below. Note the
+      # denominator GREW by 671 lines in that leg and the percentage still rose — naming a file
+      # moves its whole line count in, so a shallow test on a big view lowers this number. That is
+      # the gate working, not the gate misfiring: the fix is more coverage, never a smaller floor.
+      #
       # RATCHET, 2026-08-31: raised 80 -> 82 now that chapters have landed. Measured combined
       # attributable is 83.73% (5240/6258), so this keeps ~1.7 points of headroom. That margin is
       # deliberate: attributable moves a little on its own (0.36 points across two identical runs)
@@ -95,7 +102,7 @@ jobs:
       # 55.77% on the watch lane across two runs of an IDENTICAL suite — 316 of the 320 extra
       # "covered" lines were GHOST, i.e. launch-path rendering with no assertions behind it.
       - name: Hermetic lanes + attributable coverage gate
-        run: Scripts/coverage.sh 82
+        run: Scripts/coverage.sh 84
 
   ui:
     name: UI lanes
