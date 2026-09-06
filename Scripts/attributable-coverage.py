@@ -90,6 +90,62 @@ SELF_TEST_CASES = [
 ]
 
 
+def is_debug_only(source):
+    """True when a file's entire content sits inside one top-level `#if DEBUG`.
+
+    Such a file is compiled out of Release and ships no lines, so grading it as untested
+    shipping code measures something the metric does not claim to measure. This is a scope
+    definition, not an exemption: it removes nothing from ATTRIBUTABLE (a file compiled out
+    of Release is not shipping code whether or not a test names it), and every file it
+    matches is REPORTED, never silently dropped.
+
+    Deliberately not a substring test. `SpeedReadApp.swift` and `LibraryView.swift` both
+    contain `#if DEBUG` around a fragment -- LibraryView's is the OPDS seeder whose
+    runtime-flag-only guard once shipped a live server password -- and both must keep counting.
+    """
+    content = []
+    in_block_comment = False
+    for raw in source.splitlines():
+        line = raw.strip()
+        if in_block_comment:
+            if "*/" not in line:
+                continue
+            in_block_comment = False
+            line = line.split("*/", 1)[1].strip()
+        if line.startswith("/*"):
+            if "*/" not in line:
+                in_block_comment = True
+            continue
+        if not line or line.startswith("//"):
+            continue
+        content.append(line)
+    if not content or not re.match(r'^#if\s+DEBUG\b', content[0]):
+        return False
+    depth = 0
+    for index, line in enumerate(content):
+        if re.match(r'^#if\b', line):
+            depth += 1
+        elif re.match(r'^#endif\b', line):
+            depth -= 1
+            if depth == 0:
+                # The opening `#if DEBUG` closed here; it must close the whole file.
+                return index == len(content) - 1
+    return False
+
+
+DEBUG_ONLY_CASES = [
+    ("whole file wrapped", "#if DEBUG\nstruct A {}\n#endif\n", True),
+    ("leading comments tolerated", "// note\n\n#if DEBUG\nstruct A {}\n#endif\n", True),
+    ("block comment tolerated", "/* note\n   more */\n#if DEBUG\nstruct A {}\n#endif\n", True),
+    ("nested directives", "#if DEBUG\n#if os(iOS)\nstruct A {}\n#endif\n#endif\n", True),
+    ("code before the guard", "import SwiftUI\n#if DEBUG\nstruct A {}\n#endif\n", False),
+    ("code after the guard", "#if DEBUG\nstruct A {}\n#endif\nstruct B {}\n", False),
+    ("guard is only a fragment", "struct A {\n#if DEBUG\nlet x = 1\n#endif\n}\n", False),
+    ("a different flag", "#if RELEASE\nstruct A {}\n#endif\n", False),
+    ("empty file", "", False),
+]
+
+
 def run_self_test():
     """Positive control for strip_comments.
 
@@ -112,7 +168,17 @@ def run_self_test():
     if failures:
         print(f"FAIL: {failures} strip_comments self-test assertions failed")
         return 1
+    for label, source, expected in DEBUG_ONLY_CASES:
+        if is_debug_only(source) != expected:
+            print(f"FAIL [{label}] is_debug_only expected {expected}")
+            failures += 1
+    if failures:
+        print(f"FAIL: {failures} self-test assertions failed")
+        return 1
     print(f"PASS: strip_comments self-test -- {len(SELF_TEST_CASES)} cases, both directions asserted")
+    print(f"PASS: is_debug_only self-test -- {len(DEBUG_ONLY_CASES)} cases, "
+          f"{sum(1 for c in DEBUG_ONLY_CASES if c[2])} positive / "
+          f"{sum(1 for c in DEBUG_ONLY_CASES if not c[2])} negative")
     return 0
 
 
@@ -153,11 +219,13 @@ for t in report["targets"]:
     rows = []
     for f in t["files"]:
         types = declared_types(f["path"])
+        source_file = pathlib.Path(f["path"])
+        debug_only = source_file.is_file() and is_debug_only(source_file.read_text(errors="replace"))
         if types is None:
             named = None
         else:
             named = any(re.search(rf'\b{re.escape(ty)}\b', test_src) for ty in types)
-        rows.append((f["name"], f["coveredLines"], f["executableLines"], named))
+        rows.append((f["name"], f["coveredLines"], f["executableLines"], named, debug_only))
 
     # POSITIVE CONTROL — a classifier that fails toward a confident number is the same
     # hazard as a test that passes vacuously, and neither announces itself. Assert every
@@ -167,9 +235,14 @@ for t in report["targets"]:
     tot_c = sum(r[1] for r in rows); tot_e = sum(r[2] for r in rows)
     assert tot_e == sum(f["executableLines"] for f in t["files"]), "row loss in classifier"
     assert len(rows) == len(t["files"]), "file loss in classifier"
-    att = [r for r in rows if r[3]]
+    # Non-shipping rows are held out of everything the gate grades, and reported separately.
+    nonship = [r for r in rows if r[4]]
+    graded = [r for r in rows if not r[4]]
+    assert len(nonship) + len(graded) == len(rows), "row loss in shipping split"
+    graded_e = sum(r[2] for r in graded)
+    att = [r for r in graded if r[3]]
     att_c = sum(r[1] for r in att); att_e = sum(r[2] for r in att)
-    orphan = [r for r in rows if r[3] is False and r[1] > 0]
+    orphan = [r for r in graded if r[3] is False and r[1] > 0]
     ghost_c = sum(r[1] for r in orphan)
 
     results.append({
@@ -186,21 +259,25 @@ for t in report["targets"]:
         },
         "reach": {
             "executable": att_e,
-            "totalExecutable": tot_e,
-            "percentage": 0 if tot_e == 0 else att_e * 100 / tot_e,
+            "totalExecutable": graded_e,
+            "percentage": 0 if graded_e == 0 else att_e * 100 / graded_e,
             "namedFiles": len(att),
-            "totalFiles": len(rows),
+            "totalFiles": len(graded),
         },
+        "nonShipping": [
+            {"name": name, "covered": covered, "executable": executable}
+            for name, covered, executable, _, _ in sorted(nonship, key=lambda r: r[0])
+        ],
         "ghost": {
             "covered": ghost_c,
             "files": [
                 {"name": name, "covered": covered, "executable": executable}
-                for name, covered, executable, _ in sorted(orphan, key=lambda r: (-r[1], r[0]))
+                for name, covered, executable, _, _ in sorted(orphan, key=lambda r: (-r[1], r[0]))
             ],
         },
         "unresolved": [
             {"name": name, "covered": covered, "executable": executable}
-            for name, covered, executable, _ in unresolved
+            for name, covered, executable, _, _ in unresolved
         ],
     })
 
@@ -236,3 +313,10 @@ else:
                       f"{row['name']}")
         else:
             print("  GHOST COVERAGE: none")
+        if target["nonShipping"]:
+            held = target["nonShipping"]
+            lines = sum(row["executable"] for row in held)
+            print(f"  NOT SHIPPING: {len(held)} file(s), {lines} executable lines held out of "
+                  f"REACH and ATTRIBUTABLE (compiled out of Release)")
+            for row in held:
+                print(f"      {row['covered']:4d}/{row['executable']:4d}  {row['name']}")

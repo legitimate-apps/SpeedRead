@@ -192,7 +192,8 @@ python3 Scripts/lane-audit.py             # every target in a plan, every plan i
 python3 Scripts/shared-source-audit.py    # no filename may exist in both trees as two real files
 python3 Scripts/network-isolation-audit.py # no test-tree session can reach the wire un-stubbed
 Scripts/executed-tests-control.sh         # the executed-test parser reports true counts
-python3 Scripts/attributable-coverage.py --self-test   # the classifier reads code, not comments
+python3 Scripts/attributable-coverage.py --self-test   # classifier reads code not comments; and
+                                                       # holds non-shipping files out of the grade
 ```
 
 **`actionlint` is the one gate CI cannot run for itself.** If `ci.yml` is unparseable GitHub
