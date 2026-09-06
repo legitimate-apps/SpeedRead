@@ -44,19 +44,22 @@ watch_destination="${SPEEDREAD_WATCH_DESTINATION:-platform=watchOS Simulator,nam
 
 derived_data_path="${SPEEDREAD_DERIVED_DATA_PATH:-}"
 leased_derived_data=""
-# TEMPORARY, 2026-09-04: dd-lease allocates on /Volumes/Crucial X8, and xcodebuild HANGS when
-# DerivedData lives there -- measured, same repo and commit, one variable changed: 23m25s elapsed
-# for 6.89s CPU and ZERO tests on the X8, ** TEST SUCCEEDED ** on the boot volume. That made the
-# documented default lane (`Scripts/coverage.sh 82`) hang silently for anyone who did not know to
-# override the path. Revert to dd-lease once the volume is trusted. See TDD-MISSION.md 5z.
-# To revert: restore `dd-lease path --project speedread --purpose tests` here and assign it to
-# leased_derived_data so the cleanup trap releases it again.
-if [[ -z "$derived_data_path" ]]; then
-  derived_data_path="${TMPDIR:-/tmp}/speedread-derived-data"
+# Was routed to the boot volume 2026-09-04 because xcodebuild HUNG with DerivedData on the
+# Crucial X8: 23m25s elapsed for 6.89s CPU and ZERO tests, against ** TEST SUCCEEDED ** on boot,
+# same repo and commit, one variable changed (TDD-MISSION.md 5z). RETESTED 2026-09-06 and the
+# hang is gone: exit 0 in 115s with 345 iOS + 70 watchOS tests executed on the X8. 415 executed
+# tests is the unambiguous negative of a stalled directory walk, whatever the cache state.
+# Scripts/ui-lanes.sh never carried this fallback and was passing on the X8 throughout, which
+# was the corroborating signal nobody weighted at the time.
+if [[ -z "$derived_data_path" ]] && command -v dd-lease >/dev/null 2>&1; then
+  derived_data_path="$(dd-lease path --project speedread --purpose tests)"
+  leased_derived_data="$derived_data_path"
 fi
 
-# Same volume, same reason: SPM clones are walked during package resolution.
-package_cache_path="${SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH:-${TMPDIR:-/tmp}/speedread-spm-clones}"
+package_cache_path="${SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH:-}"
+if [[ -z "$package_cache_path" ]] && command -v dd-lease >/dev/null 2>&1; then
+  package_cache_path="$(dd-lease spm-path)"
+fi
 
 # Where a FAILING lane's evidence is kept. The .xcresult bundle names the failing test and is
 # written by xcodebuild anyway -- and until now it lived in work_dir and was deleted by the

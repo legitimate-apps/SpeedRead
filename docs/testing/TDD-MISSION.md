@@ -2149,3 +2149,56 @@ Observed on the continuation’s focused iOS 26.5 run: **15 tests passed**. The 
 92.70%, 97.11%, 98.67% and 100.00% respectively (browse, editor, detail, row); the three sessions
 measured 95.65%, 95.41% and 98.08%. Both missing-stub crash controls failed at the intended guard,
 and all honesty gates passed. These are focused-run figures, not the combined attributable result.
+
+## 5an. The X8 is trusted again, and a lane that failed for a reason nobody wrote down (2026-09-06)
+
+Two infrastructure findings from verifying leg 21, both worth keeping because both were invisible
+in exactly the way this ledger keeps cataloguing.
+
+### The volume constraint expired and one of our own lanes had been saying so all along
+
+§5z routed `Scripts/coverage.sh` DerivedData to the boot volume because xcodebuild hung on the
+Crucial X8: 23m25s elapsed for 6.89s CPU and ZERO tests, against `** TEST SUCCEEDED **` on boot,
+same repo and commit, one variable changed. That fallback was deliberate, stated out loud, and
+explicitly temporary — "Revert to dd-lease once the volume is trusted."
+
+Retested today with DerivedData back on the X8: **exit 0 in 115s, 345 iOS + 70 watchOS tests
+executed.** 415 executed tests is the unambiguous negative of a stalled directory walk. Reverted.
+
+Honest caveat kept with the claim: that dd-lease slot was warm (581 MB cached, and X8 content
+survived the reboot), so 115s is not evidence the volume is *fast* from cold. It is evidence the
+volume does not *hang*, which is the only thing the fallback was protecting against — a warm cache
+cannot manufacture 415 executed tests out of a directory walk that never returns.
+
+The part worth being embarrassed about: **`Scripts/ui-lanes.sh` never carried this fallback.** It
+has taken its DerivedData from `dd-lease` on the X8 the entire time, and it kept passing — including
+twice today. So for two days the repo contained a lane that contradicted the constraint the other
+lane was routed around, and nobody treated the asymmetry as evidence. §5z's own lesson was "what is
+constant across all my failing runs *because a rule says it should be?*" The mirror of that question
+is the one that was missed here: **what is already succeeding, in this same repo, under the exact
+condition I have declared broken?**
+
+### "Unable to find a device matching the provided destination specifier" meant a disk image
+
+The UI lane then failed with that error, and the available-destinations list contained placeholders
+and real hardware but not one concrete simulator. `xcrun simctl list devices` showed every runtime
+section present — iOS 18.0, 26.2, 26.5, tvOS 26.5, watchOS 26.5 — and **zero devices under any of
+them**.
+
+Nothing had been deleted. There had been a power outage; the Mac cold-booted, and the simulator
+device store lives on a disk image that did not remount. `sim-lease create` diagnosed and fixed it
+in one line (`SimDevices image not mounted — running simdevices-mount`), and the same lane then
+passed 5 + 4.
+
+Three things this earns:
+
+* **The error names the wrong subject.** It reads as a bad destination string, so the instinct is to
+  edit the destination — a real change, to a correct lane, fixing nothing.
+* **The usual wedged-CoreSimulator preflight is blind to it.** `simctl list devicetypes` answers
+  normally while the device set is empty. Check for devices, not device *types*.
+* **A lane passing earlier in the same session proves nothing.** `coverage.sh` ran 415 tests at
+  16:35; the UI lane hit this at 18:23. Nothing announces the unmount.
+
+Practical consequence, and it is the standing rule anyway: take simulators from
+`sim-lease create --project speedread`, which mounts the image if needed and hands back a UDID, so
+the lane gets `id=<udid>` instead of a `name=` that may match nothing.
