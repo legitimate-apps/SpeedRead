@@ -180,7 +180,7 @@ Pre-allowed in `.claude/settings.local.json`: `Bash(xcodebuild test:*)`.
 ### Honesty gates — cheap, no simulator, run before any build
 
 ```bash
-Scripts/honesty-gates.sh    # runs all six, cheapest first. RUN THIS BEFORE EVERY PUSH.
+Scripts/honesty-gates.sh    # runs all seven, cheapest first. RUN THIS BEFORE EVERY PUSH.
 ```
 
 It is the single list; CI runs the same script. Individually:
@@ -190,6 +190,7 @@ actionlint                                # workflow files parse and their conte
 python3 Scripts/assertion-audit.py .      # no test may be assertion-free, or end on a sleep
 python3 Scripts/lane-audit.py             # every target in a plan, every plan in a lane
 python3 Scripts/shared-source-audit.py    # no filename may exist in both trees as two real files
+python3 Scripts/network-isolation-audit.py # no test-tree session can reach the wire un-stubbed
 Scripts/executed-tests-control.sh         # the executed-test parser reports true counts
 python3 Scripts/attributable-coverage.py --self-test   # the classifier reads code, not comments
 ```
@@ -209,7 +210,7 @@ target exists -> in a test plan -> plan invoked by a lane -> lane executes tests
                                                              copy that ships on that platform
 ```
 
-A seventh thing has to be true before any of the six matter: **the workflow file has to be valid**,
+A seventh thing has to be true before any of the others matter: **the workflow file has to be valid**,
 or none of the gates run and their absence is invisible. That is `actionlint`, and it is why the
 gates must be run locally rather than trusted to CI.
 
@@ -219,9 +220,21 @@ certifies an empty lane — so `Scripts/lib/executed-tests.awk` is the single co
 `executed-tests-control.sh` asserts expected counts against fixture logs, including the exact
 regex-literal bug that once made it return 1 for every input.
 
+An eighth thing has to be true for a green lane to mean anything: **the tests have to be hermetic**.
+A suite that can reach the network is a suite whose result depends on someone else's server, and it
+fails in the direction nobody audits — green when the network happened to answer. `network-isolation-
+audit.py` holds the two platform rules apart, because they are genuinely different facts: on iOS,
+global `URLProtocol` registration covers `URLSession.shared` but NOT a session built from a custom
+configuration, so custom sessions are centralized in the harness file; on watchOS, global
+registration was observed not to intercept `URLSession.shared` at all, so the watch trees may not
+use it. That audit was wired only into `Scripts/coverage.sh` until 2026-09-06 — correct, passing,
+and unaffordable, since reaching it meant two simulator boots first. It is a cheap gate now.
+
 `lane-audit.py` covers the first four; `shared-source-audit.py` covers the fifth, by refusing to
 let a shared file exist as two real copies — **including byte-identical ones**, because identical
-today is a copy that drifts tomorrow with nothing to notice. Both take exemptions only as a dict
+today is a copy that drifts tomorrow with nothing to notice. It audits the two TEST trees on the
+same rule, and for a sharper reason: a drifted source copy renders the wrong colour, while a
+drifted test copy takes an assertion out of one platform's lane and leaves that lane green. Both take exemptions only as a dict
 entry carrying a written reason, and both fail on an exemption naming something that no longer
 exists. `assertion-audit.py` additionally flags a test that sleeps and then asserts nothing, which
 is the mechanical signature of a screenshot-capture holder wearing a test's name.

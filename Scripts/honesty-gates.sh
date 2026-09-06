@@ -6,6 +6,13 @@
 # exists because the list kept living in two places -- CLAUDE.md prose and ci.yml steps -- and
 # a list in two places is a list that disagrees with itself.
 #
+# That claim was false until 2026-09-06. Scripts/network-isolation-audit.py -- a static
+# check costing 200ms -- was invoked only from Scripts/coverage.sh, i.e. AFTER two
+# simulator boots and both hermetic lanes. It gated correctly and reported nothing late,
+# so nothing ever drew attention to it; the cost was purely that a violation surfaced
+# ~15 minutes into an expensive lane instead of before the build started. A gate in the
+# wrong list is not a broken gate -- it is a gate you stop being able to afford to run.
+#
 # RUN IT BEFORE EVERY PUSH, not only in CI. One of these gates cannot work from inside CI at
 # all: if .github/workflows/ci.yml is unparseable, GitHub creates no run, so a CI step that
 # lints the workflow never executes. That is not hypothetical -- it happened here on
@@ -41,6 +48,7 @@ fi
 run_gate "No assertion-free tests"                  python3 Scripts/assertion-audit.py .
 run_gate "Every target in a plan, every plan in a lane" python3 Scripts/lane-audit.py
 run_gate "Shared sources are one file, not two"     python3 Scripts/shared-source-audit.py
+run_gate "Test networking cannot reach the wire"   python3 Scripts/network-isolation-audit.py
 run_gate "Executed-test parser reports true counts" Scripts/executed-tests-control.sh
 run_gate "Coverage classifier ignores prose, not code" python3 Scripts/attributable-coverage.py --self-test
 
