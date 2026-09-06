@@ -279,10 +279,29 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     private var modelContext: ModelContext?
     #endif
 
+    #if os(watchOS)
+    private let libraryStore: WatchLibraryStore
+    private var legacyBookURL: URL {
+        libraryStore.fileURL.deletingLastPathComponent().appendingPathComponent("watchbook.json")
+    }
+
+    init(
+        session: any WatchConnectivitySession = WCSession.default,
+        store: WatchLibraryStore? = nil
+    ) {
+        connectivitySession = session
+        libraryStore = store ?? WatchLibraryStore(
+            fileURL: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("watchlibrary.json")
+        )
+        super.init()
+    }
+    #else
     init(session: any WatchConnectivitySession = WCSession.default) {
         connectivitySession = session
         super.init()
     }
+    #endif
 
     func activate() {
         #if os(watchOS)
@@ -459,20 +478,6 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     // MARK: - watchOS Persistence
 
     #if os(watchOS)
-    private static var libraryURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("watchlibrary.json")
-    }
-
-    private static var libraryStore: WatchLibraryStore {
-        WatchLibraryStore(fileURL: libraryURL)
-    }
-
-    private static var legacyBookURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("watchbook.json")
-    }
-
     private struct LegacyPersistedBook: Codable {
         let title: String
         let author: String
@@ -481,12 +486,12 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func loadLibrary() {
-        let persistedLibrary = Self.libraryStore.load()
-        if persistedLibrary != .empty || FileManager.default.fileExists(atPath: Self.libraryURL.path) {
+        let persistedLibrary = libraryStore.load()
+        if persistedLibrary != .empty || FileManager.default.fileExists(atPath: libraryStore.fileURL.path) {
             library = persistedLibrary
             return
         }
-        if let data = try? Data(contentsOf: Self.legacyBookURL),
+        if let data = try? Data(contentsOf: legacyBookURL),
            let legacy = try? JSONDecoder().decode(LegacyPersistedBook.self, from: data) {
             let book = WatchBook(
                 id: UUID(), title: legacy.title, author: legacy.author, text: legacy.text,
@@ -496,13 +501,13 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             )
             library = WatchLibrary(books: [book], currentBookId: book.id)
             persistLibrary()
-            try? FileManager.default.removeItem(at: Self.legacyBookURL)
+            try? FileManager.default.removeItem(at: legacyBookURL)
         }
     }
 
     func persistLibrary() {
         do {
-            try Self.libraryStore.save(library)
+            try libraryStore.save(library)
         } catch {
             Self.logger.error("Failed to persist library: \(error.localizedDescription)")
         }

@@ -6,6 +6,12 @@ import WatchConnectivity
 @Suite("Watch three-marker position model")
 @MainActor
 struct WatchPositionModelTests {
+    private let storage: WatchTestStorage
+
+    init() throws {
+        storage = try WatchTestStorage()
+    }
+
     @Test func legacyPersistedBookInitializesNewMarkersFromReadingPosition() throws {
         let legacy = LegacyWatchBook(
             id: UUID(),
@@ -32,7 +38,7 @@ struct WatchPositionModelTests {
     @Test func browsingOnWatchPublishesNothingAndCannotAlterReadingPosition() {
         let connection = BrowseRecordingWatchSession()
         connection.activationState = .activated
-        let service = WatchSyncService(session: connection)
+        let service = WatchSyncService(session: connection, store: storage.store)
         let readDate = Date(timeIntervalSince1970: 200)
         let book = WatchBook(
             id: UUID(),

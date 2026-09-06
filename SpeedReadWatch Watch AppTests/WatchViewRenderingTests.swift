@@ -6,8 +6,14 @@ import WatchConnectivity
 @Suite("Watch view rendering")
 @MainActor
 struct WatchViewRenderingTests {
+    private let storage: WatchTestStorage
+
+    init() throws {
+        storage = try WatchTestStorage()
+    }
+
     @Test func libraryRendersDistinctEmptyReceivingAndPopulatedStates() throws {
-        let service = WatchSyncService(session: RenderingWatchSession())
+        let service = WatchSyncService(session: RenderingWatchSession(), store: storage.store)
         let emptySignatures = try renderSignatures(
             WatchLibraryContent(syncService: service, showRSVP: .constant(false))
         )
@@ -51,7 +57,7 @@ struct WatchViewRenderingTests {
     }
 
     @Test func detailRendersTheLatestSyncedProgressRatherThanItsStaleNavigationValue() throws {
-        let service = WatchSyncService(session: RenderingWatchSession())
+        let service = WatchSyncService(session: RenderingWatchSession(), store: storage.store)
         let stale = makeBook(
             title: "Synced Book",
             author: "Author",
@@ -63,7 +69,7 @@ struct WatchViewRenderingTests {
         latest.lastReadIndex = 75
         service.library = WatchLibrary(books: [latest], currentBookId: latest.id)
 
-        let staleService = WatchSyncService(session: RenderingWatchSession())
+        let staleService = WatchSyncService(session: RenderingWatchSession(), store: storage.store)
         staleService.library = WatchLibrary(books: [stale], currentBookId: stale.id)
         let resolved = WatchBookDetailPresentation.latestBook(for: stale, in: service.library)
         var readCount = 0

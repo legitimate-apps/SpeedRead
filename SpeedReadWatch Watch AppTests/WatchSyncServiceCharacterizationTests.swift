@@ -6,10 +6,16 @@ import WatchConnectivity
 @Suite("Watch sync delegate characterization")
 @MainActor
 struct WatchSyncServiceCharacterizationTests {
+    private let storage: WatchTestStorage
+
+    init() throws {
+        storage = try WatchTestStorage()
+    }
+
     @Test("Characterization: activation installs the delegate on the injected session")
     func activationUsesInjectedSession() {
         let connection = FakeWatchSession()
-        let service = WatchSyncService(session: connection)
+        let service = WatchSyncService(session: connection, store: storage.store)
 
         service.activate()
 
@@ -22,7 +28,7 @@ struct WatchSyncServiceCharacterizationTests {
         let book = makeBook(index: 0, timestamp: nil)
         let connection = FakeWatchSession()
         connection.activationState = .activated
-        let service = WatchSyncService(session: connection)
+        let service = WatchSyncService(session: connection, store: storage.store)
         service.library = WatchLibrary(books: [book], currentBookId: book.id)
         let timestamp = Date(timeIntervalSince1970: 300)
 
@@ -42,7 +48,7 @@ struct WatchSyncServiceCharacterizationTests {
     @Test("Characterization: delegate application context applies a newer known position")
     func delegateAppliesNewPosition() async {
         let book = makeBook(index: 0, timestamp: Date(timeIntervalSince1970: 100))
-        let service = WatchSyncService(session: FakeWatchSession())
+        let service = WatchSyncService(session: FakeWatchSession(), store: storage.store)
         service.library = WatchLibrary(books: [book], currentBookId: book.id)
         let payload = WatchSyncLogic.PositionPayload(
             bookId: book.id,
@@ -62,7 +68,7 @@ struct WatchSyncServiceCharacterizationTests {
     func delegateRejectsStaleAndMalformedPositions() async {
         let savedDate = Date(timeIntervalSince1970: 200)
         let book = makeBook(index: 1, timestamp: savedDate)
-        let service = WatchSyncService(session: FakeWatchSession())
+        let service = WatchSyncService(session: FakeWatchSession(), store: storage.store)
         service.library = WatchLibrary(books: [book], currentBookId: book.id)
         let stale = WatchSyncLogic.PositionPayload(
             bookId: book.id,
@@ -81,7 +87,7 @@ struct WatchSyncServiceCharacterizationTests {
 
     @Test("Characterization: delegate message rejects malformed books")
     func delegateRejectsMalformedMessage() {
-        let service = WatchSyncService(session: FakeWatchSession())
+        let service = WatchSyncService(session: FakeWatchSession(), store: storage.store)
         var reply: [String: Any] = [:]
 
         service.session(.default, didReceiveMessage: ["title": "missing fields"]) {
@@ -94,7 +100,7 @@ struct WatchSyncServiceCharacterizationTests {
 
     @Test("Characterization: delegate message acknowledges and ingests a real book")
     func delegateIngestsBookMessage() async {
-        let service = WatchSyncService(session: FakeWatchSession())
+        let service = WatchSyncService(session: FakeWatchSession(), store: storage.store)
         let payload = WatchSyncLogic.BookPayload(
             id: UUID(), title: "Received", author: "Author", text: "zero one", wordCount: 2
         )
@@ -112,7 +118,7 @@ struct WatchSyncServiceCharacterizationTests {
 
     @Test("Characterization: duplicate delegate message does not duplicate a book")
     func delegateIgnoresDuplicateBookMessage() async {
-        let service = WatchSyncService(session: FakeWatchSession())
+        let service = WatchSyncService(session: FakeWatchSession(), store: storage.store)
         let payload = WatchSyncLogic.BookPayload(
             id: UUID(), title: "Received", author: "Author", text: "zero one", wordCount: 2
         )
@@ -125,6 +131,51 @@ struct WatchSyncServiceCharacterizationTests {
         #expect(service.library.books.count == 1)
         #expect(service.isReceiving == false)
         #expect(service.receivingTitle == nil)
+    }
+
+    @Test("Sync fixtures persist only to their temporary store")
+    func fixturePersistenceIsIsolated() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = WatchLibraryStore(fileURL: directory.appendingPathComponent("watchlibrary.json"))
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("watchlibrary.json")
+        let original = try? Data(contentsOf: documents)
+        let service = WatchSyncService(session: FakeWatchSession(), store: store)
+        let payload = WatchSyncLogic.BookPayload(
+            id: UUID(), title: "Isolated", author: "Author", text: "zero one", wordCount: 2
+        )
+        service.session(.default, didReceiveMessage: payload.dictionary) { _ in }
+        await waitUntil { service.library.currentBook?.id == payload.id }
+        #expect(store.load().currentBook?.id == payload.id)
+        #expect((try? Data(contentsOf: documents)) == original)
+    }
+
+    @Test("Loading and legacy migration stay beside the injected store")
+    func injectedStoreOwnsLoadingAndMigration() throws {
+        let store = storage.store
+        let legacyURL = storage.directory.appendingPathComponent("watchbook.json")
+        let legacy = Data(#"{"title":"Legacy","author":"Author","text":"zero one two","position":1}"#.utf8)
+        try legacy.write(to: legacyURL)
+        let service = WatchSyncService(session: FakeWatchSession(), store: store)
+        service.loadLibrary()
+        #expect(service.currentBook?.title == "Legacy")
+        #expect(service.currentBook?.lastReadIndex == 1)
+        #expect(store.load() == service.library)
+        #expect(!FileManager.default.fileExists(atPath: legacyURL.path))
+
+        let reloaded = WatchSyncService(session: FakeWatchSession(), store: store)
+        reloaded.activate()
+        #expect(reloaded.library == service.library)
+
+        // An explicitly saved empty library must not resurrect an obsolete legacy book.
+        try store.save(.empty)
+        try legacy.write(to: legacyURL)
+        reloaded.loadLibrary()
+        #expect(reloaded.library == .empty)
+        #expect(FileManager.default.fileExists(atPath: legacyURL.path))
     }
 
     private func makeBook(index: Int, timestamp: Date?) -> WatchBook {
