@@ -1925,3 +1925,65 @@ became "the surface contributes zero `xmark`, the sheet contributes at least one
 the `onClose` parameter, and the view's now-unused `dismiss`. Watch UI 4/4.
 
 Three findings from one screenshot pass (§5af, §5ag, §5ah), none reachable by a unit test.
+
+## 5ai. The long-word clip, and a fix that had to change the mechanism (2026-09-06)
+
+`RSVPWordView` reserved `charWidth * 12` on each side of the pivot plus one character for the
+focus — 25 character widths, unconditionally, at every font size. At the iPhone's default 32pt that
+demanded 544pt of a 393pt screen; at the watch's 18pt, 302pt of 208pt. **Both platforms overflowed,
+and had since the view was written.** §5ag had treated this as a watch layout bug and clamped the
+symptom with `.frame(width: screenWidth).clipped()`, which stopped the overflow from pushing the
+sibling controls off-screen but still cut the word in half — the clip was a containment, not a fix.
+
+The fixed columns exist for a reason: the ORP focus letter must not move between words, which is
+the whole point of RSVP. So the fix could not be "let the HStack size to content". Red first, at
+the pixel level:
+
+```
+Watch renderer: (CGFloat(image.width) → 302.0) <= (width → 208.0)
+iOS renderer:   (CGFloat(image.width) → 544.0) <= (width → 393.0)
+Fit arithmetic: (fit.trailingEdge → 470.0) <= (width → 208.0)
+```
+
+`RSVPWordFit` computes a uniform scale — `min(1, availableWidth / (2·max(before, after) + focus))`
+— from measured segment widths, keeping the focus centre fixed at `availableWidth / 2`. Words that
+already fit are untouched (scale 1); only a word that would overflow shrinks, which is strictly
+better than showing half of it. The view had to move from an `HStack` of three `Text`s to a
+`Canvas`, because a scale factor derived from *measured* text needs the measurement, and a fixed
+frame cannot supply one. `.clipped()` came back off both call sites: with the word fitting, the
+fixed frame alone is what keeps the sibling controls on screen.
+
+The assertions are pixels, not geometry: ink inside the 16pt padding, the red focus letter's centre
+within 1px of the screen centre, ink straddling the centre. `RSVPRenderProbe` cannot pass
+vacuously — it resolves its bounds through `#require(columns.min())`, so a render with no ink, or
+with no red pixel where the focus should be, fails rather than returning a degenerate box.
+
+Follow-up, not done here: `Canvas` re-resolves and re-measures its text on every draw, and RSVP
+redraws 5–16×/second. The previous version rebuilt three `Text`s per word, so this is not a new
+cost in kind — but it has not been measured on a watch.
+
+## 5aj. Hermeticity belongs at the seam, not in the test plan (2026-09-06)
+
+`WatchSyncService` reached its persistence through `static var libraryURL`/`libraryStore`, so every
+instance — including one built by a test — wrote the real `Documents/watchlibrary.json`. The watch
+unit lane overwrote the library on whatever simulator or device it ran on.
+
+The first attempt set `SPEEDREAD_HERMETIC_TESTS=1` in `WatchHermetic.xctestplan`. That was
+reverted: **a hermeticity fix that lives in a test plan is absent the moment the suite is run
+un-plan'd**, which is exactly when nobody is watching. The fix is injection at `init` alongside the
+existing `session` parameter, with `legacyBookURL` derived from the injected store's directory so
+the legacy-migration path is isolated too.
+
+Proved without the plan, which is the only proof that counts here: the generated `.xctestrun` had
+its `EnvironmentVariables` stripped, the lane ran `test-without-building` under `env -u`, all 70
+tests passed, and the real `Documents/watchlibrary.json` was byte-identical before and after
+(SHA256 `ef314936…`, 288 bytes).
+
+**Manager's error, recorded because the delegate could not have caught it.** The brief asserted that
+`Scripts/shared-source-audit.py` refuses a duplicate filename across the two *test* trees. It does
+not — `TREES` is `("SpeedRead", "SpeedReadWatch Watch App")`, the source trees only. That constraint
+came from a summary rather than from reading the script, and a false constraint supplied by the
+manager is invisible to the delegate because the manager is the oracle. It cost nothing this time —
+renaming to `WatchRSVPWordFitTests.swift` was right on the naming convention alone — but the
+shared `RSVPRenderProbe.swift` that landed in both test trees is a symlink by the delegate's own
+judgement, not because any gate required it. Extending the audit to the test trees is the fix.
