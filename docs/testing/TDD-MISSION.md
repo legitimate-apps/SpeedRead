@@ -2202,3 +2202,61 @@ Three things this earns:
 Practical consequence, and it is the standing rule anyway: take simulators from
 `sim-lease create --project speedread`, which mounts the image if needed and hands back a UDID, so
 the lane gets `id=<udid>` instead of a `name=` that may match nothing.
+
+## 5ao. The last five files need claims, not visitors (2026-09-06)
+
+The shelf row and book spine already had coverage percentages. Neither had a test making a claim
+about it: the host app happened to draw them on launch. The watch settings sheet, RSVP composition
+and app root had no direct contracts at all. A file becoming attributable is not the accomplishment;
+what matters is what can now fail if that file regresses.
+
+The shelf tests measure both size classes: spine width, length-dependent height and its cap; the
+bottom-only started marker; rendered author, title and theme changes; and content above a plank
+whose pixels stay the same when books are added. An empty regular shelf retains its bay and rails.
+The compact empty shelf retains only its plank. These are assertions on the actual rendered views,
+not on a second implementation of their layout math. No production shelf code needed changing.
+
+The settings sheet needed a small boundary around the controls. Its root supplies the same rows to
+its List and to a render probe; the chapter destination forwards the visible word index and the
+selection closure. A chapter boundary moves the rendered checkmark on exactly the affected rows.
+The crown writes a snapping binding; Done applies that draft to the engine and AppStorage. Tests
+hold an isolated defaults suite and prove that changing the draft changes the displayed number
+without committing either the engine or defaults, then prove Done persists the snapped value.
+The defaults helper and raster probe are symlinks across the two test trees, not parallel copies.
+
+RSVP composition now takes its service, session and presentation bindings explicitly underneath
+the environment-owning wrapper. Tests follow the same callback methods used by the surface,
+sheet and lifecycle modifiers into a temporary library file and a recording connectivity session.
+Chapter selection and crown browsing stay local; restore resolves the latest phone position;
+playback commits go out; missing-book actions do neither. Rendering checks distinguish the loaded
+word, selected chapter and playing surface. Calling a callback is evidence for that callback's
+consequences, not evidence that a finger or Digital Crown delivered it.
+
+The app-root claim was worth making, but not because an App can be instantiated. Library appearance
+loads the injected store and activates its session. The direct RSVP fixture must do neither, or
+loading the reader's saved library would overwrite the fixture before it can be used. Fixture
+preparation also leaves ordinary launches alone and never writes fixture data to disk. That is a
+composition contract with a real consequence. Fixture preparation remains inside `#if DEBUG`.
+
+The first watch run exposed a trap in the probe itself: ImageRenderer is not a passive screenshot.
+It delivers onAppear, which reloaded a playing RSVP session and reset an edited speed draft. Tests
+now render the same controls beneath their lifecycle modifiers when comparing mutable states, and
+separately observe renderer-delivered appearance for initial speed and app-root activation. A
+NavigationStack cannot be flattened by this renderer; its placeholder pixels are not a rendering
+claim. The chapter labels also need the watch's dark color scheme in the probe, or their default
+text disappears against the test's black background.
+
+One boundary deserves precision: fixture *preparation* does not write the library. Presenting RSVP
+subsequently runs its ordinary crown-position persistence path, even for a fixture. The app-root
+test observes that write in its temporary store as evidence that the injected service reached the
+RSVP environment. Calling the whole path disk-free would have been a false claim.
+
+OBSERVED: the focused iOS suite executed **3 passing tests**; the final focused watch run executed
+**9 passing tests in 2 suites**; every honesty gate passed. The first iOS build's initialization
+error, the first watch runner's launch failure (zero tests), and the failed lifecycle-contaminated
+probes are retained beside the passing logs and xcresults under the durable leg evidence directory.
+ASSUMED, not claimed here: physical crown delivery, navigation pushes, sheet dismissal, and normal
+system-driven lifecycle timing. Renderer-delivered appearance is observed; it does not turn the
+remaining platform-owned links into observed end-to-end interactions. Neither full lane script was run, and
+neither the coverage floor nor the recorded combined percentage was changed. The manager's combined
+run remains the evidence for any ratchet.

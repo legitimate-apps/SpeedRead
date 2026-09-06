@@ -163,7 +163,7 @@ xcodebuild test \
 
 # Run both hermetic destinations, print worst-first per-file coverage, and enforce a gate.
 # CI runs exactly this line; the floor is ATTRIBUTABLE coverage, never headline.
-Scripts/coverage.sh 86
+Scripts/coverage.sh 87
 
 # Run both UI plans. Deliberately NOT part of coverage.sh: a UI test drives the whole app
 # through its host, so every view it walks past records as covered with nothing asserting.

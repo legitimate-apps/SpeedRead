@@ -84,6 +84,14 @@ jobs:
       # gated, because a host-app test bundle renders views into it with no assertions behind
       # them.
       #
+      # RATCHET, 2026-09-06 (third): raised 86 -> 87. Measured combined attributable is 88.98%
+      # (11429/12844) after the last five unnamed files were covered, keeping ~2 points of headroom.
+      # MILESTONE: every shipping source file in this repo -- 80 of 80 -- is now named by a test.
+      # "Named" was always the weak half of the metric; what makes this one worth recording is that
+      # the denominator grew 676 lines in the same leg and the percentage still rose. The work left
+      # is depth on files already counted: ReaderTheme 45.95%, ServerListView 65.38%,
+      # ReaderSheets 73.83%, LibraryView 79.48%.
+      #
       # RATCHET, 2026-09-06 (second): raised 84 -> 86. Measured combined attributable is 88.31%
       # (10745/12168) after the OPDS server surface was covered, keeping ~2.3 points of headroom.
       # The denominator grew by 1,772 lines in that leg — four view files entered it — and the
@@ -111,7 +119,7 @@ jobs:
       # 55.77% on the watch lane across two runs of an IDENTICAL suite — 316 of the 320 extra
       # "covered" lines were GHOST, i.e. launch-path rendering with no assertions behind it.
       - name: Hermetic lanes + attributable coverage gate
-        run: Scripts/coverage.sh 86
+        run: Scripts/coverage.sh 87
 
   ui:
     name: UI lanes

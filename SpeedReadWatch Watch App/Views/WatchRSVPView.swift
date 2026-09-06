@@ -8,6 +8,19 @@ struct WatchRSVPView: View {
     @State private var crownValue: Double = 0
     @AppStorage("rsvpLastWPM") private var persistedWPM: Int = 300
 
+    var body: some View {
+        WatchRSVPContent(syncService: syncService, session: session,
+                         showSettings: $showSettings, crownValue: $crownValue, wpm: persistedWPM)
+    }
+}
+
+struct WatchRSVPContent: View {
+    @ObservedObject var syncService: WatchSyncService
+    let session: WatchRSVPSession
+    @Binding var showSettings: Bool
+    @Binding var crownValue: Double
+    let wpm: Int
+
     private var currentBook: WatchBook? { syncService.currentBook }
     private var engine: RSVPEngine { session.engine }
 
@@ -15,15 +28,16 @@ struct WatchRSVPView: View {
         currentBook?.words ?? []
     }
 
-    var body: some View {
+    var surface: some View {
         WatchRSVPSurface(
             engine: engine,
-            onTogglePlayback: { sync(session.togglePlayback(book: currentBook)) },
-            onOpenSettings: {
-                session.prepareForSettings()
-                showSettings = true
-            }
+            onTogglePlayback: togglePlayback,
+            onOpenSettings: openSettings
         )
+    }
+
+    var body: some View {
+        surface
         .focusable()
         .digitalCrownRotation(
             $crownValue,
@@ -34,51 +48,57 @@ struct WatchRSVPView: View {
             isContinuous: false,
             isHapticFeedbackEnabled: true
         )
-        .onChange(of: crownValue) { _, newValue in
-            let normalized = session.seek(toCrownValue: newValue, wordCount: words.count)
-            if normalized != newValue {
-                crownValue = normalized
-            }
-            persistBrowsePosition()
+        .onChange(of: crownValue) { _, newValue in seek(newValue) }
+        .onChange(of: engine.currentIndex) { _, _ in synchronizePosition() }
+        .onAppear(perform: load)
+        .onDisappear(perform: disappear)
+        .sheet(isPresented: $showSettings) { settings }
+    }
+
+    var settings: WatchSettingsView {
+        WatchSettingsView(engine: engine, chapters: currentBook?.chapters ?? [],
+                          currentWordIndex: engine.currentIndex,
+                          onSelectChapter: selectChapter,
+                          onRestoreReadingPosition: restoreReadingPosition)
+    }
+
+    func togglePlayback() { sync(session.togglePlayback(book: currentBook)) }
+
+    func openSettings() {
+        session.prepareForSettings()
+        showSettings = true
+    }
+
+    func load() { crownValue = session.load(book: currentBook, wpm: wpm) }
+
+    func disappear() { sync(session.handleDisappear(book: currentBook)) }
+
+    func seek(_ newValue: Double) {
+        let normalized = session.seek(toCrownValue: newValue, wordCount: words.count)
+        if normalized != newValue { crownValue = normalized }
+        persistBrowsePosition()
+    }
+
+    func synchronizePosition() {
+        let normalized = session.synchronizeCrownValue(wordCount: words.count)
+        if crownValue != normalized { crownValue = normalized }
+        if engine.state == .playing {
+            sync(session.commitPlaybackAdvanceIfNeeded(book: currentBook))
         }
-        .onChange(of: engine.currentIndex) { _, _ in
-            let normalized = session.synchronizeCrownValue(wordCount: words.count)
-            if crownValue != normalized {
-                crownValue = normalized
-            }
-            if engine.state == .playing {
-                sync(session.commitPlaybackAdvanceIfNeeded(book: currentBook))
-            }
-        }
-        .onAppear {
-            crownValue = session.load(book: currentBook, wpm: persistedWPM)
-        }
-        .onDisappear {
-            sync(session.handleDisappear(book: currentBook))
-        }
-        .sheet(isPresented: $showSettings) {
-            WatchSettingsView(
-                engine: engine,
-                chapters: currentBook?.chapters ?? [],
-                currentWordIndex: engine.currentIndex,
-                onSelectChapter: { chapter in
-                    guard let currentBook else { return }
-                    crownValue = WatchChapterSelection.browse(
-                        to: chapter,
-                        in: currentBook,
-                        session: session,
-                        library: &syncService.library
-                    )
-                    syncService.persistLibrary()
-                    showSettings = false
-                },
-                onRestoreReadingPosition: {
-                    guard let currentBook else { return }
-                    crownValue = session.restoreReadingPosition(book: currentBook)
-                    persistBrowsePosition()
-                }
-            )
-        }
+    }
+
+    func selectChapter(_ chapter: ChapterMark) {
+        guard let currentBook else { return }
+        crownValue = WatchChapterSelection.browse(to: chapter, in: currentBook,
+                                                  session: session, library: &syncService.library)
+        syncService.persistLibrary()
+        showSettings = false
+    }
+
+    func restoreReadingPosition() {
+        guard let currentBook else { return }
+        crownValue = session.restoreReadingPosition(book: currentBook)
+        persistBrowsePosition()
     }
 
     private func sync(_ commit: WatchRSVPPositionCommit?) {
