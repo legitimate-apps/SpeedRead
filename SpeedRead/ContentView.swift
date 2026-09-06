@@ -10,6 +10,18 @@ struct ContentView: View {
     @Environment(\.requestReview) private var requestReview
     @EnvironmentObject private var syncService: WatchSyncService
 
+    private let reviewPromptGate: ReviewPromptProcessGate
+    private let reviewRequest: (() -> Void)?
+
+    init(defaults: UserDefaults = .standard,
+         reviewPromptGate: ReviewPromptProcessGate = .shared,
+         reviewRequest: (() -> Void)? = nil) {
+        _hasCompletedOnboarding = AppStorage(wrappedValue: false, "hasCompletedOnboarding", store: defaults)
+        _reviewPromptLaunchCount = AppStorage(wrappedValue: 0, ReviewPromptLogic.launchCountKey, store: defaults)
+        self.reviewPromptGate = reviewPromptGate
+        self.reviewRequest = reviewRequest
+    }
+
     var body: some View {
         Group {
             if hasCompletedOnboarding {
@@ -28,14 +40,14 @@ struct ContentView: View {
     }
 
     private func handleReviewPrompt() {
-        guard ReviewPromptProcessGate.shared.claimLaunch() else { return }
+        guard reviewPromptGate.claimLaunch() else { return }
 
         let decision = ReviewPromptLogic.decision(
             storedLaunchCount: reviewPromptLaunchCount
         )
         reviewPromptLaunchCount = decision.nextStoredLaunchCount
         if decision.shouldRequestReview {
-            requestReview()
+            if let reviewRequest { reviewRequest() } else { requestReview() }
         }
     }
 }

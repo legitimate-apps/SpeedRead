@@ -13,7 +13,7 @@ struct ThemePickerView: View {
                 ScrollView {
                     LazyVStack(spacing: 20) {
                         ForEach(ShelfTheme.allThemes) { theme in
-                            themeCard(theme)
+                            themeCard(theme, manager: themeManager)
                         }
                     }
                     .padding()
@@ -31,12 +31,12 @@ struct ThemePickerView: View {
         .presentationDetents([.medium, .large])
     }
 
-    private func themeCard(_ theme: ShelfTheme) -> some View {
-        let isSelected = themeManager.selectedThemeId == theme.id
+    func themeCard(_ theme: ShelfTheme, manager: ThemeManager) -> some View {
+        let isSelected = manager.selectedThemeId == theme.id
 
         return Button {
             withAnimation(.easeInOut(duration: 0.3)) {
-                themeManager.selectedThemeId = theme.id
+                manager.selectedThemeId = theme.id
             }
         } label: {
             VStack(spacing: 8) {

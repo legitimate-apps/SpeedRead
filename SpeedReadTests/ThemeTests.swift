@@ -9,9 +9,7 @@ import Foundation
 
 @Suite("Theme Manager Tests")
 struct ThemeTests {
-    init() {
-        UserDefaults.standard.removeObject(forKey: "selectedThemeId")
-    }
+    private let storage = IsolatedDefaults()
 
     @Test func allThemesHaveUniqueIds() {
         let ids = ShelfTheme.allThemes.map(\.id)
@@ -19,19 +17,19 @@ struct ThemeTests {
     }
 
     @Test func classicThemeIsDefault() {
-        let manager = ThemeManager()
+        let manager = ThemeManager(defaults: storage.defaults)
         #expect(manager.currentTheme.id == "classic")
     }
 
     @Test func canSwitchTheme() {
-        let manager = ThemeManager()
+        let manager = ThemeManager(defaults: storage.defaults)
         manager.selectedThemeId = "midnight"
         #expect(manager.currentTheme.id == "midnight")
         #expect(manager.currentTheme.name == "Midnight Library")
     }
 
     @Test func invalidThemeIdFallsBackToClassic() {
-        let manager = ThemeManager()
+        let manager = ThemeManager(defaults: storage.defaults)
         manager.selectedThemeId = "nonexistent"
         #expect(manager.currentTheme.id == "classic")
     }

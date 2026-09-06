@@ -10,9 +10,11 @@ import Observation
 final class ThemeManager {
     static let shared = ThemeManager()
 
+    @ObservationIgnored private let defaults: UserDefaults
+
     var selectedThemeId: String {
         didSet {
-            UserDefaults.standard.set(selectedThemeId, forKey: "selectedThemeId")
+            defaults.set(selectedThemeId, forKey: "selectedThemeId")
         }
     }
 
@@ -20,7 +22,8 @@ final class ThemeManager {
         ShelfTheme.allThemes.first { $0.id == selectedThemeId } ?? .classic
     }
 
-    init() {
-        self.selectedThemeId = UserDefaults.standard.string(forKey: "selectedThemeId") ?? "classic"
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        self.selectedThemeId = defaults.string(forKey: "selectedThemeId") ?? "classic"
     }
 }

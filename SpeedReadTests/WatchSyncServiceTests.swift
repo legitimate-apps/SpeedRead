@@ -273,7 +273,7 @@ struct WatchSyncServiceTests {
 }
 
 @MainActor
-private final class FakeWatchConnectivitySession: WatchConnectivitySession {
+final class FakeWatchConnectivitySession: WatchConnectivitySession {
     struct Transfer {}
 
     enum MessageResult {

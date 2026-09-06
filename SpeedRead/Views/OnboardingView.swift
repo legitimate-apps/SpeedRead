@@ -20,7 +20,7 @@ struct OnboardingView: View {
         }
     }
 
-    private var welcomePage: some View {
+    var welcomePage: some View {
         VStack(spacing: 24) {
             Spacer()
 
@@ -43,7 +43,7 @@ struct OnboardingView: View {
         .padding(32)
     }
 
-    private var rsvpExplanationPage: some View {
+    var rsvpExplanationPage: some View {
         VStack(spacing: 24) {
             Spacer()
 
@@ -84,7 +84,7 @@ struct OnboardingView: View {
         .padding(32)
     }
 
-    private var getStartedPage: some View {
+    var getStartedPage: some View {
         VStack(spacing: 24) {
             Spacer()
 
