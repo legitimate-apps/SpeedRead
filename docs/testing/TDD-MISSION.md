@@ -2038,3 +2038,53 @@ real claim, and page *transitions* in a UI test where paging actually lives. The
 path was injecting a page `Binding` into `OnboardingView` so a unit test could drive the TabView:
 production API widened for a test is a shim, and it would have bought a weaker claim than the one
 the UI test now makes.
+
+## 5al. Two gates that were real, passing, and in the wrong place (2026-09-06)
+
+Neither of these was a broken control. Both were correct, both reported honestly, and both had
+never once said anything false. They were still worth fixing, and the reason is the interesting
+part: **where a gate lives decides whether it can do its job, independently of whether its logic
+is right.**
+
+### The audit that could not see half the repo
+
+`shared-source-audit.py` exists because `SpineColor.swift` was a real copy in both source trees and
+had silently diverged — iOS grew a themed-palette overload the watch never got. The script turns
+"these are one file" from a diff someone remembers to run into a property the build enforces.
+
+Its `TREES` constant named the two *source* trees. The two *test* trees were never scanned. That
+matters because `RSVPRenderProbe.swift` now exists in both test trees, and it is a symlink for one
+reason only: the delegate who wrote it in leg 18 chose to make it one. No gate required it. Had
+they copied it instead — the obvious thing to do — the two probes would have been free to drift,
+and the failure mode is worse than the source-tree one it was built for. A drifted source copy
+renders the wrong colour, which somebody eventually sees. A drifted *test* copy removes an
+assertion from one platform's lane and leaves that lane reporting green.
+
+Exemptions are keyed per pair now, because an argument for keeping a shipping source file separate
+is not an argument about a test file that happens to share its name.
+
+Controls, run rather than assumed: a real duplicate across the test trees fails the audit; a
+symlinked one passes; a stale exemption naming a file that is not in both trees fails.
+
+### The gate that cost two simulator boots to reach
+
+`network-isolation-audit.py` is a static text scan. It takes about 200 ms. It enforces two
+genuinely different platform facts — on iOS, global `URLProtocol` registration covers
+`URLSession.shared` but *not* a session built from a custom configuration, so custom sessions are
+centralized in the harness file; on watchOS, global registration was observed not to intercept
+`URLSession.shared` at all, so the watch trees may not use it.
+
+It was invoked from exactly one place: line 40 of `Scripts/coverage.sh`. Reaching it therefore
+required booting two simulators and running both hermetic lanes. Meanwhile
+`Scripts/honesty-gates.sh` opens by describing itself as "the SINGLE LIST of what must be true
+before a build is worth starting" — a claim that was, quietly, false.
+
+Nothing ever drew attention to this, because the gate passed every time it ran. That is the whole
+lesson. A gate that fails in the wrong place announces itself. A gate that *passes* in the wrong
+place is invisible, and the cost is paid only on the day it finally has something to say — when
+the news arrives fifteen minutes and two simulator boots later than it could have.
+
+It surfaced here for a mundane reason: leg 21 briefs a delegate to write tests that construct
+`URLSession`s, and that brief tells the delegate not to run `coverage.sh` (memory). So the delegate
+would have authored a violation of a rule it had no way to be told about, and the manager would
+have found it later. The gate was in a list the delegate never runs.
