@@ -1987,3 +1987,54 @@ manager is invisible to the delegate because the manager is the oracle. It cost 
 renaming to `WatchRSVPWordFitTests.swift` was right on the naming convention alone — but the
 shared `RSVPRenderProbe.swift` that landed in both test trees is a symlink by the delegate's own
 judgement, not because any gate required it. Extending the audit to the test trees is the fix.
+
+## 5ak. Two traps in one leg: GHOST coverage and a shadow that masks its own claim (2026-09-06)
+
+Legs 19 and 20 began the push to close the attributable gap. The measured starting point: 18 files
+named by no test — 3,528 executable lines on iOS, 477 on watch — every one of them SwiftUI markup
+whose decisions had already been relocated into `*Logic` files.
+
+**The arithmetic has to come first, because the metric moves the wrong way if it does not.** Naming
+a file moves its *whole* line count into the ATTRIBUTABLE denominator. Naming all 4,005 remaining
+lines without covering them would have taken 84% to roughly 55%, the gate would have failed, and
+the pressure would have been to lower the floor — the one move never allowed. So each leg has to
+*cover* what it names:
+
+| | attributable | denominator |
+|---|---:|---:|
+| before leg 19 | 85.12% | 9,003 |
+| after leg 19 (annotation lists) | 85.88% | 9,674 |
+| after leg 20 (launch + settings) | **86.72%** | **10,396** |
+
+Nearly 1,400 lines entered the denominator across the two legs and the number rose both times.
+Floor ratcheted 82 → 84.
+
+**Trap one: three of leg 20's five files already showed high coverage.** `OnboardingView` 269/286,
+`ContentView` 42/45, `SpeedReadApp` 15/15 — entirely because a host test bundle launches the app and
+renders them with nothing asserting. That is GHOST, and naming those files to harvest it is exactly
+the laundering the attributable gate exists to refuse. Each was pinned on a real claim instead: the
+three onboarding pages differ in content, the gate switches both ways, the review prompt is claimed
+at most once per process, and the SwiftData container holds all four models — a model missing from
+that list is a runtime crash and nothing noticed before.
+
+**Trap two, and this one is subtle.** The new onboarding UI test first used
+`-hasCompletedOnboarding NO` to force onboarding to appear regardless of what a previous run left
+on the simulator. It failed at the library assertion, and the reason is that the mechanism masks
+the thing under test: **the argument domain outranks the persistent domain on read.** Completing
+onboarding writes `true`, `@AppStorage` reads back the shadowed `NO`, and `ContentView` never
+advances. The assertion could not have passed in any universe. The isolation that made the test
+repeatable is the same fact that made it incapable of proving anything. `--reset-onboarding` clears
+the real value instead — inside `#if DEBUG`, never a runtime check alone.
+
+Worth stating plainly: **every existing UI test skipped onboarding**, so the first screen every new
+reader sees had never been driven by any test until this leg.
+
+**A capture method is a hypothesis too.** The onboarding render assertion failed first against
+`view.layer.render(in:)` on a paged `TabView`. The delegate correctly refused to call it either a
+bug or an artifact without evidence. It is an artifact — `TabView(.page)` is a
+`UIPageViewController` and `layer.render` does not reliably traverse its child containers — and the
+fix was not a better capture but a better split: assert page *content* in a unit test where it is a
+real claim, and page *transitions* in a UI test where paging actually lives. The rejected middle
+path was injecting a page `Binding` into `OnboardingView` so a unit test could drive the TabView:
+production API widened for a test is a shim, and it would have bought a weaker claim than the one
+the UI test now makes.
