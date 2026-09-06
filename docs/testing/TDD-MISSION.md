@@ -2088,3 +2088,64 @@ It surfaced here for a mundane reason: leg 21 briefs a delegate to write tests t
 `URLSession`s, and that brief tells the delegate not to run `coverage.sh` (memory). So the delegate
 would have authored a violation of a rule it had no way to be told about, and the manager would
 have found it later. The gate was in a list the delegate never runs.
+
+## 5am. Use the session convention the repo already has (2026-09-06, leg 21)
+
+`OPDSClient` already accepted a session. The server screens still constructed seven clients of
+their own. Hosting the browser in a real window ran its `.task` against the shared session, and
+the hermetic guard killed the test before there was a screen to assert against. The seam is now
+an inherited client factory whose shipping default still evaluates `OPDSClient()` per operation.
+Catalog navigation and detail destinations inherit the override.
+
+The first pass kept the async work inside the view structs and exposed closures through a
+DEBUG-only `OPDSViewTestAccess`. That was defensible, and its tests distinguished rendered changes
+from physical taps, but it invented a permanent test bridge for a problem this repo already solves.
+`ReaderSession` and `RSVPPresentationSession` are the convention: observable production sessions,
+owned by the view through State, with optional session injection for tests.
+
+The continuation follows that convention. `BrowseServerSession`, `ServerEditSession` and
+`RemoteBookDetailSession` own the actual mutable state and operations. Views supply the environment
+client factory, model context and presentation callbacks. The DEBUG bridge and every hook it needed
+are deleted. Tests drive the same sessions directly and read their state without closures captured
+from view structs that SwiftUI can recreate. The views are still hosted in real windows: feed and
+cover tasks, pagination-row tasks, search submission and observation-driven rendering still execute.
+
+The assertions pair pixel signatures with effects that pixels cannot establish: exact requests,
+returned titles, persisted last-use timestamps, saved server values, imported book text and the
+completion callback. Search submission goes through the installed search field's registered
+UIControl submit action into SwiftUI's `onSubmit`. This is not a claim that every tap, navigation
+gesture or modal dismissal was driven. Those are separate claims.
+
+**The mock is a script, not a permanent answer.** Pagination and cover requests can overlap. Each
+new mock session has its own finite script, matching exact URLs and consuming repeated URLs in
+order. Held replies make loading assertions deterministic. Unknown URLs and exhausted queues hit
+the same fatal guard as an absent single-shot stub. Separate crash controls exercise both failures.
+The old single-shot API remains available for existing suites.
+
+Two first-pass choices were also reversed. The fixture now declares a reserved `.invalid` address
+in the test tree, so the documented plain test command needs no environment setup. The coverage
+script is unchanged, and the environment helper is deleted. A non-routable fixture is not a secret
+and is not a reason to touch a gate. The guard again includes the blocked URL: that is the useful
+diagnostic, and the live integration target does not contain this hermetic bundle's bootstrap.
+
+**A fixture can be wrong even when its name looks obvious.** A bare word used as an invalid URL
+was normalized by the form into an HTTPS URL. The missing-stub guard caught the mistaken premise;
+the fixture now uses a malformed URL. Weakening the guard would have concealed a bad test.
+
+The first pass also exposed two silent no-ops worth retaining as lessons. Omitting `()` from a
+Swift Testing method selector reported `TEST SUCCEEDED` with zero tests; that run was rejected.
+And the installed SwiftUI search coordinator did not implement either optional delegate submit
+callback. Calling one did nothing. The test requires a registered UIControl submit action and then
+observes its request and displayed results. Returning without an error does not prove an event was
+handled. The previous bridge's actor-thunk and immediate-`#require`-invocation compiler problems
+are historical now; removing the bridge removes the need to maintain its workaround surface.
+
+No coverage floor is changed on a focused run. The manager's combined lanes are the evidence for
+that ratchet. Navigation gestures, modal dismissal and the browser's import toast remain outside
+this suite's claims, as do real credentials and server access. Generic catches already wrapped by
+`OPDSClient` into `OPDSError` remain uncovered rather than reached with an impossible fake error.
+
+Observed on the continuation’s focused iOS 26.5 run: **15 tests passed**. The four views measured
+92.70%, 97.11%, 98.67% and 100.00% respectively (browse, editor, detail, row); the three sessions
+measured 95.65%, 95.41% and 98.08%. Both missing-stub crash controls failed at the intended guard,
+and all honesty gates passed. These are focused-run figures, not the combined attributable result.

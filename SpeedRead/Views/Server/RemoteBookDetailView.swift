@@ -9,12 +9,17 @@ struct RemoteBookDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.opdsClientFactory) private var makeClient
     @Environment(ThemeManager.self) private var themeManager
 
-    @State private var selectedAcquisitionIndex: Int = 0
-    @State private var downloading = false
-    @State private var downloadError: String?
-    @State private var coverImage: Image?
+    @State private var session: RemoteBookDetailSession
+
+    init(server: OPDSServer, entry: OPDSEntry, onAdded: @escaping (String) -> Void, session: RemoteBookDetailSession? = nil) {
+        self.server = server
+        self.entry = entry
+        self.onAdded = onAdded
+        _session = State(initialValue: session ?? RemoteBookDetailSession())
+    }
 
     var body: some View {
         let availability = OPDSFormatAvailabilityLogic.classify(entry.acquisitions)
@@ -46,7 +51,7 @@ struct RemoteBookDetailView: View {
                             .foregroundStyle(Color.walnut)
                     }
                     if supportedAcquisitions.count > 1 {
-                        Picker("Format", selection: $selectedAcquisitionIndex) {
+                        Picker("Format", selection: $session.selectedAcquisitionIndex) {
                             ForEach(Array(supportedAcquisitions.enumerated()), id: \.offset) { idx, acq in
                                 Text(acq.displayFormat).tag(idx)
                             }
@@ -54,7 +59,7 @@ struct RemoteBookDetailView: View {
                         .pickerStyle(.segmented)
                     }
                     downloadButton
-                    if let downloadError {
+                    if let downloadError = session.downloadError {
                         Text(downloadError)
                             .font(.footnote)
                             .foregroundStyle(Color.crimsonSoft)
@@ -72,12 +77,12 @@ struct RemoteBookDetailView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await loadCover() }
+        .task { await session.loadCover(entry: entry, on: server, makeClient: makeClient) }
     }
 
     @ViewBuilder
     private var cover: some View {
-        if let coverImage {
+        if let coverImage = session.coverImage {
             coverImage
                 .resizable()
                 .aspectRatio(contentMode: .fit)
@@ -126,14 +131,14 @@ struct RemoteBookDetailView: View {
             from: entry.acquisitions
         )
         let selectedAcquisition = RemoteBookDetailLogic.resolvedAcquisition(
-            at: selectedAcquisitionIndex,
+            at: session.selectedAcquisitionIndex,
             in: supportedAcquisitions
         )
         return Button {
-            Task { await performDownload() }
+            Task { await session.performDownload(entry: entry, on: server, modelContext: modelContext, makeClient: makeClient, onAdded: onAdded, dismiss: { dismiss() }) }
         } label: {
             HStack {
-                if downloading {
+                if session.downloading {
                     ProgressView().controlSize(.small).tint(Color.parchment)
                     Text("Downloading…")
                 } else {
@@ -148,59 +153,7 @@ struct RemoteBookDetailView: View {
             .frame(maxWidth: .infinity)
             .background(Color.crimsonSoft, in: Capsule())
         }
-        .disabled(downloading || selectedAcquisition == nil)
+        .disabled(session.downloading || selectedAcquisition == nil)
     }
 
-    private func loadCover() async {
-        guard let url = entry.coverURL ?? entry.thumbnailURL else { return }
-        if let cached = OPDSCoverCache.shared.image(for: url) {
-            coverImage = cached
-            return
-        }
-        let client = OPDSClient()
-        do {
-            let payload = try await client.download(from: url, on: server)
-            #if canImport(UIKit)
-            if let ui = UIImage(data: payload.data) {
-                let image = Image(uiImage: ui)
-                OPDSCoverCache.shared.store(image, for: url)
-                coverImage = image
-            }
-            #endif
-        } catch {
-            // Cover failures are non-fatal — caller stays on the placeholder.
-        }
-    }
-
-    private func performDownload() async {
-        let supportedAcquisitions = RemoteBookDetailLogic.supportedAcquisitions(
-            from: entry.acquisitions
-        )
-        guard let acquisition = RemoteBookDetailLogic.resolvedAcquisition(
-            at: selectedAcquisitionIndex,
-            in: supportedAcquisitions
-        ) else { return }
-        downloading = true
-        downloadError = nil
-        let client = OPDSClient()
-        do {
-            let payload = try await client.download(from: acquisition.url, on: server)
-            let filename = RemoteBookDetailLogic.ensureExtension(
-                payload.filename,
-                mimeType: acquisition.mimeType,
-                fallbackTitle: entry.title
-            )
-            let importer = DocumentImporter(modelContext: modelContext)
-            let book = try importer.importData(payload.data, filename: filename)
-            onAdded(book.title)
-            dismiss()
-        } catch let err as OPDSError {
-            downloadError = err.errorDescription
-        } catch let err as ExtractionError {
-            downloadError = "Couldn't extract text from the downloaded file (\(err))."
-        } catch {
-            downloadError = error.localizedDescription
-        }
-        downloading = false
-    }
 }

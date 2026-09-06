@@ -4,44 +4,43 @@ import SwiftData
 
 struct ServerEditView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.opdsClientFactory) private var makeClient
     @Environment(\.dismiss) private var dismiss
     @Environment(ThemeManager.self) private var themeManager
 
     let server: OPDSServer?
 
-    @State private var name: String = ""
-    @State private var urlString: String = ""
-    @State private var username: String = ""
-    @State private var password: String = ""
-    @State private var allowInsecureHTTP: Bool = false
+    @State private var session: ServerEditSession
 
-    @State private var testState: ServerEditLogic.ConnectionState = .idle
-    @State private var validationError: String?
+    init(server: OPDSServer?, session: ServerEditSession? = nil) {
+        self.server = server
+        _session = State(initialValue: session ?? ServerEditSession())
+    }
 
     private var presentation: ServerEditLogic.Presentation {
         ServerEditLogic.presentation(server: server)
     }
 
     private var pendingHTTP: Bool {
-        OPDSServerFormLogic.isPendingPlainHTTP(urlString)
+        OPDSServerFormLogic.isPendingPlainHTTP(session.urlString)
     }
 
     var body: some View {
         Form {
             Section("Server") {
-                TextField("Friendly name", text: $name)
+                TextField("Friendly name", text: $session.name)
                     .autocorrectionDisabled()
-                TextField("https://books.example.com/opds", text: $urlString)
+                TextField("https://books.example.com/opds", text: $session.urlString)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
 
             Section {
-                TextField("Username (leave empty for anonymous)", text: $username)
+                TextField("Username (leave empty for anonymous)", text: $session.username)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                SecureField("Password", text: $password)
+                SecureField("Password", text: $session.password)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             } header: {
@@ -51,13 +50,13 @@ struct ServerEditView: View {
             }
 
             Section {
-                Toggle(isOn: $allowInsecureHTTP) {
-                    Label("Allow plain HTTP", systemImage: pendingHTTP && !allowInsecureHTTP ? "exclamationmark.shield" : "lock.shield")
+                Toggle(isOn: $session.allowInsecureHTTP) {
+                    Label("Allow plain HTTP", systemImage: pendingHTTP && !session.allowInsecureHTTP ? "exclamationmark.shield" : "lock.shield")
                 }
             } header: {
                 Text("Security")
             } footer: {
-                if pendingHTTP && !allowInsecureHTTP {
+                if pendingHTTP && !session.allowInsecureHTTP {
                     Text("This server uses http://. Enable plain HTTP or change the URL to https://.")
                         .foregroundStyle(Color.crimsonSoft)
                 } else {
@@ -67,10 +66,10 @@ struct ServerEditView: View {
 
             Section {
                 Button {
-                    Task { await testConnection() }
+                    Task { await session.testConnection(server: server, makeClient: makeClient) }
                 } label: {
                     HStack {
-                        switch testState {
+                        switch session.testState {
                         case .idle:
                             Label("Test Connection", systemImage: "network")
                         case .running:
@@ -86,12 +85,12 @@ struct ServerEditView: View {
                     }
                 }
                 .disabled(!ServerEditLogic.canTestConnection(
-                    state: testState,
-                    urlString: urlString
+                    state: session.testState,
+                    urlString: session.urlString
                 ))
             }
 
-            if let validationError {
+            if let validationError = session.validationError {
                 Section {
                     Text(validationError)
                         .foregroundStyle(Color.crimsonSoft)
@@ -105,8 +104,10 @@ struct ServerEditView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { save() }
-                    .disabled(!canSave)
+                Button("Save") {
+                    if session.save(server: server, modelContext: modelContext) { dismiss() }
+                }
+                    .disabled(!session.canSave)
             }
             if presentation.showsCancel {
                 ToolbarItem(placement: .cancellationAction) {
@@ -114,113 +115,7 @@ struct ServerEditView: View {
                 }
             }
         }
-        .onAppear(perform: loadExisting)
+        .onAppear { session.loadExisting(server: server) }
     }
 
-    private var canSave: Bool {
-        OPDSServerFormLogic.canSave(name: name, urlString: urlString)
-    }
-
-    private func loadExisting() {
-        let values = ServerEditLogic.initialValues(server: server)
-        name = values.name
-        urlString = values.urlString
-        username = values.username
-        password = values.password
-        allowInsecureHTTP = values.allowInsecureHTTP
-    }
-
-    private func save() {
-        let validated: ServerEditLogic.ValidatedServer
-        switch ServerEditLogic.saveDecision(
-            name: name,
-            urlString: urlString,
-            username: username,
-            password: password,
-            allowInsecureHTTP: allowInsecureHTTP
-        ) {
-        case .failure(let message):
-            validationError = message
-            return
-        case .valid(let value):
-            validated = value
-        }
-        validationError = nil
-
-        if let server {
-            server.name = validated.name
-            server.baseURLString = validated.url.absoluteString
-            server.username = validated.username
-            server.allowInsecureHTTP = validated.allowInsecureHTTP
-            persistPassword(validated.password, for: server.keychainTag)
-        } else {
-            let s = OPDSServer(
-                name: validated.name,
-                baseURL: validated.url,
-                username: validated.username,
-                allowInsecureHTTP: validated.allowInsecureHTTP,
-                sortIndex: ServerEditLogic.sortIndex()
-            )
-            modelContext.insert(s)
-            persistPassword(validated.password, for: s.keychainTag)
-        }
-        try? modelContext.save()
-        dismiss()
-    }
-
-    private func persistPassword(_ password: String, for tag: String) {
-        switch ServerEditLogic.passwordAction(password: password) {
-        case .delete:
-            try? KeychainStore.deletePassword(for: tag)
-        case .set(let value):
-            try? KeychainStore.setPassword(value, for: tag)
-        }
-    }
-
-    private func testConnection() async {
-        let url: URL
-        switch ServerEditLogic.connectionDecision(
-            urlString: urlString,
-            allowInsecureHTTP: allowInsecureHTTP
-        ) {
-        case .probe(let validatedURL):
-            url = validatedURL
-        case .failure(let message):
-            testState = .failure(message)
-            return
-        }
-        testState = .running
-        let tag = ServerEditLogic.connectionTag(existingTag: server?.keychainTag)
-        if !password.isEmpty {
-            try? KeychainStore.setPassword(password, for: tag.value)
-        }
-        defer {
-            if tag.deletesAfterProbe {
-                try? KeychainStore.deletePassword(for: tag.value)
-            }
-        }
-
-        let identity = OPDSServerFormLogic.normalizedIdentity(
-            name: name,
-            username: username,
-            password: password
-        )
-        let probeServer = OPDSServer(
-            name: "probe",
-            baseURL: url,
-            username: identity.username,
-            allowInsecureHTTP: allowInsecureHTTP
-        )
-        probeServer.keychainTag = tag.value
-
-        let client = OPDSClient()
-        do {
-            _ = try await client.testConnection(probeServer)
-            testState = .success
-        } catch let opdsError as OPDSError {
-            testState = .failure(opdsError.errorDescription ?? "Unknown error")
-        } catch {
-            testState = .failure(error.localizedDescription)
-        }
-    }
 }

@@ -8,12 +8,16 @@ struct BrowseServerView: View {
     @Environment(ThemeManager.self) private var themeManager
     @Query(sort: \OPDSServer.sortIndex) private var servers: [OPDSServer]
 
-    @State private var selectedServerID: UUID?
+    @State private var session: BrowseServerSession
+
+    init(session: BrowseServerSession? = nil) {
+        _session = State(initialValue: session ?? BrowseServerSession())
+    }
 
     private var route: BrowseServerLogic.Route {
         BrowseServerLogic.route(
             servers: servers.map(BrowseServerLogic.ServerSnapshot.init),
-            selectedServerID: selectedServerID
+            selectedServerID: session.selectedServerID
         )
     }
 
@@ -31,7 +35,8 @@ struct BrowseServerView: View {
                         BrowseFeedView(
                             server: server,
                             url: destination.url,
-                            title: destination.title
+                            title: destination.title,
+                            session: session
                         )
                     } else {
                         serverPicker
@@ -56,9 +61,7 @@ struct BrowseServerView: View {
             Section("Select a Library Server") {
                 ForEach(servers) { server in
                     Button {
-                        selectedServerID = server.id
-                        server.lastUsedAt = Date()
-                        try? modelContext.save()
+                        session.selectServer(server.id, servers: servers, modelContext: modelContext)
                     } label: {
                         HStack {
                             VStack(alignment: .leading) {
@@ -116,31 +119,20 @@ private struct BrowseFeedView: View {
     let server: OPDSServer
     let url: URL
     let title: String
+    @State private var session: BrowseServerSession
 
-    @Environment(\.modelContext) private var modelContext
-
-    @State private var feed: OPDSFeed?
-    @State private var nextPageURL: URL?
-    @State private var paginatedEntries: [OPDSEntry] = []
-    @State private var loadingMore = false
-    @State private var loading = true
-    @State private var error: String?
-    @State private var searchText: String = ""
-    @State private var searchedFeed: OPDSFeed?
-    @State private var downloadingEntryID: String?
-    @State private var downloadError: String?
-    @State private var downloadCompleteTitle: String?
-
-    private var displayEntries: [OPDSEntry] {
-        OPDSBrowseLogic.displayEntries(
-            searchText: searchText,
-            searchedFeed: searchedFeed,
-            paginatedEntries: paginatedEntries
-        )
+    init(server: OPDSServer, url: URL, title: String, session: BrowseServerSession? = nil) {
+        self.server = server
+        self.url = url
+        self.title = title
+        _session = State(initialValue: session ?? BrowseServerSession())
     }
 
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.opdsClientFactory) private var makeClient
+
     private var entrySections: OPDSBrowseLogic.EntrySections {
-        OPDSBrowseLogic.sections(for: displayEntries)
+        OPDSBrowseLogic.sections(for: session.displayEntries)
     }
 
     private var navigationLinks: [OPDSEntry] { entrySections.navigation }
@@ -150,9 +142,9 @@ private struct BrowseFeedView: View {
     var body: some View {
         Group {
             switch BrowseServerLogic.feedPresentation(
-                loading: loading,
-                hasFeed: feed != nil,
-                error: error
+                loading: session.loading,
+                hasFeed: session.feed != nil,
+                error: session.error
             ) {
             case .loading:
                 ProgressView().controlSize(.large)
@@ -164,7 +156,7 @@ private struct BrowseFeedView: View {
                     Text(message)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
-                    Button("Retry") { Task { await load() } }
+                    Button("Retry") { Task { await session.load(url: url, on: server, modelContext: modelContext, makeClient: makeClient) } }
                         .buttonStyle(.borderedProminent)
                         .tint(Color.crimsonSoft)
                 }
@@ -174,13 +166,13 @@ private struct BrowseFeedView: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: url) { await load() }
-        .searchable(text: $searchText, prompt: "Search this server")
-        .onSubmit(of: .search) { Task { await runSearch() } }
+        .task(id: url) { await session.load(url: url, on: server, modelContext: modelContext, makeClient: makeClient) }
+        .searchable(text: $session.searchText, prompt: "Search this server")
+        .onSubmit(of: .search) { Task { await session.runSearch(on: server, makeClient: makeClient) } }
         .overlay(alignment: .bottom) {
             switch BrowseServerLogic.toastPresentation(
-                completedTitle: downloadCompleteTitle,
-                error: downloadError
+                completedTitle: session.downloadCompleteTitle,
+                error: session.downloadError
             ) {
             case .none:
                 EmptyView()
@@ -189,12 +181,12 @@ private struct BrowseFeedView: View {
                     .onAppear {
                         Task {
                             try? await Task.sleep(for: .seconds(2.2))
-                            self.downloadCompleteTitle = nil
+                            session.downloadCompleteTitle = nil
                         }
                     }
             case .failure(let message):
                 ToastView(icon: "exclamationmark.triangle.fill", text: message, color: Color.crimsonSoft)
-                    .onTapGesture { self.downloadError = nil }
+                    .onTapGesture { session.downloadError = nil }
             }
         }
     }
@@ -222,18 +214,18 @@ private struct BrowseFeedView: View {
                             RemoteBookDetailView(
                                 server: server,
                                 entry: entry,
-                                onAdded: { title in downloadCompleteTitle = title }
+                                onAdded: { title in session.downloadCompleteTitle = title }
                             )
                         } label: {
                             OPDSEntryRowView(entry: entry) { url in
-                                await fetchCover(url: url)
+                                await session.fetchCover(url: url, on: server, makeClient: makeClient)
                             }
                         }
                     }
                     let pagination = BrowseServerLogic.paginationPresentation(
-                        nextPageURL: nextPageURL,
-                        searchText: searchText,
-                        loadingMore: loadingMore
+                        nextPageURL: session.nextPageURL,
+                        searchText: session.searchText,
+                        loadingMore: session.loadingMore
                     )
                     if pagination != .hidden {
                         HStack {
@@ -242,102 +234,25 @@ private struct BrowseFeedView: View {
                             case .loading:
                                 ProgressView().controlSize(.small)
                             case .loadMore:
-                                Button("Load more") { Task { await loadMore() } }
+                                Button("Load more") { Task { await session.loadMore(on: server, makeClient: makeClient) } }
                                     .foregroundStyle(Color.crimsonSoft)
                             case .hidden:
                                 EmptyView()
                             }
                             Spacer()
                         }
-                        .task {
-                            if pagination == .loadMore { await loadMore() }
+                    .task {
+                            if pagination == .loadMore { await session.loadMore(on: server, makeClient: makeClient) }
                         }
                     }
                 }
             }
         }
         .scrollContentBackground(.hidden)
-        .refreshable { await load() }
+        .refreshable { await session.load(url: url, on: server, modelContext: modelContext, makeClient: makeClient) }
     }
 
-    private func load() async {
-        loading = true
-        error = nil
-        let client = OPDSClient()
-        do {
-            let result = try await client.fetchFeed(url: url, on: server)
-            self.feed = result
-            self.paginatedEntries = result.entries
-            self.nextPageURL = result.nextPageURL
-            server.lastUsedAt = Date()
-            try? modelContext.save()
-        } catch let opdsError as OPDSError {
-            self.error = opdsError.errorDescription
-        } catch {
-            self.error = error.localizedDescription
-        }
-        loading = false
-    }
 
-    private func loadMore() async {
-        guard let next = nextPageURL, !loadingMore else { return }
-        loadingMore = true
-        let client = OPDSClient()
-        do {
-            let more = try await client.fetchFeed(url: next, on: server)
-            self.paginatedEntries.append(contentsOf: more.entries)
-            self.nextPageURL = more.nextPageURL
-        } catch {
-            // Don't blow up the whole view for pagination — just stop the spinner.
-            self.nextPageURL = nil
-        }
-        loadingMore = false
-    }
-
-    private func runSearch() async {
-        let action = OPDSBrowseLogic.searchAction(
-            query: searchText,
-            advertisedTemplate: feed?.searchTemplate,
-            baseURL: server.baseURL
-        )
-        let searchURL: URL
-        switch action {
-        case .clear:
-            searchedFeed = nil
-            return
-        case .unavailable:
-            return
-        case .fetch(let url):
-            searchURL = url
-        }
-        let client = OPDSClient()
-        do {
-            searchedFeed = try await client.fetchFeed(url: searchURL, on: server)
-        } catch {
-            searchedFeed = nil
-            self.error = (error as? OPDSError)?.errorDescription ?? error.localizedDescription
-        }
-    }
-
-    private func fetchCover(url: URL) async -> Image? {
-        if let cached = OPDSCoverCache.shared.image(for: url) {
-            return cached
-        }
-        let client = OPDSClient()
-        do {
-            let payload = try await client.download(from: url, on: server)
-            #if canImport(UIKit)
-            if let ui = UIImage(data: payload.data) {
-                let image = Image(uiImage: ui)
-                OPDSCoverCache.shared.store(image, for: url)
-                return image
-            }
-            #endif
-            return nil
-        } catch {
-            return nil
-        }
-    }
 }
 
 private struct ToastView: View {
