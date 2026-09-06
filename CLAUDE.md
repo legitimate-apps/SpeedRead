@@ -33,22 +33,28 @@ syncs phone ↔ watch over WatchConnectivity.
 
 - Swift 5, Xcode 16+ (uses `PBXFileSystemSynchronizedRootGroup` — files dropped into
   source dirs auto-include).
-- `MARKETING_VERSION` = 1.2, `CURRENT_PROJECT_VERSION` = 3.
+- `MARKETING_VERSION` = 1.2, `CURRENT_PROJECT_VERSION` = 4.
 
 ## Release state
 
-Live on the App Store as **1.1 (build 2)** since 2026-05-21, under Legitimate LLC
-(team `3LTL47SJ8C`, ASC app `6771221242`, listed as "SpeedRead RSVP: books in a day",
-seller "Legitimate Apps LLC").
+Live on the App Store as **1.2 (build 4)**, released 2026-09-06 under Legitimate LLC (team
+`3LTL47SJ8C`, ASC app `6771221242`, listed as "SpeedRead RSVP: books in a day", seller
+"Legitimate Apps LLC"). 1.2 is the first release since 1.1 (2026-05-21) that carries user-facing
+change. Build 3 was never submitted: it was user-facing-identical to the live 1.1, so shipping it
+would have burned a review cycle on a no-op.
 
-**1.2 (build 3) is uploaded and staged but deliberately NOT submitted.** Build 3 is
-user-facing-identical to the live 1.1 — its only delta is debug-only screenshot launch
-args — so submitting it would burn an App Review cycle on a no-op. It stays held until
-real user-facing change lands. There is an open, empty review submission
-(`60c34951-49dd-4b7b-88e4-d56bf6e9bce5`, `READY_FOR_REVIEW`, 0 items) to reuse when it does.
+`MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the table above are the SHIPPED values. Bump
+both before the next archive.
 
-> Before any future submission, diff the candidate build's **source** against the live
-> build's source — not just the version number.
+> Before any future submission, diff the candidate build's **source** against the live build's
+> source — not just the version number.
+
+Marketing assets are re-runnable in-repo, not one-off: `marketing/compose.py` builds the App Store
+gallery from `marketing/raw/` and `marketing/METADATA.md` is the single source for the listing copy.
+`marketing/upload_asc.py` pushes both. The 2026-05 gallery was composited in `/tmp` and was gone by
+the time 1.2 needed it — that is why the compositor lives in the repo now. ASC screenshot wells were
+probed, not read from docs: there is no `APP_IPHONE_69` and no 13" iPad; the live wells are
+`APP_IPHONE_67` (1290×2796), `APP_IPAD_PRO_3GEN_129` (2048×2732), `APP_WATCH_SERIES_10` (416×496).
 
 > **Logger subsystem note:** `WatchSyncService` uses `com.legitimateapps.SpeedRead` as
 > its logger subsystem. Matches the bundle ID. Just a logger category name, not load-bearing.
