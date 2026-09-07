@@ -56,42 +56,37 @@ work_dir=""
 # array fixed and only the array consulted, a SIGTERM control leaked 1 of 1 leases from
 # coverage.sh (caught mid-create) while ui-lanes.sh passed -- same code, different timing.
 #
-# The query alone is not, because a lease this run adopted rather than created, or one created
-# a hair before the recorded start time, would not match it.
+# The query alone is not, because a lease this run adopted rather than created would not match.
 #
-# The query side is scoped hard so it can never take a lease belonging to somebody else: same
-# project, same owning session (null matches null, which is how CI's own runs match), one of
-# THIS script's two purposes -- coverage.sh uses tests/tests-watch and ui-lanes.sh uses
-# ui/ui-watch, so the two scripts cannot collect each other -- and created no earlier than this
-# script started.
-script_started_at="$(date +%s)"
+# The query is keyed on owner_pid and nothing else that can collide. It was previously scoped by
+# project + session + purpose + created-within-300s, and that BROKE A RELEASE-CANDIDATE CI RUN on
+# 2026-09-07. On CI there is no CLAUDE_CODE_SESSION_ID, so every lane has session_id null and the
+# same two purposes, and `concurrency: cancel-in-progress` guarantees that a cancelled run and the
+# run superseding it start within seconds of each other. The cancelled run's cleanup matched the
+# NEW run's freshly created leases and deleted its simulator mid-test: "No matching device ... in
+# set". I had considered this exact collision when writing the window and argued it away as "the
+# cancelled run is being cancelled anyway" -- which is backwards. The cancelled run is the one
+# doing the deleting.
+#
+# owner_pid is recorded per lease by `sim-lease create --owner-pid "$$"` and is this shell's pid,
+# so no other run can match it, on CI or anywhere else.
 our_leased_sims() {
   {
     for leased_sim in ${leased_sims[@]+"${leased_sims[@]}"}; do
       [[ -n "$leased_sim" ]] && printf '%s\n' "$leased_sim"
     done
     sim-lease list --json 2>/dev/null | python3 -c '
-import json, os, sys
-started = int(sys.argv[1])
-purposes = set(sys.argv[2:])
-session = os.environ.get("CLAUDE_CODE_SESSION_ID")
+import json, sys
+owner = int(sys.argv[1])
 try:
     leases = json.load(sys.stdin)
 except ValueError:
     sys.exit(0)
 for lease in leases:
     if lease.get("project") != "speedread": continue
-    if lease.get("purpose") not in purposes: continue
-    if lease.get("session_id") != session: continue
-    # Upper bound as well as lower. Every lease this script takes is created in its first
-    # seconds, before any boot; 300s is generous. Without the ceiling, two CI runs on different
-    # refs -- both with session_id null and the same purposes, which `cancel-in-progress` does
-    # not serialise across refs -- could collect each other. That is precisely the harm this
-    # query exists to avoid, so it must not be the harm the query causes. The array still
-    # covers any lease that falls outside the window.
-    if not (started <= lease.get("created_at", 0) <= started + 300): continue
+    if lease.get("owner_pid") != owner: continue
     print(lease["udid"])
-' "$script_started_at" "tests" "tests-watch" 2>/dev/null || true
+' "$$" 2>/dev/null || true
   } | sort -u
 }
 

@@ -2814,3 +2814,41 @@ platform*.
 
 Line-by-line disposition of every counted gap on both platforms, with a reason for each and the
 tests deliberately not written, is in `docs/testing/leg28-coverage-ledger.md`.
+
+## 5ax. The variable my machine sets and CI does not (2026-09-07)
+
+`Scripts/coverage.sh` deleted a running CI job's simulator. The test log says
+`No matching device (9274A584-...) in set`, and the job that died was the CI run for a release
+candidate.
+
+`our_leased_sims()` — the query half added in §5at to close the create-vs-record race — matched
+on project + session + purpose + created-within-300s. On CI there is no
+`CLAUDE_CODE_SESSION_ID`, so every lane has `session_id` null and the same two purposes, and
+`concurrency: cancel-in-progress` guarantees that a cancelled run and the run superseding it
+start seconds apart. So the cancelled run's cleanup matched the *new* run's freshly created
+leases and disposed them mid-test.
+
+**I considered this exact collision when I wrote the window, and argued it away.** The comment
+said: "a run starting within 10 min would still be a risk — but that's exactly the
+cancel-in-progress case where the old run is being cancelled anyway." That has the direction
+backwards. The cancelled run is not the victim; it is the one holding the knife.
+
+It is now keyed on `owner_pid` and nothing else. That key existed the whole time — a peer's leg
+had added it hours earlier, and the SIGTERM control I rewrote in §5av was *already* asserting on
+it. I had the right discriminator in my hand, used it in the test, and left the heuristic in the
+code the test was checking.
+
+**Why every local control missed it.** My shell sets `CLAUDE_CODE_SESSION_ID`; CI does not. Two
+concurrent local runs are discriminated by that variable for free, so the collision cannot happen
+here and no amount of local re-running would have shown it. The environment difference *was* the
+bug, and a control that inherits the environment cannot see it. `Scripts/lane-cancel-collision-
+control.sh` now reproduces the CI sequence — A leases, B leases, A is SIGTERMed — with
+`env -u CLAUDE_CODE_SESSION_ID` on both runs. Against the pre-fix copy: B had 2 simulators, B
+was left with 0. Against the fix: B's 2 survive, A's 2 are released. It is not in
+`honesty-gates.sh` because it boots real simulators and takes minutes; the gates are the cheap
+list.
+
+The transferable rule: when a script's correctness depends on an ambient variable, write the
+control with that variable **unset**, because the machine you are testing on is not the machine
+that will run it. Same family as §5b's lane that had never run and §5aw's per-platform coverage
+number — a fact that is true here and false there, believed globally.
