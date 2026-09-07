@@ -23,3 +23,8 @@ Scripts/__pycache__/
 # instead of measuring them, which silently launders a previous run (or a delegate) into
 # what reads as a fresh independent result.
 docs/testing/*.jsonl
+
+# SQLite sidecars for the migration fixture. Verified unnecessary: the suite passes with the
+# .store alone (its WAL is checkpointed to 0 bytes), and a stale -shm can confuse SQLite.
+SpeedReadTests/Fixtures/*.store-shm
+SpeedReadTests/Fixtures/*.store-wal

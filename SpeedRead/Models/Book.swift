@@ -72,6 +72,9 @@ final class Book {
     var dateAdded: Date
     var lastReadWordIndex: Int
     var lastReadDate: Date?
+    /// Completion of the current read, independent of the last visible word.
+    /// Optional so existing libraries migrate with no inferred completion.
+    var finishedAt: Date? = nil
     /// Local RSVP/navigation cursor. A negative value is the migration sentinel for
     /// stores created before the three-marker position model.
     var browseWordIndex: Int = -1
@@ -151,6 +154,7 @@ final class Book {
 
     var progress: Double {
         guard wordCount > 0 else { return 0.0 }
+        if finishedAt != nil { return 1.0 }
         return Double(lastReadWordIndex) / Double(wordCount)
     }
 }

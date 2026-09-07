@@ -83,7 +83,8 @@ final class RSVPPresentationSession {
             book: book,
             saver: saver,
             sync: sync,
-            now: now
+            now: now,
+            didFinish: engine.didFinish
         )
     }
 
@@ -95,8 +96,9 @@ final class RSVPPresentationSession {
         now: Date = Date()
     ) -> ReadingPositionCommit? {
         let index = engine.currentIndex
-        guard engine.state == .playing,
-              positionCommitPolicy.shouldCommitAdvance(at: index, now: now) else {
+        guard positionCommitPolicy.hasPlayed,
+              engine.didFinish || (engine.state == .playing
+                && positionCommitPolicy.shouldCommitAdvance(at: index, now: now)) else {
             return nil
         }
         return ReadingPositionCoordinator.commit(
@@ -105,7 +107,8 @@ final class RSVPPresentationSession {
             book: book,
             saver: saver,
             sync: sync,
-            now: now
+            now: now,
+            didFinish: engine.didFinish
         )
     }
 
@@ -146,7 +149,8 @@ final class RSVPPresentationSession {
             book: book,
             saver: saver,
             sync: sync,
-            now: now
+            now: now,
+            didFinish: engine.didFinish
         )
         didCommitClose = true
         return commit
@@ -178,7 +182,8 @@ final class RSVPPresentationSession {
             book: book,
             saver: saver,
             sync: sync,
-            now: now
+            now: now,
+            didFinish: engine.didFinish
         )
         engine.stop()
         return commit

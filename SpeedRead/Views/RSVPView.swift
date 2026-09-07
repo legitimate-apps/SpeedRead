@@ -143,6 +143,18 @@ struct RSVPView: View {
                 Self.logger.error("Failed to persist lastReadWordIndex on disappear")
             }
         }
+        .onChange(of: engine.didFinish) { _, didFinish in
+            guard didFinish else { return }
+            let result = presentation.commitPlaybackAdvanceIfNeeded(
+                engine: engine,
+                book: book,
+                saver: modelContext,
+                sync: syncService
+            )
+            if result?.didSave == false {
+                Self.logger.error("Failed to persist RSVP completion")
+            }
+        }
         .onChange(of: engine.currentIndex) { _, newIndex in
             if engine.state == .playing {
                 let result = presentation.commitPlaybackAdvanceIfNeeded(

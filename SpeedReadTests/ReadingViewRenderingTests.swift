@@ -85,21 +85,28 @@ struct ReadingViewRenderingTests {
             extractedText: "zero one two three four five",
             sourceFileName: "estimate.txt"
         )
-        // The "finished" string requires remainingWords == 0, i.e. lastReadWordIndex == wordCount.
-        // Set directly here so the branch itself is exercised.
-        longBook.lastReadWordIndex = longBook.wordCount
+        // Completion is a persisted fact; the cursor still identifies a valid word.
+        longBook.lastReadWordIndex = longBook.wordCount - 1
+        longBook.finishedAt = Date(timeIntervalSince1970: 100)
+        #expect(longBook.progress == 1)
         #expect(ReaderView.readingEstimate(book: longBook, lastWPM: 250) == "100% · finished")
 
-        // ...but NO commit path can produce that state. Both writers of lastReadWordIndex cap at
-        // wordCount - 1: ReadingPositionCoordinator.clampedIndex, and WatchSyncService's lastValidIndex.
-        // branch above is unreachable in the shipping app and a reader who finishes a book sees
-        // "83% · <1 min left" here rather than "finished". Pinned rather than deleted: this fails
-        // the day the clamp changes, which is exactly when the display needs revisiting.
+        // A final-word jump remains unfinished. Actual playback completion reaches the
+        // same cursor with didFinish=true, so a real commit can now produce the branch.
         let committed = ReadingPositionCoordinator.clampedIndex(Int.max, wordCount: longBook.wordCount)
         #expect(committed == longBook.wordCount - 1)
-        longBook.lastReadWordIndex = committed
+        let saver = EstimateSaver()
+        let sync = EstimateSync()
+        _ = ReadingPositionCoordinator.commit(committed, wordCount: longBook.wordCount,
+            book: longBook, saver: saver, sync: sync)
+        #expect(longBook.finishedAt == nil)
         #expect(ReaderView.readingEstimate(book: longBook, lastWPM: 250) != "100% · finished")
         #expect(longBook.progress < 1.0)
+        _ = ReadingPositionCoordinator.commit(committed, wordCount: longBook.wordCount,
+            book: longBook, saver: saver, sync: sync, didFinish: true)
+        #expect(longBook.finishedAt != nil)
+        #expect(longBook.progress == 1)
+        #expect(ReaderView.readingEstimate(book: longBook, lastWPM: 250) == "100% · finished")
 
         let midBook = Book(
             title: "Estimate",
@@ -323,4 +330,14 @@ struct ReadingViewRenderingTests {
             await Task.yield()
         }
     }
+}
+
+@MainActor
+private final class EstimateSaver: ReadingPositionSaving {
+    func save() throws {}
+}
+
+@MainActor
+private final class EstimateSync: ReadingPositionSyncing {
+    func syncReadingPosition(bookId: UUID, bookTitle: String, wordIndex: Int, timestamp: Date, furthestReadWordIndex: Int) {}
 }

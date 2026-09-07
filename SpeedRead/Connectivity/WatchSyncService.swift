@@ -668,6 +668,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         }
         book.ensurePositionMarkersInitialized()
         book.lastReadWordIndex = acceptedIndex
+        book.finishedAt = nil
         book.lastReadDate = offer.timestamp
         book.browseWordIndex = acceptedIndex
         book.furthestReadWordIndex = min(

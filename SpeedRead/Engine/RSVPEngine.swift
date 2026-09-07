@@ -101,6 +101,7 @@ final class RSVPEngine {
 
     func play() {
         guard state != .playing, !words.isEmpty else { return }
+        didFinish = false
         state = .playing
         startPlayback()
     }

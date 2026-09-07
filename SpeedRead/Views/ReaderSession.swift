@@ -51,12 +51,15 @@ enum ReadingPositionCoordinator {
         book: Book,
         saver: any ReadingPositionSaving,
         sync: (any ReadingPositionSyncing)? = nil,
-        now: Date = Date()
+        now: Date = Date(),
+        didFinish: Bool = false
     ) -> ReadingPositionCommit {
         let clamped = clampedIndex(index, wordCount: wordCount)
         book.ensurePositionMarkersInitialized()
         book.lastReadWordIndex = clamped
         book.lastReadDate = now
+        book.finishedAt = didFinish && wordCount > 0 && clamped == wordCount - 1
+            ? (book.finishedAt ?? now) : nil
         book.browseWordIndex = clamped
         book.furthestReadWordIndex = max(book.furthestReadWordIndex, clamped)
 

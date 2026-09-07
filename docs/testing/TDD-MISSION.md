@@ -2323,3 +2323,63 @@ And one of my own oracle errors, recorded because it is the third of this shape:
 `ReaderSession.clampedIndex` into a test after reading the function body without noticing it is
 declared on `ReadingPositionCoordinator`. Reading a definition is not the same as reading which type
 owns it.
+
+## 5aq. A book can be finished (2026-09-06, leg 24)
+
+The bug 5ap found, fixed. `Book` gains `finishedAt: Date?`; `progress` returns 1.0 when it is set;
+`ReadingPositionCoordinator.commit` gains a `didFinish` parameter and writes
+
+```swift
+book.finishedAt = didFinish && wordCount > 0 && clamped == wordCount - 1
+    ? (book.finishedAt ?? now) : nil
+```
+
+Three properties are packed into that one line, and each corresponds to a way the obvious
+implementation goes wrong:
+
+* **`didFinish && clamped == wordCount - 1`** — reaching the last word is not finishing it. Tapping
+  the final word to jump there must not complete a book, and `unopenedAndFinalWordJumpRemainUnfinished`
+  holds that.
+* **`book.finishedAt ?? now`** — re-finishing keeps the ORIGINAL completion date rather than
+  overwriting it. Completion is an event that happened once.
+* **the `: nil` branch** — *any* non-finishing commit clears completion. This is the re-read case,
+  and it is the reason the naive "set a flag, return 1.0 forever" version is wrong: it makes every
+  subsequent re-read display as complete. `rereadingClearsCompletionButBrowsingDoesNot` pins both
+  halves — that committing a middle position clears it, and that merely *browsing* does not, since
+  browsing has never committed a reading position.
+
+`RSVPEngine.play()` now clears `didFinish`, so a replay must reach the end again before it can
+re-complete. `WatchSyncService` clears `finishedAt` when it accepts a watch position, because
+reading on the watch is the start of a re-read on the phone.
+
+### The migration fixture is real, not simulated
+
+`SpeedReadTests/Fixtures/PreCompletion.store` was generated **by the original production schema**,
+before `finishedAt` existed, and its `ZBOOK` columns were inspected to confirm no `ZFINISHEDAT`
+column is present. `preCompletionLibraryMigratesWithoutLosingContent` opens that store with the new
+model. A migration test that builds its "old" store with the *new* schema tests nothing, which is
+the same class of error as
+[[fixtures must be sampled, not authored]] — recorded in this ledger at §5ad. The generator source
+is kept in the evidence directory; it was removed from the test tree after producing the immutable
+input, not removed to make a failure go away.
+
+### Watch parity: deliberately not done, and why
+
+`WatchBook`, the watch library JSON and `PositionPayload` carry no completion concept. Adding an
+isolated `finishedAt` on the watch without transport and reconciliation would produce a field that
+looks supported and silently never syncs — worse than its absence. What IS implemented and tested is
+the direction that matters for correctness today: the phone accepting a watch position clears phone
+completion. Full watch parity is a transport change and belongs in its own leg.
+
+### Process note: a green run that never happened
+
+The delegate was killed by the harness low-memory guard *during* its green verification —
+`green.log` ends `** BUILD INTERRUPTED **`. Its red evidence was intact and unambiguous (exit 65 on
+five separate runs), but "the implementation is written and the gates pass" is not the same claim as
+"the tests pass", and the honesty gates cannot tell those apart because they are static. The manager
+ran the focused suite (8 tests, `** TEST SUCCEEDED **`) and then both lanes.
+
+Worth recording in the delegate's favour: it caught a vacuous selector itself. `red-natural.exit`
+was **0** having matched zero tests, and rather than bank a green it wrote
+"It is NOT passing evidence" and re-ran the whole suite. That is the §5ao trap, found and refused by
+the same delegate that first recorded it.

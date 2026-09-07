@@ -309,7 +309,7 @@ struct ReaderView: View {
         let remainingWords = max(0, book.wordCount - book.lastReadWordIndex)
         let wpm = max(ReaderConfig.RSVP.minimumEstimateWPM, lastWPM)
         let minutes = Int((Double(remainingWords) / Double(wpm)).rounded())
-        if remainingWords == 0 {
+        if book.wordCount > 0 && book.finishedAt != nil {
             return "\(percent)% · finished"
         }
         if minutes <= 0 {
