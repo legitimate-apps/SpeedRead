@@ -33,24 +33,34 @@ syncs phone ↔ watch over WatchConnectivity.
 
 - Swift 5, Xcode 16+ (uses `PBXFileSystemSynchronizedRootGroup` — files dropped into
   source dirs auto-include).
-- `MARKETING_VERSION` = 1.2, `CURRENT_PROJECT_VERSION` = 4.
+- `MARKETING_VERSION` = 1.3, `CURRENT_PROJECT_VERSION` = 5.
 
 ## Release state
 
-Live on the App Store as **1.2 (build 4)**, released 2026-09-06 under Legitimate LLC (team
+**1.3 (build 5) was submitted 2026-09-07 and is `WAITING_FOR_REVIEW`.** `releaseType` is
+`MANUAL`, so approval is NOT publication — someone still has to request the release. **1.2 (build
+4)** remains the live version until then, released 2026-09-06 under Legitimate LLC (team
 `3LTL47SJ8C`, ASC app `6771221242`, listed as "SpeedRead RSVP: books in a day", seller
-"Legitimate Apps LLC"). 1.2 is the first release since 1.1 (2026-05-21) that carries user-facing
-change. Build 3 was never submitted: it was user-facing-identical to the live 1.1, so shipping it
-would have burned a review cycle on a no-op.
+"Legitimate Apps LLC"). Build 3 was never submitted: it was user-facing-identical to the live 1.1,
+so shipping it would have burned a review cycle on a no-op.
 
-`MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the table above are the SHIPPED values. Bump
-both before the next archive.
+1.3 carries three user-facing changes out of 31 commits — a book can reach 100% and read
+"finished", long words scale to fit in RSVP with the ORP pivot held, and four watch/EPUB
+correctness bugs. Everything else in that range is tests, lane tooling and behaviour-preserving
+extraction into the Session types.
+
+`MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the table above are the values IN THE TREE
+(1.3 / 5), which are the submitted ones. Bump both before the next archive.
 
 > Before any future submission, diff the candidate build's **source** against the live build's
 > source — not just the version number.
 
 Marketing assets are re-runnable in-repo, not one-off: `marketing/compose.py` builds the App Store
-gallery from `marketing/raw/` and `marketing/METADATA.md` is the single source for the listing copy.
+gallery from `marketing/raw/` and `marketing/METADATA.md` is the single source for the listing copy,
+including `whatsNew` since 1.3 — before that the one field rewritten every release was the one field
+NOT covered by that guarantee. Re-read the promotional text at every release: it names the version,
+needs no App Review, and therefore no gate ever catches it going stale (1.2's copy was still saying
+"New in 1.2." while 1.3 was being prepared).
 `marketing/upload_asc.py` pushes both. The 2026-05 gallery was composited in `/tmp` and was gone by
 the time 1.2 needed it — that is why the compositor lives in the repo now. ASC screenshot wells were
 probed, not read from docs: there is no `APP_IPHONE_69` and no 13" iPad; the live wells are
