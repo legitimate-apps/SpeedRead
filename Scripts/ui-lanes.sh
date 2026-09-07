@@ -34,6 +34,45 @@ project="$repo_root/SpeedRead.xcodeproj"
 ios_destination="${SPEEDREAD_IOS_DESTINATION:-platform=iOS Simulator,name=iPhone 17 Pro,OS=latest}"
 watch_destination="${SPEEDREAD_WATCH_DESTINATION:-platform=watchOS Simulator,name=Apple Watch Series 11 (46mm),OS=latest}"
 
+# Simulators come from sim-lease, so the reap path owns them. A `name=` destination makes
+# xcodebuild boot whatever stock device matches, which is an OWNERLESS booted simulator: nothing
+# releases it, and on 2026-09-06 that class left six `xpcproxy_sim` stubs stuck in exec, wedged
+# every full-table `ps` on the machine for two hours, and cost the fleet a reboot. A leased device
+# is reaped when its owner dies; a stock one is not. Explicit destinations still win, so CI and a
+# manual run can both override.
+lease_sim() {  # $1 = device name, $2 = purpose ; echoes a destination, records the lease
+  local device="$1" purpose="$2" udid
+  udid="$(sim-lease create --project speedread --device "$device" --purpose "$purpose" \
+    --ttl-hours 2 2>/dev/null | tail -1)"
+  if [[ ! "$udid" =~ ^[0-9A-F-]{36}$ ]]; then
+    return 1
+  fi
+  leased_sims+=("$udid")
+  # Boot it here rather than letting xcodebuild do it. MEASURED 2026-09-07: a freshly created
+  # watchOS device that xcodebuild boots itself is not ready for the UI test runner's install --
+  # the lane dies with FBSOpenApplicationErrorDomain Code=4 "Unknown application display
+  # identifier", deterministically, twice in a row. Pre-booting and waiting for bootstatus makes
+  # the same lane pass 4/4. The unit lanes never showed it, because a hosted unit bundle installs
+  # differently from an .xctrunner.
+  xcrun simctl boot "$udid" >/dev/null 2>&1 || true
+  xcrun simctl bootstatus "$udid" -b >/dev/null 2>&1 || true
+  printf '%s' "$udid"
+}
+
+leased_sims=()
+if command -v sim-lease >/dev/null 2>&1; then
+  if [[ -z "${SPEEDREAD_IOS_DESTINATION:-}" ]]; then
+    if ios_udid="$(lease_sim "iPhone 17 Pro" "ui")"; then
+      ios_destination="platform=iOS Simulator,id=$ios_udid"
+    fi
+  fi
+  if [[ -z "${SPEEDREAD_WATCH_DESTINATION:-}" ]]; then
+    if watch_udid="$(lease_sim "Apple Watch Series 11 (46mm)" "ui-watch")"; then
+      watch_destination="platform=watchOS Simulator,id=$watch_udid"
+    fi
+  fi
+fi
+
 derived_data_path="${SPEEDREAD_DERIVED_DATA_PATH:-}"
 leased_derived_data=""
 if [[ -z "$derived_data_path" ]] && command -v dd-lease >/dev/null 2>&1; then
@@ -59,10 +98,20 @@ fi
 
 work_dir="$(mktemp -d "${TMPDIR:-/tmp}/speedread-ui.XXXXXX")"
 cleanup() {
+  # An EXIT trap reports the status of ITS OWN last command unless told otherwise. On
+  # 2026-09-07 the sim-lease release loop below returned 1 on an empty array and turned a
+  # fully green lane -- 385 + 80 tests, 91.37% -- into `exit 1`. Capture and re-return.
+  local exit_status=$?
   rm -rf "$work_dir"
   if [[ -n "$leased_derived_data" ]]; then
     dd-lease release "$leased_derived_data" >/dev/null
   fi
+  for leased_sim in ${leased_sims[@]+"${leased_sims[@]}"}; do
+    if [[ -n "$leased_sim" ]]; then
+      sim-lease release "$leased_sim" >/dev/null 2>&1 || true
+    fi
+  done
+  return "$exit_status"
 }
 trap cleanup EXIT
 
