@@ -2766,3 +2766,51 @@ destination — an ownerless booted simulator that no reaper owns, which is prec
 that left six wedged `xpcproxy_sim` stubs and cost a reboot on 2026-09-06. It now prints a
 warning naming the fallback and quoting sim-lease's own error. Controlled both ways against a
 stub `sim-lease` that rejects the flag: the new path prints it, HEAD's path prints nothing.
+
+## 5aw. The clamp was written eleven times, and one of them was already wrong (2026-09-07, leg 28)
+
+I34 said the last-word clamp appeared six times and that "all six agree today, so this is not a
+bug." Both halves were wrong. It appears **eleven** times once `CrownSeek` (twice) and
+`WatchBook` (three times) are counted, and they did not agree: `WatchSyncService:609` was
+`min(payload.wordIndex, max(0, wordCount - 1))` with no lower bound, while `:218` and `:656`
+clamped both sides.
+
+**The delegate stopped mid-leg rather than proceed, which was the right call.** The brief said a
+negative index was believed unreachable because `PositionPayload.decode(from:)` rejects
+`wordIndex < 0`, and told it to prove that rather than assume it. It could not: the typed
+memberwise initializer at `:142` performs no validation, so an internal caller that constructs a
+payload directly — as the tests do — reaches `applyIncomingPosition` and produces an offer with
+`wordIndex == -1`. It left the reproducer genuinely red rather than dressing it as an expected
+failure, and separated "the decoder is a boundary for the shipping caller" from "the decoder is
+a boundary for this type's own API". It also declined to inherit the brief's 88.94%/49-line
+figures as evidence, marking them ASSUMED — a delegate refusing the manager's oracle, which is
+the thing [[reference_briefs_carry_the_managers_oracle]] says to want.
+
+**Manager's ruling: not a shipping bug, consolidate anyway.** No user can reach it — the decoder
+blocks the transport and `continueFromWatch` re-clamps before anything persists. But local
+correctness that depends on an invariant enforced 450 lines away, with nothing in either place
+naming the other, is exactly the hazard I34 exists to remove, and for every non-negative input —
+which is every real input — the consolidation is a strict narrowing with no observable change.
+
+`ReadingPositionCoordinator.clampedIndex` is now the single implementation, in `Engine/` and
+symlinked into the watch tree, and its comment says *why* it clamps both sides so nobody
+re-derives "the decoder already checked this" and deletes the lower bound again. The decoder's
+`wordIndex >= 0` check is now pinned by its own test, so the invariant three call sites were
+silently relying on can no longer be removed quietly. The same rule went into `CLAUDE.md`, where
+someone will actually hit it.
+
+| | before | after |
+|---|---:|---:|
+| Combined ATTRIBUTABLE | 91.56% | **92.43%** |
+| iOS `WatchSyncService` | 88.94% | 94.10% |
+| watchOS `WatchSyncService` | 67.78% | **86.40%** |
+| iOS / watchOS `SpineColor` | 78.57% / 57.14% | 100% / 100% |
+| iOS / watchOS unit tests | 398 / 80 | 412 / 94 |
+
+The watchOS `WatchSyncService` number is the one worth noticing: 67.78%. I had been tracking the
+iOS figure alone and never asked what the *other* platform's copy of the same file measured — the
+same blind spot as the watch lane that never ran (§5b). A per-file number is per-file *per
+platform*.
+
+Line-by-line disposition of every counted gap on both platforms, with a reason for each and the
+tests deliberately not written, is in `docs/testing/leg28-coverage-ledger.md`.

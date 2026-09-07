@@ -130,7 +130,7 @@ jobs:
       # 55.77% on the watch lane across two runs of an IDENTICAL suite — 316 of the 320 extra
       # "covered" lines were GHOST, i.e. launch-path rendering with no assertions behind it.
       - name: Hermetic lanes + attributable coverage gate
-        run: Scripts/coverage.sh 89
+        run: Scripts/coverage.sh 90
 
   ui:
     name: UI lanes
