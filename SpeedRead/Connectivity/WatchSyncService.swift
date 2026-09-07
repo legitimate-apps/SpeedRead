@@ -594,7 +594,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
 
     #if os(iOS)
     @MainActor
-    private func applyIncomingPosition(_ payload: WatchSyncLogic.PositionPayload) {
+    func applyIncomingPosition(_ payload: WatchSyncLogic.PositionPayload) {
         guard let modelContext else { return }
         let bookId = payload.bookId
         let descriptor = FetchDescriptor<Book>(predicate: #Predicate { $0.id == bookId })

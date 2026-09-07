@@ -190,6 +190,32 @@ struct WatchSyncLogicTests {
         ]) == nil)
     }
 
+    @Test(arguments: ["titleMissing", "titleEmpty", "titleType", "indexMissing", "indexNegative", "indexAtEnd", "indexType", "chaptersType"])
+    func malformedChapterMetadataRejectsEntireBook(field: String) throws {
+        let original = WatchSyncLogic.BookPayload(id: UUID(), title: "Book", author: "Author",
+            text: "one two three", wordCount: 3,
+            chapters: [ChapterMark(title: "Opening", startWordIndex: 0)])
+        var dictionary = original.dictionary
+        var chapters = try #require(dictionary["chapters"] as? [[String: Any]])
+        switch field {
+        case "titleMissing": chapters[0].removeValue(forKey: "title")
+        case "titleEmpty": chapters[0]["title"] = ""
+        case "titleType": chapters[0]["title"] = 123
+        case "indexMissing": chapters[0].removeValue(forKey: "startWordIndex")
+        case "indexNegative": chapters[0]["startWordIndex"] = -1
+        case "indexAtEnd": chapters[0]["startWordIndex"] = 3
+        case "indexType": chapters[0]["startWordIndex"] = "0"
+        default: break
+        }
+        dictionary["chapters"] = field == "chaptersType" ? "corrupt" as Any : chapters as Any
+        #expect(WatchSyncLogic.BookPayload.decode(from: dictionary) == nil)
+        #expect(WatchSyncLogic.BookPayload.decode(from: dictionary, inlineText: original.text) == nil)
+        // The control pins the legal last-word boundary, catching an overly strict repair.
+        var valid = original.dictionary
+        valid["chapters"] = [["title": "Last word", "startWordIndex": 2]]
+        #expect(WatchSyncLogic.BookPayload.decode(from: valid)?.chapters == [ChapterMark(title: "Last word", startWordIndex: 2)])
+    }
+
     private func position(at timestamp: TimeInterval) -> WatchSyncLogic.PositionPayload {
         WatchSyncLogic.PositionPayload(
             bookId: UUID(),

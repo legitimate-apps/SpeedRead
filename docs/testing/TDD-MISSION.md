@@ -2383,3 +2383,108 @@ Worth recording in the delegate's favour: it caught a vacuous selector itself. `
 was **0** having matched zero tests, and rather than bank a green it wrote
 "It is NOT passing evidence" and re-ran the whole suite. That is the §5ao trap, found and refused by
 the same delegate that first recorded it.
+
+## 5ar. EPUB corruption and watch reconciliation depth (2026-09-06, leg 25)
+
+**OBSERVED: implementation is dirty and uncommitted; final runtime verification is blocked by
+simulator health. This entry is not a claim that the leg's done condition passed.** The focused
+baseline ran 46 tests successfully and reproduced EPUBExtractor **673/788 (85.41%)** and the iOS
+WatchSyncService **366/428 (85.51%)** exactly. The expanded run compiled and executed 59 tests;
+its measurements were **721/788 (91.50%)** and **377/428 (88.08%)**, respectively. That run failed
+only eight parameter cases sharing a mistaken test expectation: the sampled `mimetype` has no
+trailing newline. The expectation was corrected against Python `zipfile` inspection. Later
+navigation/descriptor/chapter-metadata additions have no completed runtime result yet; their
+coverage must not be inferred from these intermediate numbers.
+
+**OBSERVED: fixture provenance.** EPUB tests read the committed
+`SampleBooks/TheYellowWallpaper.epub` from the app bundle. Binary cases mutate that archive's
+central/local records, or truncate it at an observed record boundary. XML cases mutate its
+container, OPF and navigation; the existing stored-ZIP helper only repackages sampled contents.
+The NCX and EPUB3 navigation are both present in that sample. No authored document is presented
+as a real EPUB, no new dependency or copied cross-tree helper was added.
+
+**OBSERVED: test intent and mutation contracts.** These are assertions about the new tests'
+source; mutation operators below were identified by inspection, not run as mutation campaigns.
+
+| Tests (existing suite extended) | Intent / driven path | Mutation the assertions catch |
+| --- | --- | --- |
+| EPUB `sampledArchiveRejectsCorruptDirectory` | Reject disk/count/ZIP64/bounds/signature/encryption/method/CRC/size/UTF-8 corruption, both unzip and public extraction | Accept a corrupted directory, or fall back to valid local headers after its rejection |
+| EPUB `sampledLocalHeaderRejectsCorruption` | Exact sampled mimetype control, then reject corrupt local header or unknown-size descriptor | Drop local encryption, bounds, CRC or descriptor-position checks |
+| EPUB `sampledPackageReportsSpecificFailure` | Missing/malformed container or OPF, empty/unresolved spine, malformed/escaping/root path | Return partial text, ignore malformed XML, or collapse the specified parser diagnostic into a ZIP error |
+| EPUB `sampledArchiveWithoutDirectoryPreservesEveryEntry` | All 12 sampled entries survive local-header fallback | Skip a local entry or stop fallback scanning early |
+| EPUB `sampledNavigationUsesNCXOrFallsBackWithoutChangingText` | Sampled NCX, invalid/missing navigation fallback, missing targets/fragments, whole-document links, duplicate marks; text stays 50,913 characters and byte-equal | Disable NCX, retain a missing anchor, forget heading fallback, duplicate a mark, or alter extracted text while discovering chapters |
+| EPUB `sampledDuplicateEntryIsRejectedWithAndWithoutDirectory` | Reject duplicate names on both ZIP paths | Remove `updateValue == nil` uniqueness check |
+| EPUB `corruptDeflateRejectsEmptyAndInvalidCompressedBytes` | Reject stored bytes relabeled as deflate, including empty compressed input | Treat inflation failure as valid content |
+| EPUB `localHeaderCurrentlyIgnoresRequiredDescriptorIntegrity` | Pin known-bad acceptance of missing/contradictory descriptors | Adding correct descriptor validation intentionally breaks characterization |
+| Sync `inactiveBookSendFailsWithoutEnqueuingDelivery` | Inactive transport reports failure without message/file enqueue | Remove activation guard or enqueue before checking it |
+| Sync `dismissedOfferCannotMoveOrReopenBook`, `deletedBookInvalidatesPendingOffer` | Reject dismissed/deleted-book acceptance; retain completion or clear invalid pending offer | Ignore pending-offer equality, resurrect a deleted book, or leave deleted offer pending |
+| Sync `localReadingAtOrAfterOfferInvalidatesIt` | Equal and newer phone timestamps reject old offers without changing position/completion | Change strict `>` reconciliation to `>=`, or mutate the book before rejection |
+| Sync `replacementOfferRejectsOldValueAndPersistsAcceptedPosition` | Reject old offer identity; accept replacement; read markers/date from a separate model context | Compare only book ID, omit save, or omit accepted marker writes |
+| Sync `unconfiguredAndUnknownBookPositionsDoNotCreateOffers` | Missing context/book is inert | Create an offer without a corresponding stored book |
+| Sync `emptyBookOfferFormattingHasNoDivisionByZero` | Zero-word display and stable book identity | Divide by zero or use zero-based displayed word number |
+| Sync two known-bug characterizations | Error acknowledgment and out-of-order pending offer | Correcting either defect intentionally breaks its characterization |
+| WatchSyncLogic `malformedChapterMetadataRejectsEntireBook` | Reject eight malformed chapter shapes for inline/file decoding; allow last-word boundary | Silently discard corrupt chapters, accept index == count, or reject index == count - 1 |
+
+**OBSERVED: shipping seam.** `WatchSyncService.applyIncomingPosition` changes from private to
+internal, retaining `@MainActor` and its unchanged body. The production delegate already calls
+it. This gives deterministic reconciliation tests without WCSession singleton access or timing
+polls. No debug-only implementation was introduced and no production bug was fixed.
+
+**Bugs found, separately:**
+
+1. **OBSERVED in the expanded runtime: rejection is reported as successful delivery.**
+   `sendBook` ignores its reply dictionary and sets `.sent(title)` even for `status: error`.
+   Smallest service reproduction: an activated/reachable injected connection returns that reply;
+   sending a negative-word-count payload (which the receiver decoder demonstrably rejects)
+   still yields `.sent("Rejected")`, with no fallback. **ASSUMED user impact:** a rejected book
+   can appear successfully sent. The fixture demonstrates the service chain, not a physical
+   watch rejecting a book imported through the UI.
+2. **OBSERVED in the expanded runtime: a pending position can regress.** Reconciliation compares
+   incoming time only with the stored book, ignoring the pending offer's timestamp. Smallest
+   reproduction: stored index/date `20/100`; incoming `80/300`, then `60/200`; pending changes
+   to `60/200` and acceptance moves the book to 60 (furthest remains 80). **ASSUMED user impact:**
+   delayed/out-of-order contexts could offer an older watch position. Such transport ordering
+   was injected; physical WatchConnectivity ordering was not observed.
+3. **OBSERVED in source and a macOS production-source probe: known-size local records do not
+   validate data descriptors.** In local-header fallback, setting bit 3 with nonzero header sizes
+   only computes a 12/16-byte skip; descriptor existence, CRC and sizes are never checked.
+   Smallest fixture: the sampled first 58-byte mimetype local record, bit 3 set, followed by
+   nothing, twelve zero bytes, or signature plus twelve zero bytes. All three were accepted by
+   the unchanged production `unzipEntries` compiled for macOS. The standalone probe has only
+   compile-time model contracts; its tokenizer stub traps if called. Its log records three
+   successful exact-entry assertions. The iOS characterization tests still await execution. **ASSUMED user impact:** a truncated/corrupt local-header-only EPUB can
+   be accepted if its local payload checks pass. This does not establish acceptance of a
+   corrupt central-directory archive.
+
+**OBSERVED: deliberately not covered.** Real WCSession file completion/receive callbacks,
+unsupported-device activation, filesystem write failure, SwiftData save failure and delayed
+status-reset timing remain untested by this leg. Simulating OS-only objects or adding broad
+I/O/clock seams solely for coverage would expand the change beyond the identified logic.
+The EPUB tests do not force allocation/base-address failures, Foundation regex/range failures,
+or every encoding/descriptor variant. No public-API unreachable-branch proof was established;
+these are omissions, not claimed coverage or claims of unreachable code. Watch completion
+parity remains deliberately absent: WatchBook, its JSON and PositionPayload still carry no
+completion concept. No watchOS test-tree changes were made.
+
+**OBSERVED: evidence and commands.** Incremental state, runner source, complete logs, xccov JSON,
+preflight output and notification receipts are in `~/Dispatcher/briefs/leg25-evidence/`.
+Result bundles are on the external volume under `agent-artifacts/leg25/`.
+`run-focused.sh baseline` uses `xcodebuild test`, scheme SpeedRead, plan Hermetic, all three
+`-only-testing:SpeedReadTests/{EPUBExtractorTests,WatchSyncServiceTests,WatchSyncLogicTests}`
+selectors, a simulator from `sim-lease create --project speedread`, leased DerivedData,
+`-parallel-testing-enabled NO` and code coverage enabled. Neither coverage.sh nor ui-lanes.sh
+was run. The floor and combined measurement were not edited.
+
+The final attempt reached app validation and stopped producing output before tests started.
+A new `simctl list devicetypes` probe produced zero bytes and exceeded its 12-second deadline;
+the initial preflight had returned device types. Own xcodebuild was interrupted, yielding
+`** TEST INTERRUPTED **`. No global simulator resets/reboots or foreign-process kills were
+attempted. The operator notification was accepted by both ntfy hosts (HTTP 200).
+**OBSERVED: honesty gates pass; final focused suite success and final coverage remain pending.**
+
+**OBSERVED supplementary probe:** `DescriptorProbe.swift` in the evidence directory compiles
+with the actual production EPUBExtractor.swift using the Xcode toolchain, explicit macOS SDK
+and arm64 macOS 15 target. `descriptor-probe.log` records acceptance of all three malformed
+descriptors. This establishes runtime behavior on macOS, not iOS test success or coverage.
+DerivedData was released; simulator release itself exceeded 15 seconds with no output, so
+cleanup is unconfirmed and its leased UDID remains recorded for host recovery.

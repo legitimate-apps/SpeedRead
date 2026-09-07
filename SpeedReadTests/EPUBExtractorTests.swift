@@ -399,6 +399,230 @@ struct EPUBExtractorTests {
         #expect(entries == ["prefixed.txt": original])
     }
 
+    // Leg 25: mutate the bundled Gutenberg archive; these are deliberately corrupt
+    // inputs, not independently invented examples of a valid EPUB/ZIP grammar.
+    @Test(arguments: ["disk", "directoryDisk", "entryCount", "zip64Count", "directorySize",
+                      "directoryOffset", "centralSignature", "zip64Compressed", "zip64Expanded",
+                      "zip64Offset", "recordEnd", "encrypted", "localOffset", "localSignature",
+                      "payloadStart", "payloadEnd", "method", "checksum", "expandedSize", "utf8Name"])
+    func sampledArchiveRejectsCorruptDirectory(field: String) throws {
+        var archive = try sampledArchive()
+        let eocd = try #require(archive.range(of: Data([0x50, 0x4b, 0x05, 0x06]), options: .backwards)?.lowerBound)
+        let central = littleEndian(archive, at: eocd + 16)
+        switch field {
+        case "disk": patch(&archive, at: eocd + 4, value: 1, width: 2)
+        case "directoryDisk": patch(&archive, at: eocd + 6, value: 1, width: 2)
+        case "entryCount": patch(&archive, at: eocd + 8, value: 0, width: 2)
+        case "zip64Count":
+            patch(&archive, at: eocd + 8, value: 65535, width: 2)
+            patch(&archive, at: eocd + 10, value: 65535, width: 2)
+        case "directorySize": patch(&archive, at: eocd + 12, value: 1)
+        case "directoryOffset": patch(&archive, at: eocd + 16, value: UInt32.max)
+        case "centralSignature": archive[central] = 0
+        case "zip64Compressed": patch(&archive, at: central + 20, value: UInt32.max)
+        case "zip64Expanded": patch(&archive, at: central + 24, value: UInt32.max)
+        case "zip64Offset": patch(&archive, at: central + 42, value: UInt32.max)
+        case "recordEnd": patch(&archive, at: central + 28, value: 65535, width: 2)
+        case "encrypted": patch(&archive, at: central + 8, value: 1, width: 2)
+        case "localOffset": patch(&archive, at: central + 42, value: UInt32(archive.count))
+        case "localSignature": archive[0] = 0
+        case "payloadStart":
+            // Point to the final local header and extend its extra field beyond EOF.
+            let last = try #require(archive.range(of: Data([0x50, 0x4b, 0x03, 0x04]), options: .backwards)?.lowerBound)
+            patch(&archive, at: last + 28, value: 65535, width: 2)
+        case "payloadEnd": patch(&archive, at: central + 20, value: UInt32(archive.count))
+        case "method": patch(&archive, at: central + 10, value: 99, width: 2)
+        case "checksum": patch(&archive, at: central + 16, value: 0)
+        case "expandedSize": patch(&archive, at: central + 24, value: 18)
+        case "utf8Name":
+            patch(&archive, at: central + 8, value: 0x0800, width: 2)
+            archive[central + 46] = 0xff
+        default: Issue.record("Unknown corruption: \(field)")
+        }
+        // Catches accepting this corruption (including silently falling back to local headers).
+        #expect(throws: ExtractionError.invalidData) {
+            try EPUBExtractor.unzipEntries(from: archive)
+        }
+        #expect(throws: ExtractionError.invalidData) {
+            try EPUBExtractor().extractText(from: archive)
+        }
+    }
+
+    @Test(arguments: ["encrypted", "nameEnd", "payloadEnd", "checksum", "method", "descriptorMissing", "descriptorShort", "descriptorMismatch"])
+    func sampledLocalHeaderRejectsCorruption(field: String) throws {
+        let sample = try sampledArchive()
+        // The first entry is the actual stored EPUB mimetype; retain its exact header/data.
+        #expect(String(decoding: sample[30..<38], as: UTF8.self) == "mimetype")
+        var archive = Data(sample.prefix(58))
+        #expect(try EPUBExtractor.unzipEntries(from: archive) == ["mimetype": Data("application/epub+zip".utf8)])
+        switch field {
+        case "encrypted": patch(&archive, at: 6, value: 1, width: 2)
+        case "nameEnd": patch(&archive, at: 26, value: 65535, width: 2)
+        case "payloadEnd": patch(&archive, at: 18, value: 1000)
+        case "checksum": patch(&archive, at: 14, value: 0)
+        case "method": patch(&archive, at: 8, value: 99, width: 2)
+        default:
+            patch(&archive, at: 6, value: 8, width: 2)
+            patch(&archive, at: 18, value: 0)
+            patch(&archive, at: 22, value: 0)
+            if field != "descriptorMissing" { archive.append(contentsOf: [0x50, 0x4b, 0x07, 0x08]) }
+            if field == "descriptorMismatch" { archive.append(Data(repeating: 0, count: 12)) }
+        }
+        #expect(throws: ExtractionError.invalidData) { try EPUBExtractor.unzipEntries(from: archive) }
+    }
+
+    @Test(arguments: ["missingContainer", "badContainer", "noRootfile", "missingOPF", "badOPF",
+                      "emptySpine", "unknownSpine", "badPercent", "escapeRoot", "archiveRoot"])
+    func sampledPackageReportsSpecificFailure(field: String) throws {
+        var entries = try EPUBExtractor.unzipEntries(from: sampledArchive())
+        let container = "META-INF/container.xml"
+        let opf = "OEBPS/content.opf"
+        let originalContainer = String(decoding: try #require(entries[container]), as: UTF8.self)
+        let originalOPF = String(decoding: try #require(entries[opf]), as: UTF8.self)
+        let expected: ExtractionError
+        switch field {
+        case "missingContainer":
+            entries.removeValue(forKey: container)
+            expected = .parsingFailed("Missing META-INF/container.xml")
+        case "badContainer":
+            entries[container] = Data("<container><".utf8)
+            expected = .parsingFailed("Could not find OPF path in container.xml")
+        case "noRootfile":
+            entries[container] = Data(originalContainer.replacingOccurrences(of: "rootfile ", with: "ignored ").utf8)
+            expected = .parsingFailed("Could not find OPF path in container.xml")
+        case "missingOPF":
+            entries.removeValue(forKey: opf)
+            expected = .parsingFailed("Could not read OPF file at OEBPS/content.opf")
+        case "badOPF":
+            entries[opf] = Data("<package><".utf8)
+            expected = .parsingFailed("Could not parse OPF file")
+        case "emptySpine":
+            entries[opf] = Data(originalOPF.replacingOccurrences(of: "itemref", with: "ignored").utf8)
+            expected = .parsingFailed("OPF spine contains no chapters")
+        case "unknownSpine":
+            entries[opf] = Data(originalOPF.replacingOccurrences(of: "idref=\"pg-header\"", with: "idref=\"absent\"").utf8)
+            expected = .parsingFailed("Spine item 'absent' is missing from the manifest")
+        default:
+            let path = field == "badPercent" ? "%ZZ" : field == "escapeRoot" ? "../outside.opf" : "/"
+            entries[container] = Data(originalContainer.replacingOccurrences(of: opf, with: path).utf8)
+            expected = field == "badPercent"
+                ? .parsingFailed("Invalid percent encoding in EPUB path '%ZZ'")
+                : field == "escapeRoot"
+                    ? .parsingFailed("EPUB path escapes archive root: ../outside.opf")
+                    : .parsingFailed("EPUB path resolves to archive root: /")
+        }
+        let archive = buildStoredZIP(files: entries.sorted { $0.key < $1.key }.map { ($0.key, $0.value) })
+        // Exact diagnostics distinguish the intended parser path from an earlier ZIP failure.
+        #expect(throws: expected) { try EPUBExtractor().extractText(from: archive) }
+    }
+
+    @Test func sampledArchiveWithoutDirectoryPreservesEveryEntry() throws {
+        let archive = try sampledArchive()
+        let eocd = try #require(archive.range(of: Data([0x50, 0x4b, 0x05, 0x06]), options: .backwards)?.lowerBound)
+        let entries = try EPUBExtractor.unzipEntries(from: archive)
+        #expect(entries.count == 12)
+        #expect(try EPUBExtractor.unzipEntries(from: Data(archive.prefix(littleEndian(archive, at: eocd + 16)))) == entries)
+    }
+
+    @Test(arguments: ["ncx", "brokenNCX", "missingNavigation", "missingTarget", "missingFragment", "wholeDocument", "duplicate"])
+    func sampledNavigationUsesNCXOrFallsBackWithoutChangingText(mode: String) throws {
+        var entries = try EPUBExtractor.unzipEntries(from: sampledArchive())
+        let original = try EPUBExtractor().extractText(from: sampledArchive())
+        let opf = "OEBPS/content.opf"
+        let ncx = "OEBPS/toc.ncx"
+        let toc = "OEBPS/toc.xhtml"
+        if ["ncx", "brokenNCX"].contains(mode) {
+            entries[opf] = Data(String(decoding: try #require(entries[opf]), as: UTF8.self)
+                .replacingOccurrences(of: "properties=\"nav\"", with: "properties=\"\"").utf8)
+            if mode == "brokenNCX" { entries[ncx] = Data("<ncx><".utf8) }
+        } else if mode == "missingNavigation" {
+            entries.removeValue(forKey: toc)
+        } else {
+            let navigation = String(decoding: try #require(entries[toc]), as: UTF8.self)
+            let reference = "3578510476723697232_1952-h-0.htm.xhtml#pgepubid00000"
+            #expect(navigation.contains(reference))
+            let replacement: String
+            switch mode {
+            case "missingTarget": replacement = "absent.xhtml#pgepubid00000"
+            case "missingFragment": replacement = "3578510476723697232_1952-h-0.htm.xhtml#absent"
+            case "wholeDocument": replacement = "3578510476723697232_1952-h-0.htm.xhtml"
+            default: replacement = reference
+            }
+            var changed = navigation.replacingOccurrences(of: reference, with: replacement)
+            if mode == "duplicate" {
+                // Duplicate a sampled list item verbatim, rather than authoring navigation markup.
+                let start = try #require(changed.range(of: "<li>"))
+                let end = try #require(changed.range(of: "</li>"))
+                let item = String(changed[start.lowerBound..<end.upperBound])
+                changed.insert(contentsOf: item, at: end.upperBound)
+            }
+            entries[toc] = Data(changed.utf8)
+        }
+        let result = try EPUBExtractor().extractText(from: buildStoredZIP(
+            files: entries.sorted { $0.key < $1.key }.map { ($0.key, $0.value) }))
+        #expect(result.text == original.text)
+        #expect(result.text.count == 50_913)
+        switch mode {
+        case "ncx", "duplicate":
+            #expect(result.chapters == original.chapters)
+            #expect(result.chapters.map(\.title) == ["The Yellow Wallpaper", "THE FULL PROJECT GUTENBERG™ LICENSE"])
+        case "brokenNCX", "missingNavigation":
+            #expect(result.chapters.map(\.title) == [
+                "The Project Gutenberg eBook of The Yellow Wallpaper", "The Yellow Wallpaper",
+                "By Charlotte Perkins Gilman", "THE FULL PROJECT GUTENBERG™ LICENSE"])
+        case "missingTarget", "missingFragment":
+            #expect(result.chapters == Array(original.chapters.suffix(1)))
+        default:
+            #expect(result.chapters.first?.startWordIndex == 1)
+            #expect(result.chapters.first?.title == "The Yellow Wallpaper")
+            #expect(result.chapters.last == original.chapters.last)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func sampledDuplicateEntryIsRejectedWithAndWithoutDirectory(directory: Bool) throws {
+        let entries = try EPUBExtractor.unzipEntries(from: sampledArchive())
+        let data = try #require(entries["mimetype"])
+        let archive = buildStoredZIP(files: [("mimetype", data), ("mimetype", data)], includeCentralDirectory: directory)
+        #expect(throws: ExtractionError.invalidData) { try EPUBExtractor.unzipEntries(from: archive) }
+    }
+
+    @Test(arguments: [false, true])
+    func corruptDeflateRejectsEmptyAndInvalidCompressedBytes(empty: Bool) throws {
+        var archive = try sampledArchive()
+        let eocd = try #require(archive.range(of: Data([0x50, 0x4b, 0x05, 0x06]), options: .backwards)?.lowerBound)
+        let central = littleEndian(archive, at: eocd + 16)
+        // Relabel the sampled stored mimetype as deflate; its bytes are not deflate.
+        patch(&archive, at: central + 10, value: 8, width: 2)
+        if empty { patch(&archive, at: central + 20, value: 0) }
+        #expect(throws: ExtractionError.invalidData) { try EPUBExtractor.unzipEntries(from: archive) }
+    }
+
+    @Test("Known bug: known-size local records accept a missing or contradictory descriptor",
+          arguments: ["missing", "unsigned", "signed"])
+    func localHeaderCurrentlyIgnoresRequiredDescriptorIntegrity(kind: String) throws {
+        var archive = Data(try sampledArchive().prefix(58))
+        patch(&archive, at: 6, value: 8, width: 2)
+        if kind == "signed" { archive.append(contentsOf: [0x50, 0x4b, 0x07, 0x08]) }
+        if kind != "missing" { archive.append(Data(repeating: 0, count: 12)) }
+        // Bit 3 promises a descriptor, but either no descriptor or zero CRC/sizes is accepted.
+        // Characterization fails when descriptor bounds/checksum/size validation is repaired.
+        #expect(try EPUBExtractor.unzipEntries(from: archive) == ["mimetype": Data("application/epub+zip".utf8)])
+    }
+
+    private func sampledArchive() throws -> Data {
+        let url = try #require(Bundle.main.url(forResource: "TheYellowWallpaper", withExtension: "epub"))
+        return try Data(contentsOf: url)
+    }
+
+    private func littleEndian(_ data: Data, at offset: Int) -> Int {
+        (0..<4).reduce(0) { $0 | (Int(data[offset + $1]) << (8 * $1)) }
+    }
+
+    private func patch(_ data: inout Data, at offset: Int, value: UInt32, width: Int = 4) {
+        for byte in 0..<width { data[offset + byte] = UInt8(truncatingIfNeeded: value >> (8 * byte)) }
+    }
+
     private func makeEPUB(
         opfPath: String = "content.opf",
         opfXML: String,

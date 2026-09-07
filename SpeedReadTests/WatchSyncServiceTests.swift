@@ -259,6 +259,148 @@ struct WatchSyncServiceTests {
         #expect(book.furthestReadWordIndex == 9)
     }
 
+    @Test func inactiveBookSendFailsWithoutEnqueuingDelivery() {
+        let connection = FakeWatchConnectivitySession()
+        let service = WatchSyncService(session: connection)
+        service.sendBook(id: UUID(), title: "Unavailable", author: "", text: "body", wordCount: 1)
+        #expect(service.sendState == .failed("Watch not connected"))
+        #expect(connection.messages.isEmpty)
+        #expect(connection.files.isEmpty)
+    }
+
+    @Test func dismissedOfferCannotMoveOrReopenBook() throws {
+        let (service, container, book) = try positionFixture()
+        service.applyIncomingPosition(position(book, index: 70, time: 200))
+        let offer = try #require(service.pendingWatchPositionOffer)
+        book.finishedAt = Date(timeIntervalSince1970: 150)
+        service.dismissWatchPositionOffer()
+        #expect(service.pendingWatchPositionOffer == nil)
+        #expect(!service.continueFromWatch(offer))
+        #expect(book.lastReadWordIndex == 20)
+        #expect(book.finishedAt == Date(timeIntervalSince1970: 150))
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 1)
+    }
+
+    @Test func deletedBookInvalidatesPendingOffer() throws {
+        let (service, container, book) = try positionFixture()
+        service.applyIncomingPosition(position(book, index: 70, time: 200))
+        let offer = try #require(service.pendingWatchPositionOffer)
+        container.mainContext.delete(book)
+        try container.mainContext.save()
+        #expect(!service.continueFromWatch(offer))
+        #expect(service.pendingWatchPositionOffer == nil)
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 0)
+    }
+
+    @Test(arguments: [200.0, 201.0])
+    func localReadingAtOrAfterOfferInvalidatesIt(time: Double) throws {
+        let (service, container, book) = try positionFixture()
+        service.applyIncomingPosition(position(book, index: 70, time: 200))
+        let offer = try #require(service.pendingWatchPositionOffer)
+        book.lastReadWordIndex = 25
+        book.browseWordIndex = 25
+        book.lastReadDate = Date(timeIntervalSince1970: time)
+        book.finishedAt = book.lastReadDate
+        try container.mainContext.save()
+        #expect(!service.continueFromWatch(offer))
+        #expect(service.pendingWatchPositionOffer == nil)
+        #expect(book.lastReadWordIndex == 25)
+        #expect(book.browseWordIndex == 25)
+        #expect(book.lastReadDate == Date(timeIntervalSince1970: time))
+        #expect(book.finishedAt == book.lastReadDate)
+    }
+
+    @Test func replacementOfferRejectsOldValueAndPersistsAcceptedPosition() throws {
+        let (service, container, book) = try positionFixture()
+        service.applyIncomingPosition(position(book, index: 70, time: 200))
+        let oldOffer = try #require(service.pendingWatchPositionOffer)
+        service.applyIncomingPosition(position(book, index: 80, time: 300))
+        let newOffer = try #require(service.pendingWatchPositionOffer)
+        #expect(!service.continueFromWatch(oldOffer))
+        #expect(service.pendingWatchPositionOffer == newOffer)
+        #expect(service.continueFromWatch(newOffer))
+        let freshContext = ModelContext(container)
+        let persisted = try #require(freshContext.fetch(FetchDescriptor<Book>()).first)
+        #expect(persisted.lastReadWordIndex == 80)
+        #expect(persisted.browseWordIndex == 80)
+        #expect(persisted.furthestReadWordIndex == 80)
+        #expect(persisted.lastReadDate == Date(timeIntervalSince1970: 300))
+    }
+
+    @Test func unconfiguredAndUnknownBookPositionsDoNotCreateOffers() throws {
+        let (service, container, book) = try positionFixture()
+        let incoming = position(book, index: 70, time: 200)
+        let unconfigured = WatchSyncService(session: FakeWatchConnectivitySession())
+        unconfigured.applyIncomingPosition(incoming)
+        #expect(unconfigured.pendingWatchPositionOffer == nil)
+        service.applyIncomingPosition(.init(bookId: UUID(), bookTitle: "Unknown", wordIndex: 70,
+                                            timestamp: incoming.timestamp, furthestReadWordIndex: 90))
+        #expect(service.pendingWatchPositionOffer == nil)
+        #expect(book.furthestReadWordIndex == 20)
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 1)
+    }
+
+    @Test func emptyBookOfferFormattingHasNoDivisionByZero() {
+        let offer = WatchSyncService.PositionOffer(bookId: UUID(), bookTitle: "Empty", wordIndex: 0,
+                                                   wordCount: 0, timestamp: .distantPast)
+        #expect(offer.id == offer.bookId)
+        #expect(offer.displayText == "Continue from Apple Watch — 0%, word 1")
+    }
+
+    @Test("Known bug: an explicit error reply is displayed as a successful send")
+    func rejectedBookReplyIsCurrentlyMisreportedAsSent() async {
+        let connection = FakeWatchConnectivitySession()
+        connection.activationState = .activated
+        connection.isReachable = true
+        connection.messageResult = .reply(["status": "error"])
+        let service = WatchSyncService(session: connection)
+        // Negative counts really are rejected by the receiving decoder.
+        let payload = WatchSyncLogic.BookPayload(id: UUID(), title: "Rejected", author: "", text: "body", wordCount: -1)
+        #expect(WatchSyncLogic.BookPayload.decode(from: payload.dictionary) == nil)
+        service.sendBook(id: payload.id, title: payload.title, author: payload.author,
+                         text: payload.text, wordCount: payload.wordCount)
+        for _ in 0..<50 where service.sendState == .sending("Rejected") { await Task.yield() }
+        // Characterization, not desired behavior: fails when reply validation is fixed.
+        #expect(service.sendState == .sent("Rejected"))
+        #expect(connection.messages.count == 1)
+        #expect(connection.files.isEmpty)
+    }
+
+    @Test("Known bug: a delayed older context replaces a newer pending offer")
+    func pendingOfferCurrentlyRegressesWhenContextsArriveOutOfOrder() throws {
+        let (service, container, book) = try positionFixture()
+        service.applyIncomingPosition(position(book, index: 80, time: 300))
+        #expect(service.pendingWatchPositionOffer?.wordIndex == 80)
+        service.applyIncomingPosition(position(book, index: 60, time: 200))
+        let offer = try #require(service.pendingWatchPositionOffer)
+        #expect(offer.wordIndex == 60)
+        #expect(offer.timestamp == Date(timeIntervalSince1970: 200))
+        #expect(service.continueFromWatch(offer))
+        #expect(book.lastReadWordIndex == 60)
+        #expect(book.furthestReadWordIndex == 80)
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 1)
+    }
+
+    private func positionFixture() throws -> (WatchSyncService, ModelContainer, Book) {
+        let container = try ModelContainer(for: Book.self, Bookmark.self, Highlight.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let book = Book(title: "Position", author: "", extractedText: (0..<100).map { "word\($0)" }.joined(separator: " "), sourceFileName: "position.txt")
+        book.lastReadWordIndex = 20
+        book.browseWordIndex = 20
+        book.furthestReadWordIndex = 20
+        book.lastReadDate = Date(timeIntervalSince1970: 100)
+        container.mainContext.insert(book)
+        try container.mainContext.save()
+        let service = WatchSyncService(session: FakeWatchConnectivitySession())
+        service.configure(modelContext: container.mainContext)
+        return (service, container, book)
+    }
+
+    private func position(_ book: Book, index: Int, time: Double) -> WatchSyncLogic.PositionPayload {
+        .init(bookId: book.id, bookTitle: book.title, wordIndex: index,
+              timestamp: Date(timeIntervalSince1970: time), furthestReadWordIndex: index)
+    }
+
     @Test func watchOfferTextUsesHumanWordNumberAndFormattedProgress() {
         let offer = WatchSyncService.PositionOffer(
             bookId: UUID(),
