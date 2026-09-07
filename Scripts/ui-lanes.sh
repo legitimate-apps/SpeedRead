@@ -136,12 +136,28 @@ trap 'exit 129' HUP
 # I misread it: on 2026-09-07 the release loop returned 1 *on an empty array*, and I fixed the
 # exit status instead of asking why the array was empty. Recording belongs to the parent shell.
 lease_sim() {  # $1 = device name, $2 = purpose ; prints a udid. Does NOT boot, does NOT record.
-  local device="$1" purpose="$2" udid
+  local device="$1" purpose="$2" udid lease_errors
+  lease_errors="$(mktemp "${TMPDIR:-/tmp}/speedread-lease-err.XXXXXX")"
+  # stderr goes to a FILE, never merged with 2>&1: sim-lease writes reap diagnostics there, and a
+  # merged stream would let `tail -1` return a reap line instead of the udid.
   udid="$(sim-lease create --project speedread --owner-pid "$$" --device "$device" --purpose "$purpose" \
-    --ttl-hours 2 2>/dev/null | tail -1)"
+    --ttl-hours 2 2>"$lease_errors" | tail -1)"
   if [[ ! "$udid" =~ ^[0-9A-F-]{36}$ ]]; then
+    # Say so LOUDLY. Failing here does not stop the lane -- it falls back to the stock `name=`
+    # destination below, and xcodebuild then boots whatever matches, which is an OWNERLESS booted
+    # simulator that no reaper owns. That class left six wedged xpcproxy_sim stubs, blocked every
+    # full-table ps on the machine for two hours and cost the fleet a reboot on 2026-09-06. The
+    # lanes also now require a sim-lease that accepts --owner-pid, so a rollback of that tool
+    # lands exactly here; a rollback must announce itself rather than quietly recreating the
+    # original failure.
+    echo "warning: sim-lease create failed for '$device' (purpose $purpose)." >&2
+    echo "         This lane falls back to a stock name= destination, i.e. an OWNERLESS booted" >&2
+    echo "         simulator that nothing will reap. sim-lease said:" >&2
+    sed 's/^/           /' "$lease_errors" >&2
+    rm -f "$lease_errors"
     return 1
   fi
+  rm -f "$lease_errors"
   printf '%s' "$udid"
 }
 

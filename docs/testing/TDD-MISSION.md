@@ -2718,3 +2718,51 @@ not claim an executed mutation score.
 
 Ratchet held at 89. 91.56% leaves 1.56 points, and the five previous ratchets each kept about
 two; a floor that fails on ordinary variance stops being a floor and starts being a flake.
+
+## 5av. A control that measures a shared global (2026-09-07)
+
+A peer session closed the orphan-reap gap §5at left open: `sim-lease` now records an owner pid per
+lease and disposes a dead owner's lease before its TTL, and both lane scripts pass
+`--owner-pid "$$"` (necessary because `write_lease` otherwise defaults to `os.getppid()`, which
+inside `udid="$(lease_sim ...)"` is the doomed subshell — `$$` is not rewritten in a command
+substitution, only `$BASHPID` is).
+
+**My control reported that change broken. It was not.** The SIGTERM control asserted that the
+GLOBAL count of speedread leases returned to its baseline. While it ran, CI was concurrently
+executing `ui-lanes.sh`; two leases survived, the control called them a leak, and `coverage.sh`
+had in fact released every lease it owned. The surviving leases named their owner — pid 23052,
+a CI `ui-lanes.sh` — and the script under test was pid 22893. A control that measures a shared
+global is a control that returns a confident wrong verdict whenever anything else on the machine
+moves, and "anything else" now includes CI running these very scripts.
+
+Rewritten to assert the attributable property the owner pid makes checkable: *no lease whose
+`owner_pid` equals this script's pid may survive its death.* 4/4 across two rounds on both
+scripts, immune to concurrency. This is §5ah and §5ai again in a third costume — the instrument
+failed toward a confident answer, and the confident answer was wrong in the direction that would
+have had me revert a correct fix.
+
+**Then the positive control returned a more interesting result than a pass.** Mutating
+`trap 'exit 143' TERM` out of `coverage.sh` should have produced a leak: with it gone, SIGTERM
+kills bash outright and neither the TERM nor the EXIT trap runs. The control passed anyway. By
+elimination the reaper had taken the leases — `do_reap()` rides on every `create` and `list`, so
+a dead owner's lease is disposed by the next `sim-lease` invocation from anywhere on the machine.
+
+That is worth stating precisely rather than as "cleanup works", because the two mechanisms
+guarantee different things:
+
+| mechanism | covers SIGKILL | when the simulator actually goes away |
+|---|---|---|
+| the script's traps | no | immediately |
+| the owner-pid reaper | yes | at the next `sim-lease` call by anyone |
+
+On a busy machine the reaper is seconds behind; on an idle one an orphaned booted simulator can
+sit until something else happens to call `sim-lease`. Prompt release and guaranteed release are
+different properties and the system now has both, so the traps stay.
+
+Also hardened here: `lease_sim`'s failure path was silent. The lanes now require a `sim-lease`
+that accepts `--owner-pid`, and a rollback of that tool (its pre-edit copy is kept on disk) makes
+`sim-lease create` fail, `lease_sim` return 1, and both lanes fall back to a stock `name=`
+destination — an ownerless booted simulator that no reaper owns, which is precisely the class
+that left six wedged `xpcproxy_sim` stubs and cost a reboot on 2026-09-06. It now prints a
+warning naming the fallback and quoting sim-lease's own error. Controlled both ways against a
+stub `sim-lease` that rejects the flag: the new path prints it, HEAD's path prints nothing.
