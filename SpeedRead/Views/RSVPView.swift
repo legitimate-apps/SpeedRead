@@ -356,10 +356,7 @@ struct RSVPView: View {
     }
 
     private func addBookmark() {
-        let draft = presentation.bookmarkDraft(at: engine.currentIndex)
-        let bookmark = Bookmark(wordIndex: draft.wordIndex, previewText: draft.previewText)
-        bookmark.book = book
-        modelContext.insert(bookmark)
+        presentation.addBookmark(at: engine.currentIndex, book: book, modelContext: modelContext)
 
         withAnimation(.easeOut(duration: ReaderConfig.RSVP.feedbackFadeDuration)) {
             _ = presentation.requestFeedback(.bookmark)
@@ -367,14 +364,9 @@ struct RSVPView: View {
     }
 
     private func toggleHighlight() {
-        guard let draft = presentation.toggleHighlight(at: engine.currentIndex) else { return }
-        let highlight = Highlight(
-            startWordIndex: draft.startIndex,
-            endWordIndex: draft.endIndex,
-            highlightedText: draft.text
-        )
-        highlight.book = book
-        modelContext.insert(highlight)
+        guard presentation.toggleHighlight(
+            at: engine.currentIndex, book: book, modelContext: modelContext
+        ) else { return }
 
         withAnimation(.easeOut(duration: ReaderConfig.RSVP.feedbackFadeDuration)) {
             _ = presentation.requestFeedback(.highlight)

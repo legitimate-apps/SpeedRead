@@ -424,6 +424,40 @@ struct RSVPPresentationSessionTests {
         #expect(empty.endGesture() == .scrubbed)
     }
 
+    @Test func pauseKeepsVisibleIndexWithoutAnotherCommit() throws {
+        // Mutations: remove engine.pause(), replace it with stop(), or fall through to commit.
+        let book = makeBook(text: "zero one two")
+        let engine = RSVPEngine()
+        let session = RSVPPresentationSession()
+        let saver = RSVPSaver()
+        let sync = RSVPSync()
+        session.load(book: book, engine: engine, wpm: 300)
+        engine.seek(to: 2)
+        _ = try #require(session.togglePlayback(engine: engine, book: book, saver: saver, sync: sync))
+        let result = session.togglePlayback(engine: engine, book: book, saver: saver, sync: sync)
+        #expect(result == nil)
+        #expect(engine.state == .paused)
+        #expect(engine.currentIndex == 2)
+        #expect(saver.saveCount == 1)
+        #expect(sync.indices == [2])
+    }
+
+    @Test func unloadedPlaybackDoesNotCommit() {
+        // Mutation: remove the isLoaded guard; an unloaded stream then overwrites the book's position.
+        let book = makeBook(text: "zero one two")
+        book.lastReadWordIndex = 2
+        let engine = RSVPEngine()
+        let session = RSVPPresentationSession()
+        let saver = RSVPSaver()
+        let sync = RSVPSync()
+        let result = session.togglePlayback(engine: engine, book: book, saver: saver, sync: sync)
+        #expect(result == nil)
+        #expect(book.lastReadWordIndex == 2)
+        #expect(engine.state == .idle)
+        #expect(saver.saveCount == 0)
+        #expect(sync.indices.isEmpty)
+    }
+
     private func makeBook(text: String) -> Book {
         Book(title: "Test", author: "Author", extractedText: text, sourceFileName: "test.txt")
     }

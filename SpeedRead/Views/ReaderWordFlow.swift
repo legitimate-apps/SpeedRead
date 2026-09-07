@@ -8,49 +8,25 @@ struct WordFlowLayout: Layout {
     var vSpacing: CGFloat = 6
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let maxWidth = proposal.width ?? .infinity
-        var rowWidth: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        var totalHeight: CGFloat = 0
-        var totalWidth: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if rowWidth + size.width > maxWidth, rowWidth > 0 {
-                totalHeight += rowHeight + vSpacing
-                totalWidth = max(totalWidth, rowWidth - hSpacing)
-                rowWidth = 0
-                rowHeight = 0
-            }
-            rowWidth += size.width + hSpacing
-            rowHeight = max(rowHeight, size.height)
-        }
-        totalHeight += rowHeight
-        totalWidth = max(totalWidth, rowWidth - hSpacing)
-
-        return CGSize(width: maxWidth.isFinite ? maxWidth : totalWidth, height: totalHeight)
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        return WordFlowLogic.arrange(
+            sizes: sizes, width: proposal.width ?? .infinity,
+            hSpacing: hSpacing, vSpacing: vSpacing
+        ).size
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let maxWidth = bounds.width
-        var x = bounds.minX
-        var y = bounds.minY
-        var rowHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x + size.width > bounds.minX + maxWidth, x > bounds.minX {
-                x = bounds.minX
-                y += rowHeight + vSpacing
-                rowHeight = 0
-            }
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let arrangement = WordFlowLogic.arrange(
+            sizes: sizes, width: bounds.width, hSpacing: hSpacing, vSpacing: vSpacing
+        )
+        for (index, subview) in subviews.enumerated() {
+            let origin = arrangement.origins[index]
             subview.place(
-                at: CGPoint(x: x, y: y),
+                at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y),
                 anchor: .topLeading,
-                proposal: ProposedViewSize(size)
+                proposal: ProposedViewSize(sizes[index])
             )
-            x += size.width + hSpacing
-            rowHeight = max(rowHeight, size.height)
         }
     }
 }

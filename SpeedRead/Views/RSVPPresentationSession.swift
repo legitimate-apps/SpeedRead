@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import Observation
+import SwiftData
 
 enum RSVPDisplayInteraction: Equatable {
     case togglePlayback
@@ -187,6 +188,26 @@ final class RSVPPresentationSession {
         )
         engine.stop()
         return commit
+    }
+
+    func addBookmark(at index: Int, book: Book, modelContext: ModelContext) {
+        let draft = bookmarkDraft(at: index)
+        let bookmark = Bookmark(wordIndex: draft.wordIndex, previewText: draft.previewText)
+        bookmark.book = book
+        modelContext.insert(bookmark)
+    }
+
+    /// Returns whether the second tap completed and inserted a highlight.
+    func toggleHighlight(at index: Int, book: Book, modelContext: ModelContext) -> Bool {
+        guard let draft = toggleHighlight(at: index) else { return false }
+        let highlight = Highlight(
+            startWordIndex: draft.startIndex,
+            endWordIndex: draft.endIndex,
+            highlightedText: draft.text
+        )
+        highlight.book = book
+        modelContext.insert(highlight)
+        return true
     }
 
     func bookmarkDraft(at index: Int) -> RSVPBookmarkDraft {

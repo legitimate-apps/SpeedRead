@@ -2648,3 +2648,73 @@ session disposed every lease in the project — including four owned by no sessi
 mid-flight CI `xcodebuild`. Adding a filter that matched nothing narrowed nothing. Now they
 intersect when both are given; control at `~/.local/bin/sim-lease-tests.py`, 6/6 on the fix and
 4/6 against the preserved pre-fix copy.
+
+## 5au. Two methods that could disagree about where a row breaks (2026-09-07, leg 27)
+
+`WordFlowLayout` is a custom SwiftUI `Layout`. It had the wrap arithmetic written twice —
+`sizeThatFits` accumulating `rowWidth`/`totalHeight`, `placeSubviews` accumulating `x`/`y` — and
+the two measured against *different inputs*: `proposal.width` for the first, `bounds.width` for
+the second. Nothing forced them to agree, and when they disagree the symptom is text that
+measures to one height and draws at another: clipped or overflowing paragraphs.
+
+It was untested because `Layout.Subviews` cannot be constructed in a test. That is the whole
+reason the duplication survived: the file was unreachable by anything except a rendered view,
+so the only available "test" would have been a screenshot, which asserts nothing.
+
+`WordFlowLogic.arrange(sizes:width:hSpacing:vSpacing:)` now owns the single row-break decision
+and returns both the size and the origins; both `Layout` methods became adapters over it. Six
+tests, each naming the mutation it catches: the `rowWidth > 0` guard (an oversized first word
+must not sit below an empty row), `>` versus `>=` at the boundary (a word that exactly fills the
+row stays on it), `vSpacing` and the tallest-word row height, the `- hSpacing` trailing
+correction, ignoring the supplied width, and the empty-input case where the final correction
+would otherwise return a negative width.
+
+Also in this leg: annotation insertion moved from `RSVPView` into the existing
+`RSVPPresentationSession`, and server deletion into `ServerListLogic.deleteServers`, both
+following the convention §5am established. The Keychain test seeds three real entries, deletes
+non-contiguously, and asserts the two selected passwords are gone, the survivor remains, and the
+model deletion is visible through a *second* `ModelContext` — so it proves the save, not just
+the in-memory mutation. Dropping the `KeychainStore.deletePassword` line fails it.
+
+385 -> 398 iOS tests, 80 watchOS unchanged, ATTRIBUTABLE 91.37% -> 91.56%.
+
+**The part worth keeping is what was NOT written.** The leg produced a table of ten candidates
+declined, each citing the existing assertion that already covers the contract, at file:line —
+and one declined because the mutation is genuinely unobservable: the wrapped-row `totalWidth`
+correction has no independently observable output, since for finite widths the returned width is
+the supplied width and an infinite width never wraps. It also refused to write a screenshot- or
+sleep-based test for animation timing, which is the exact shape `assertion-audit.py` exists to
+reject, and stated plainly that mutation comments are named by inspection and that the leg
+"does not claim an executed mutation score." A delegate that reports the boundary of its own
+evidence is worth more than one that reports a bigger number.
+
+### The ten candidates leg 27 declined, in full
+
+Kept here rather than in a per-leg file: this ledger is the testing history, and a
+`docs/verification/` folder of per-leg documents would be a second one.
+
+OBSERVED source/test mapping, with the untested view edges named explicitly:
+
+| Requested member / candidate | Why no additional test |
+|---|---|
+| `ReaderView.clampedLastReadIndex` (`:299`) | Pure forwarding to the existing session clamp; empty, singleton, negative and oversized coordinates already have assertions in `ReaderSessionTests.swift:26`, `:36`, `:45`; another hosted-view test would not establish a new logic contract. |
+| `ReaderView.headerSubtitle` (`:303`) | Forwards to `readingEstimate`; existing direct assertions cover finished, rereading, speed floor, minute rounding and sub-minute text in `ReadingViewRenderingTests.swift:81` and `BookCompletionTests.swift:118`. |
+| `ReaderView.handleWordTap` (`:325`) | Session position/save/sync and unique flash are already asserted in `ReaderSessionTests.swift:55`; the remaining UIKit haptic and logger calls have no asserted physical/log-output oracle in this leg. |
+| `ReaderView.commitReadingPosition` (`:338`) | Session persistence and failure outcome are already asserted in `ReaderSessionTests.swift:106`, `:136`, `:150`; no test added just to execute the forwarding/logging wrapper. |
+| `RSVPView.togglePlayback` wrapper (`:345`) | Existing play assertions (`RSVPPresentationSessionTests.swift:36`) plus new pause/unloaded tests cover its session decision; the view's soft haptic and error log remain unasserted. |
+| `RSVPView.addBookmark` animation (`:361`) | New tests assert inserted model payload and relationship; no screenshot or sleep-only test claims to verify animation timing or the view's feedback call. Existing feedback-token assertions are in `RSVPPresentationSessionTests.swift:245`. |
+| `RSVPView.toggleHighlight` animation (`:371`) | New tests assert insertion and completion gating; animation and the view's feedback-kind wiring are not exercised by these unit tests. |
+| Layout adapter `subview.place` and bounds-origin addition (`ReaderWordFlow.swift:26`) | Pure tests assert origins, not SwiftUI frame placement; no extra render test is presented as proof of placement wiring. |
+| Wrapped-row `totalWidth` correction (`WordFlowLogic.swift:22`) in isolation | For ordinary finite nonnegative geometry, returned width is the supplied finite width; infinite width does not wrap, so this particular intermediate correction has no independently observable output. The final intrinsic-width correction at `:31` is asserted. |
+| Forced Keychain OS failure / ModelContext save failure in server deletion | No new dependency seam solely to manufacture framework failures; the real success and absent-item paths are asserted, while the pre-existing `try?` failure behavior is preserved by inspection. |
+
+ASSUMED: button/gesture delivery into these private wrappers, haptic perception, animated feedback,
+and SwiftUI's placement of returned origins retain their behavior based on unchanged wiring/source
+review; these are not claimed as end-to-end UI verification. References: `RSVPView.swift:345`,
+`ReaderView.swift:325`, `ReaderWordFlow.swift:26`.
+
+OBSERVED: mutation comments identify expected assertion failures by source inspection; this leg does
+not claim an executed mutation score.
+
+Ratchet held at 89. 91.56% leaves 1.56 points, and the five previous ratchets each kept about
+two; a floor that fails on ordinary variance stops being a floor and starts being a flake.

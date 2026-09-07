@@ -1,5 +1,5 @@
 //  ServerListLogic.swift
-//  Pure decisions behind ServerListView.swift. In its OWN file deliberately, not by style preference.
+//  Decisions and deletion effects behind ServerListView.swift. Kept in its own file deliberately.
 //
 //  Attributable coverage is measured per FILE. A tested type sharing a file with SwiftUI
 //  body markup pulls every one of those untested lines into the denominator, so the
@@ -11,6 +11,15 @@ import Foundation
 import SwiftData
 
 struct ServerListLogic {
+    @MainActor
+    static func deleteServers(at offsets: IndexSet, from servers: [OPDSServer], modelContext: ModelContext) {
+        for server in serversToDelete(at: offsets, from: servers) {
+            try? KeychainStore.deletePassword(for: server.keychainTag)
+            modelContext.delete(server)
+        }
+        try? modelContext.save()
+    }
+
     static func accountDetail(username: String) -> String {
         username.isEmpty ? "anonymous" : "user: \(username)"
     }

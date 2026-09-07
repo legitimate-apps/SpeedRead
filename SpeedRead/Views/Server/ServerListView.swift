@@ -96,10 +96,6 @@ struct ServerListView: View {
     }
 
     private func deleteServers(at offsets: IndexSet) {
-        for server in ServerListLogic.serversToDelete(at: offsets, from: servers) {
-            try? KeychainStore.deletePassword(for: server.keychainTag)
-            modelContext.delete(server)
-        }
-        try? modelContext.save()
+        ServerListLogic.deleteServers(at: offsets, from: servers, modelContext: modelContext)
     }
 }
