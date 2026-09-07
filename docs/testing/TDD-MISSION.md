@@ -2852,3 +2852,40 @@ The transferable rule: when a script's correctness depends on an ambient variabl
 control with that variable **unset**, because the machine you are testing on is not the machine
 that will run it. Same family as §5b's lane that had never run and §5aw's per-platform coverage
 number — a fact that is true here and false there, believed globally.
+
+## 5ay. The constraint that turned a leg into a question (2026-09-07, leg 29)
+
+Leg 29's brief ended with a constraint I have been putting in briefs for weeks: *"If you find
+another real defect, STOP and report rather than fixing it silently."* The delegate found one —
+`WatchLibrary.updatePosition` cleared completion only `if clamped < upperBound`, so committing the
+final word without finishing left a book marked finished, where the phone's rule cleared it
+unconditionally — and stopped. It returned an investigation, a reproduction, a table of seven
+tests it had deliberately not written, and a question. Zero implementation.
+
+It was right. The constraint said STOP, and it stopped.
+
+The constraint is wrong. It is aimed at scope creep — a delegate wandering into unrelated repairs —
+but it discriminates on **novelty**, and what the delegate found was not a new defect. It was the
+other half of the assigned one: completion governed by one rule on the phone and a different rule
+on the watch, which is the same sentence as the assigned bug (completion not crossing the wire at
+all). Fixing only the wire would have shipped the divergence, which is precisely what I34 was.
+
+A stop-rule has to discriminate on **subsystem**, not novelty:
+
+> In scope, fix without asking: anything governing completion semantics — where a completion
+> marker is set, cleared, serialized, decoded, or merged, on either platform.
+> Out of scope, still STOP: a defect that is not about completion.
+
+Two things worth keeping separate from the lesson:
+
+- **Verify the delegate's findings before deciding the delegate was wrong.** All three of its claims
+  held when I read the source myself: `WatchBook.swift:118`, `PositionPayload`'s five fields,
+  `WatchSyncService.swift:681`'s unconditional `finishedAt = nil`. The stop was expensive and
+  correct at the same time. It also caught that my brief named a decoder `init(dictionary:)` that
+  does not exist — the real one is `decode(from:)`. That is the manager's-oracle failure again: an
+  identifier in a brief is an assumption wearing a spec's clothes.
+- **The resumed leg was killed by the OS for memory, mid-edit**, leaving 159 insertions across ten
+  files and two new test files in the tree with nothing run. A killed leg is not a failed leg; it is
+  an *unverified* one, and the difference matters because the work turned out to be sound. What it
+  cost was not the code — it was that every claim about the code had to be re-established from
+  scratch, by me, from the diff.

@@ -161,6 +161,7 @@ struct WatchReadingCompositionTests {
 
     @Test(arguments: [false, true])
     func finishingOnWatchPersistsCompleteAndRereadingClearsIt(disappearFirst: Bool) async throws {
+        // Mutation: drop didFinish between natural engine completion and the WCSession context.
         let wire = CompositionWatchSession()
         let service = WatchSyncService(session: wire, store: storage.store)
         // Sampled verbatim from SampleBooks/TheYellowWallpaper.epub, pg-header-heading.
@@ -185,6 +186,9 @@ struct WatchReadingCompositionTests {
         if disappearFirst { content.disappear() } else { content.synchronizePosition() }
         let finished = try #require(storage.store.load().currentBook)
         #expect(finished.progress == 1)
+        let completion = try #require(wire.contexts.last)
+        #expect(completion["didFinish"] as? Bool == true)
+        #expect(completion["finishedAt"] as? Double == finished.finishedAt?.timeIntervalSince1970)
         #expect(WatchBookDetailPresentation.progressPercentage(for: finished) == 100)
         #expect(WatchLibraryPresentation.progressText(for: finished) == "100% complete")
         content.disappear()
@@ -198,7 +202,8 @@ struct WatchReadingCompositionTests {
         let rereading = try #require(storage.store.load().currentBook)
         #expect(rereading.lastReadIndex == 0)
         #expect(rereading.progress == 0)
-        #expect(wire.contexts.allSatisfy { $0["finishedAt"] == nil && $0["didFinish"] == nil })
+        #expect(wire.contexts.last?["didFinish"] as? Bool == false)
+        #expect(wire.contexts.last?["finishedAt"] == nil)
     }
 
     private func makeBook() -> WatchBook {

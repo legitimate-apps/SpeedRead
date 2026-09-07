@@ -16,7 +16,9 @@ protocol ReadingPositionSyncing {
         bookTitle: String,
         wordIndex: Int,
         timestamp: Date,
-        furthestReadWordIndex: Int
+        furthestReadWordIndex: Int,
+        didFinish: Bool,
+        finishedAt: Date?
     )
 }
 
@@ -54,8 +56,10 @@ extension ReadingPositionCoordinator {
         book.ensurePositionMarkersInitialized()
         book.lastReadWordIndex = clamped
         book.lastReadDate = now
-        book.finishedAt = didFinish && wordCount > 0 && clamped == wordCount - 1
-            ? (book.finishedAt ?? now) : nil
+        book.finishedAt = completionDate(
+            didFinish: didFinish, index: clamped, wordCount: wordCount,
+            existingDate: book.finishedAt, now: now
+        )
         book.browseWordIndex = clamped
         book.furthestReadWordIndex = max(book.furthestReadWordIndex, clamped)
 
@@ -73,7 +77,9 @@ extension ReadingPositionCoordinator {
             bookTitle: book.title,
             wordIndex: clamped,
             timestamp: now,
-            furthestReadWordIndex: book.furthestReadWordIndex
+            furthestReadWordIndex: book.furthestReadWordIndex,
+            didFinish: book.finishedAt != nil,
+            finishedAt: book.finishedAt
         )
         return ReadingPositionCommit(index: clamped, timestamp: now, didSave: didSave)
     }

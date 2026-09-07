@@ -244,7 +244,9 @@ private final class RecordingPositionSync: ReadingPositionSyncing {
         bookTitle: String,
         wordIndex: Int,
         timestamp: Date,
-        furthestReadWordIndex: Int
+        furthestReadWordIndex: Int,
+        didFinish: Bool,
+        finishedAt: Date?
     ) {
         events.append(.init(
             bookID: bookId,

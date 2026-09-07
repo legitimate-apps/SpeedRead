@@ -208,7 +208,7 @@ private final class CompletionSaver: ReadingPositionSaving {
 
 @MainActor
 private final class CompletionSync: ReadingPositionSyncing {
-    func syncReadingPosition(bookId: UUID, bookTitle: String, wordIndex: Int, timestamp: Date, furthestReadWordIndex: Int) {}
+    func syncReadingPosition(bookId: UUID, bookTitle: String, wordIndex: Int, timestamp: Date, furthestReadWordIndex: Int, didFinish: Bool, finishedAt: Date?) {}
 }
 
 private final class CompletionBundleMarker: NSObject {}

@@ -481,7 +481,9 @@ private final class RSVPSync: ReadingPositionSyncing {
         bookTitle: String,
         wordIndex: Int,
         timestamp: Date,
-        furthestReadWordIndex: Int
+        furthestReadWordIndex: Int,
+        didFinish: Bool,
+        finishedAt: Date?
     ) {
         indices.append(wordIndex)
     }

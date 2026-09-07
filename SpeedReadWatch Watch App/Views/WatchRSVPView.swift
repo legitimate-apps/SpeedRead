@@ -109,11 +109,9 @@ struct WatchRSVPContent: View {
         syncService.syncReadingPosition(
             bookId: commit.bookId,
             bookTitle: commit.bookTitle,
-            wordIndex: commit.wordIndex
+            wordIndex: commit.wordIndex,
+            didFinish: commit.didFinish
         )
-        if commit.didFinish, syncService.library.markFinishedLocally(bookId: commit.bookId) {
-            syncService.persistLibrary()
-        }
     }
 
     private func persistBrowsePosition() {

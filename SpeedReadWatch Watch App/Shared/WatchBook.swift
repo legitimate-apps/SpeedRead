@@ -8,8 +8,9 @@ struct WatchBook: Codable, Identifiable, Hashable {
     let text: String
     var lastReadIndex: Int
     var lastReadDate: Date?
-    // Local playback completion only; never inferred from a phone position payload.
-    var hasFinishedLocally: Bool = false
+    var finishedAt: Date?
+    // Keep the existing presentation name; completion may now arrive from either device.
+    var hasFinishedLocally: Bool { finishedAt != nil }
     var browseWordIndex: Int
     var furthestReadWordIndex: Int
     let wordCount: Int
@@ -27,7 +28,8 @@ struct WatchBook: Codable, Identifiable, Hashable {
         furthestReadWordIndex: Int? = nil,
         wordCount: Int,
         dateAdded: Date,
-        chapters: [ChapterMark] = []
+        chapters: [ChapterMark] = [],
+        finishedAt: Date? = nil
     ) {
         self.id = id
         self.title = title
@@ -40,11 +42,12 @@ struct WatchBook: Codable, Identifiable, Hashable {
         self.wordCount = wordCount
         self.dateAdded = dateAdded
         self.chapters = chapters
+        self.finishedAt = finishedAt
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, title, author, text, lastReadIndex, lastReadDate, hasFinishedLocally
-        case browseWordIndex, furthestReadWordIndex, wordCount, dateAdded, chapters
+        case browseWordIndex, furthestReadWordIndex, wordCount, dateAdded, chapters, finishedAt
     }
 
     init(from decoder: any Decoder) throws {
@@ -55,7 +58,6 @@ struct WatchBook: Codable, Identifiable, Hashable {
         text = try container.decode(String.self, forKey: .text)
         lastReadIndex = try container.decode(Int.self, forKey: .lastReadIndex)
         lastReadDate = try container.decodeIfPresent(Date.self, forKey: .lastReadDate)
-        hasFinishedLocally = try container.decodeIfPresent(Bool.self, forKey: .hasFinishedLocally) ?? false
         browseWordIndex = try container.decodeIfPresent(Int.self, forKey: .browseWordIndex)
             ?? lastReadIndex
         furthestReadWordIndex = try container.decodeIfPresent(Int.self, forKey: .furthestReadWordIndex)
@@ -63,6 +65,30 @@ struct WatchBook: Codable, Identifiable, Hashable {
         wordCount = try container.decode(Int.self, forKey: .wordCount)
         dateAdded = try container.decode(Date.self, forKey: .dateAdded)
         chapters = try container.decodeIfPresent([ChapterMark].self, forKey: .chapters) ?? []
+        finishedAt = try container.decodeIfPresent(Date.self, forKey: .finishedAt)
+        if finishedAt == nil,
+           try container.decodeIfPresent(Bool.self, forKey: .hasFinishedLocally) == true {
+            // Legacy watch stores have no original completion date; preserve their marker
+            // using the last commit timestamp (or import date if that too is absent).
+            finishedAt = lastReadDate ?? dateAdded
+        }
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(author, forKey: .author)
+        try container.encode(text, forKey: .text)
+        try container.encode(lastReadIndex, forKey: .lastReadIndex)
+        try container.encodeIfPresent(lastReadDate, forKey: .lastReadDate)
+        try container.encode(hasFinishedLocally, forKey: .hasFinishedLocally)
+        try container.encodeIfPresent(finishedAt, forKey: .finishedAt)
+        try container.encode(browseWordIndex, forKey: .browseWordIndex)
+        try container.encode(furthestReadWordIndex, forKey: .furthestReadWordIndex)
+        try container.encode(wordCount, forKey: .wordCount)
+        try container.encode(dateAdded, forKey: .dateAdded)
+        try container.encode(chapters, forKey: .chapters)
     }
 
     var words: [String] {
@@ -109,27 +135,21 @@ struct WatchLibrary: Codable, Equatable {
         bookId: UUID,
         index: Int,
         timestamp: Date = Date(),
-        furthestReadWordIndex: Int? = nil
+        furthestReadWordIndex: Int? = nil,
+        didFinish: Bool = false,
+        finishedAt: Date? = nil
     ) -> Bool {
         guard let i = books.firstIndex(where: { $0.id == bookId }) else { return false }
-        let upperBound = max(0, books[i].wordCount - 1)
         let clamped = ReadingPositionCoordinator.clampedIndex(index, wordCount: books[i].wordCount)
         let incomingFurthest = ReadingPositionCoordinator.clampedIndex(furthestReadWordIndex ?? clamped, wordCount: books[i].wordCount)
-        if clamped < upperBound { books[i].hasFinishedLocally = false }
+        books[i].finishedAt = ReadingPositionCoordinator.completionDate(
+            didFinish: didFinish, index: clamped, wordCount: books[i].wordCount,
+            existingDate: books[i].finishedAt, incomingDate: finishedAt, now: timestamp
+        )
         books[i].lastReadIndex = clamped
         books[i].lastReadDate = timestamp
         books[i].browseWordIndex = clamped
         books[i].furthestReadWordIndex = max(books[i].furthestReadWordIndex, incomingFurthest)
-        return true
-    }
-
-    @discardableResult
-    mutating func markFinishedLocally(bookId: UUID) -> Bool {
-        guard let i = books.firstIndex(where: { $0.id == bookId }),
-              books[i].wordCount > 0,
-              books[i].lastReadIndex == books[i].wordCount - 1,
-              !books[i].hasFinishedLocally else { return false }
-        books[i].hasFinishedLocally = true
         return true
     }
 

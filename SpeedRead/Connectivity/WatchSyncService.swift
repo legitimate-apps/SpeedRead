@@ -131,29 +131,40 @@ struct WatchSyncLogic {
         let wordIndex: Int
         let timestamp: Date
         let furthestReadWordIndex: Int
+        let didFinish: Bool
+        let finishedAt: Date?
 
         init(
             bookId: UUID,
             bookTitle: String,
             wordIndex: Int,
             timestamp: Date,
-            furthestReadWordIndex: Int = 0
+            furthestReadWordIndex: Int = 0,
+            didFinish: Bool = false,
+            finishedAt: Date? = nil
         ) {
             self.bookId = bookId
             self.bookTitle = bookTitle
             self.wordIndex = wordIndex
             self.timestamp = timestamp
             self.furthestReadWordIndex = furthestReadWordIndex
+            self.didFinish = didFinish
+            self.finishedAt = finishedAt
         }
 
         var dictionary: [String: Any] {
-            [
+            var dictionary: [String: Any] = [
                 "bookId": bookId.uuidString,
                 "bookTitle": bookTitle,
                 "wordIndex": wordIndex,
                 "timestamp": timestamp.timeIntervalSince1970,
-                "furthestReadWordIndex": furthestReadWordIndex
+                "furthestReadWordIndex": furthestReadWordIndex,
+                "didFinish": didFinish
             ]
+            if didFinish, let finishedAt {
+                dictionary["finishedAt"] = finishedAt.timeIntervalSince1970
+            }
+            return dictionary
         }
 
         static func decode(from dictionary: [String: Any]) -> PositionPayload? {
@@ -166,6 +177,11 @@ struct WatchSyncLogic {
                   interval.isFinite else {
                 return nil
             }
+            let didFinish = (dictionary["didFinish"] as? Bool) ?? false
+            let completionInterval = dictionary["finishedAt"] as? TimeInterval
+            let finishedAt = completionInterval.flatMap {
+                didFinish && $0.isFinite ? Date(timeIntervalSince1970: $0) : nil
+            }
             return PositionPayload(
                 bookId: bookId,
                 bookTitle: bookTitle,
@@ -174,7 +190,9 @@ struct WatchSyncLogic {
                 furthestReadWordIndex: max(
                     0,
                     (dictionary["furthestReadWordIndex"] as? Int) ?? wordIndex
-                )
+                ),
+                didFinish: didFinish,
+                finishedAt: finishedAt
             )
         }
     }
@@ -204,7 +222,9 @@ struct WatchSyncLogic {
         localIndex: Int,
         localDate: Date?,
         wordCount: Int,
-        pendingOfferDate: Date? = nil
+        pendingOfferDate: Date? = nil,
+        localHasFinished: Bool = false,
+        pendingOfferDidFinish: Bool? = nil
     ) -> Bool {
         if let pendingOfferDate, incoming.timestamp <= pendingOfferDate { return false }
         guard wordCount > 0,
@@ -217,7 +237,15 @@ struct WatchSyncLogic {
         }
         let clampedIncoming = ReadingPositionCoordinator.clampedIndex(incoming.wordIndex, wordCount: wordCount)
         let materialDifference = max(5, Int(ceil(Double(wordCount) * 0.01)))
+        let incomingFinishes = ReadingPositionCoordinator.completionDate(
+            didFinish: incoming.didFinish, index: clampedIncoming, wordCount: wordCount,
+            existingDate: nil, incomingDate: incoming.finishedAt, now: incoming.timestamp
+        ) != nil
+        // A completion change is material even at the same final word. A newer commit
+        // must also replace an opposite-completion offer that has not been accepted yet.
         return abs(clampedIncoming - localIndex) >= materialDifference
+            || incomingFinishes != localHasFinished
+            || pendingOfferDidFinish.map { $0 != incomingFinishes } == true
     }
 
     enum BookDeliveryRoute: Equatable {
@@ -259,9 +287,15 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         let wordIndex: Int
         let wordCount: Int
         let timestamp: Date
+        var didFinish: Bool = false
+        var finishedAt: Date? = nil
 
         var displayText: String {
-            let percentage = wordCount > 0
+            let isFinished = ReadingPositionCoordinator.completionDate(
+                didFinish: didFinish, index: wordIndex, wordCount: wordCount,
+                existingDate: nil, incomingDate: finishedAt, now: timestamp
+            ) != nil
+            let percentage = isFinished ? 100 : wordCount > 0
                 ? Int((Double(wordIndex) / Double(wordCount) * 100).rounded())
                 : 0
             return "Continue from Apple Watch — \(percentage)%, word \((wordIndex + 1).formatted())"
@@ -448,14 +482,18 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         bookId: UUID,
         bookTitle: String,
         wordIndex: Int,
-        timestamp: Date = Date()
+        timestamp: Date = Date(),
+        didFinish: Bool = false,
+        finishedAt: Date? = nil
     ) {
         syncReadingPosition(
             bookId: bookId,
             bookTitle: bookTitle,
             wordIndex: wordIndex,
             timestamp: timestamp,
-            furthestReadWordIndex: wordIndex
+            furthestReadWordIndex: wordIndex,
+            didFinish: didFinish,
+            finishedAt: finishedAt
         )
     }
 
@@ -464,18 +502,27 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         bookTitle: String,
         wordIndex: Int,
         timestamp: Date,
-        furthestReadWordIndex: Int
+        furthestReadWordIndex: Int,
+        didFinish: Bool = false,
+        finishedAt: Date? = nil
     ) {
         var outgoingFurthest = furthestReadWordIndex
+        var outgoingDidFinish = didFinish
+        var outgoingFinishedAt = finishedAt
         #if os(watchOS)
         library.updatePosition(
             bookId: bookId,
             index: wordIndex,
             timestamp: timestamp,
-            furthestReadWordIndex: furthestReadWordIndex
+            furthestReadWordIndex: furthestReadWordIndex,
+            didFinish: didFinish,
+            finishedAt: finishedAt
         )
-        outgoingFurthest = library.books.first(where: { $0.id == bookId })?.furthestReadWordIndex
-            ?? furthestReadWordIndex
+        if let book = library.books.first(where: { $0.id == bookId }) {
+            outgoingFurthest = book.furthestReadWordIndex
+            outgoingDidFinish = book.hasFinishedLocally
+            outgoingFinishedAt = book.finishedAt
+        }
         persistLibrary()
         #endif
         guard connectivitySession.activationState == .activated else { return }
@@ -484,7 +531,9 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             bookTitle: bookTitle,
             wordIndex: wordIndex,
             timestamp: timestamp,
-            furthestReadWordIndex: outgoingFurthest
+            furthestReadWordIndex: outgoingFurthest,
+            didFinish: outgoingDidFinish,
+            finishedAt: outgoingFinishedAt
         )
         try? connectivitySession.updateApplicationContext(payload.dictionary)
     }
@@ -596,7 +645,9 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
                     bookId: payload.bookId,
                     index: payload.wordIndex,
                     timestamp: payload.timestamp,
-                    furthestReadWordIndex: mergedFurthest
+                    furthestReadWordIndex: mergedFurthest,
+                    didFinish: payload.didFinish,
+                    finishedAt: payload.finishedAt
                 ) || changed
             }
             if changed { self.persistLibrary() }
@@ -628,14 +679,22 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             localDate: book.lastReadDate,
             wordCount: book.wordCount,
             pendingOfferDate: pendingWatchPositionOffer?.bookId == book.id
-                ? pendingWatchPositionOffer?.timestamp : nil
+                ? pendingWatchPositionOffer?.timestamp : nil,
+            localHasFinished: book.finishedAt != nil,
+            pendingOfferDidFinish: pendingWatchPositionOffer?.bookId == book.id
+                ? pendingWatchPositionOffer?.didFinish : nil
         ) {
             pendingWatchPositionOffer = PositionOffer(
                 bookId: book.id,
                 bookTitle: book.title,
                 wordIndex: clampedIndex,
                 wordCount: book.wordCount,
-                timestamp: payload.timestamp
+                timestamp: payload.timestamp,
+                didFinish: ReadingPositionCoordinator.completionDate(
+                    didFinish: payload.didFinish, index: clampedIndex, wordCount: book.wordCount,
+                    existingDate: nil, incomingDate: payload.finishedAt, now: payload.timestamp
+                ) != nil,
+                finishedAt: payload.finishedAt
             )
         }
         do {
@@ -678,7 +737,10 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         }
         book.ensurePositionMarkersInitialized()
         book.lastReadWordIndex = acceptedIndex
-        book.finishedAt = nil
+        book.finishedAt = ReadingPositionCoordinator.completionDate(
+            didFinish: offer.didFinish, index: acceptedIndex, wordCount: book.wordCount,
+            existingDate: book.finishedAt, incomingDate: offer.finishedAt, now: offer.timestamp
+        )
         book.lastReadDate = offer.timestamp
         book.browseWordIndex = acceptedIndex
         book.furthestReadWordIndex = ReadingPositionCoordinator.clampedIndex(
