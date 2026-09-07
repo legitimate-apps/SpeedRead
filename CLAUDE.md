@@ -195,7 +195,7 @@ Pre-allowed in `.claude/settings.local.json`: `Bash(xcodebuild test:*)`.
 ### Honesty gates — cheap, no simulator, run before any build
 
 ```bash
-Scripts/honesty-gates.sh    # runs all seven, cheapest first. RUN THIS BEFORE EVERY PUSH.
+Scripts/honesty-gates.sh    # runs all nine, cheapest first. RUN THIS BEFORE EVERY PUSH.
 ```
 
 It is the single list; CI runs the same script. Individually:
@@ -209,6 +209,8 @@ python3 Scripts/network-isolation-audit.py # no test-tree session can reach the 
 Scripts/executed-tests-control.sh         # the executed-test parser reports true counts
 python3 Scripts/attributable-coverage.py --self-test   # classifier reads code not comments; and
                                                        # holds non-shipping files out of the grade
+python3 Scripts/doc-link-audit.py .       # every relative Markdown link resolves, headings included
+python3 Scripts/doc-link-audit.py --self-test          # and the link gate is proven in both directions
 ```
 
 **`actionlint` is the one gate CI cannot run for itself.** If `ci.yml` is unparseable GitHub
@@ -235,6 +237,18 @@ be *real*. Both lanes decide "this lane is green" from a parser, and a parser th
 certifies an empty lane — so `Scripts/lib/executed-tests.awk` is the single copy of it and
 `executed-tests-control.sh` asserts expected counts against fixture logs, including the exact
 regex-literal bug that once made it return 1 for every input.
+
+A ninth thing is true of the docs rather than the lanes: **a citation has to resolve**. On
+2026-09-07 the roadmap's leg-28 entry ended `See [results and command receipts](...) and [all
+uncovered-line dispositions](...)`, naming two files — one had been moved and renamed, the other
+was never written at all. A link to nothing reads exactly like a link to something, so the entry
+asserted evidence it did not have and nothing anywhere could notice. That is the same shape as an
+assertion-free test: a test that cannot fail inflates coverage, a citation that cannot fail
+inflates confidence, and this project's whole claim to honesty is its evidence trail.
+`doc-link-audit.py` checks heading anchors too, because a link to a deleted section silently lands
+the reader at the top of the file and still looks like it worked. Its self-test asserts both
+directions, and it was proven against the real pre-fix tree, not only against fixtures it authored
+itself.
 
 An eighth thing has to be true for a green lane to mean anything: **the tests have to be hermetic**.
 A suite that can reach the network is a suite whose result depends on someone else's server, and it

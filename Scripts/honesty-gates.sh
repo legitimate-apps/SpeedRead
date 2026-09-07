@@ -19,6 +19,13 @@
 # 2026-09-04, when ${{ runner.temp }} in a workflow-level env block (where the runner context
 # does not exist) made the file invalid. CI did not fail; it silently stopped existing, and the
 # push looked completely normal. A gate that only runs inside the thing it guards is not a gate.
+#
+# The newest gate checks prose, not code, and belongs here for the same reason as the rest.
+# On 2026-09-07 the roadmap's leg-28 entry ended "See [results and command receipts](...)"
+# pointing at two files that did not exist -- one moved, one never written. A citation that
+# cannot fail reads exactly like one that can, and this project's entire claim to honesty is
+# its evidence trail. An uncheckable test inflates coverage; an uncheckable citation inflates
+# confidence, and costs nothing to catch.
 
 set -uo pipefail
 
@@ -51,6 +58,8 @@ run_gate "Shared sources are one file, not two"     python3 Scripts/shared-sourc
 run_gate "Test networking cannot reach the wire"   python3 Scripts/network-isolation-audit.py
 run_gate "Executed-test parser reports true counts" Scripts/executed-tests-control.sh
 run_gate "Coverage classifier ignores prose, not code" python3 Scripts/attributable-coverage.py --self-test
+run_gate "Doc links name things that exist"         python3 Scripts/doc-link-audit.py .
+run_gate "Doc-link gate catches a real broken link" python3 Scripts/doc-link-audit.py --self-test
 
 printf '\n'
 if (( failures != 0 )); then
