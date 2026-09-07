@@ -4,6 +4,7 @@ import Testing
 
 /// Specification for the decisions behind RemoteBookDetailView, which no test named.
 @Suite("Remote book detail logic")
+@MainActor
 struct RemoteBookDetailLogicTests {
 
     // MARK: - The filename bug this leg exists to close

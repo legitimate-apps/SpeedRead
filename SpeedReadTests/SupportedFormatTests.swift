@@ -9,6 +9,7 @@ import Testing
 /// whitelist, and the library's file importer listed UTTypes. Nothing kept them in agreement,
 /// and the mime list already carried entries the extension switch could not route.
 @Suite("Supported formats")
+@MainActor
 struct SupportedFormatTests {
 
     @Test func everyFormatRoundTripsThroughItsFileExtension() {

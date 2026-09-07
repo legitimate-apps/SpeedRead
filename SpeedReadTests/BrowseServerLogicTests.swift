@@ -3,6 +3,7 @@ import Testing
 @testable import SpeedRead
 
 @Suite("Browse server view decisions")
+@MainActor
 struct BrowseServerLogicTests {
     @Test func routeDistinguishesEmptyPickerAutomaticAndSelectedServers() {
         let first = snapshot(name: "First", url: "https://first.example/opds")

@@ -4,6 +4,7 @@ import Compression
 @testable import SpeedRead
 
 @Suite("EPUB Extractor Tests")
+@MainActor
 struct EPUBExtractorTests {
 
     @Test func extractsTextFromXHTML() {

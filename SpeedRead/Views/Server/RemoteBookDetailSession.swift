@@ -18,7 +18,7 @@ final class RemoteBookDetailSession {
         }
         let client = makeClient()
         do {
-            let payload = try await client.download(from: url, on: server)
+            let payload = try await client.download(from: url, on: OPDSRequestConfiguration(server))
             #if canImport(UIKit)
             if let ui = UIImage(data: payload.data) {
                 let image = Image(uiImage: ui)
@@ -43,7 +43,7 @@ final class RemoteBookDetailSession {
         downloadError = nil
         let client = makeClient()
         do {
-            let payload = try await client.download(from: acquisition.url, on: server)
+            let payload = try await client.download(from: acquisition.url, on: OPDSRequestConfiguration(server))
             let filename = RemoteBookDetailLogic.ensureExtension(
                 payload.filename,
                 mimeType: acquisition.mimeType,

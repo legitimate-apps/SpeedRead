@@ -1,7 +1,7 @@
 //  WordTimer.swift
 import Foundation
 
-struct WordTimer: Sendable {
+nonisolated struct WordTimer: Sendable {
     var wpm: Int
 
     var baseDelayMs: Int {

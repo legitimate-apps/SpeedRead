@@ -185,4 +185,22 @@ struct OPDSAtomParserTests {
         #expect(fractional != nil)
         #expect(OPDSAtomParser.parseDate("not a date") == nil)
     }
+
+    @Test func concurrentDateParsingKeepsFormatsIndependent() async {
+        let basic = OPDSAtomParser.parseDate("2026-05-19T23:57:02+00:00")
+        let fractional = OPDSAtomParser.parseDate("2026-05-19T23:57:02.123+00:00")
+        #expect(basic != nil)
+        #expect(fractional != nil)
+        await withTaskGroup(of: Bool.self) { group in
+            for _ in 0..<64 {
+                group.addTask {
+                    OPDSAtomParser.parseDate("2026-05-19T23:57:02+00:00") == basic
+                        && OPDSAtomParser.parseDate("2026-05-19T23:57:02.123+00:00") == fractional
+                        && OPDSAtomParser.parseDate("not a date") == nil
+                }
+            }
+            for await matches in group { #expect(matches) }
+        }
+    }
+
 }

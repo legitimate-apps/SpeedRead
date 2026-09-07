@@ -29,6 +29,24 @@ nonisolated enum OPDSError: LocalizedError, Equatable, Sendable {
     }
 }
 
+/// Value snapshot taken on the model owner's executor before crossing to the network actor.
+/// The SwiftData object stays with its context while a request is in flight.
+nonisolated struct OPDSRequestConfiguration: Sendable {
+    let baseURL: URL?
+    let username: String
+    let keychainTag: String
+    let allowInsecureHTTP: Bool
+
+    init(_ server: OPDSServer) {
+        baseURL = server.baseURL
+        username = server.username
+        keychainTag = server.keychainTag
+        allowInsecureHTTP = server.allowInsecureHTTP
+    }
+
+    var requiresAuth: Bool { !username.isEmpty }
+}
+
 /// Network access for OPDS catalogs. Builds requests with HTTP Basic Auth
 /// when the server has a username, enforces the per-server insecure-HTTP gate,
 /// and routes raw bytes / parsed feeds back to the caller.
@@ -39,7 +57,7 @@ actor OPDSClient {
         self.session = session
     }
 
-    func fetchFeed(url: URL, on server: OPDSServer) async throws -> OPDSFeed {
+    func fetchFeed(url: URL, on server: OPDSRequestConfiguration) async throws -> OPDSFeed {
         try validateScheme(url: url, server: server)
         let request = try makeRequest(url: url, server: server, accept: "application/atom+xml")
         let (data, response) = try await perform(request)
@@ -52,7 +70,7 @@ actor OPDSClient {
         }
     }
 
-    func download(from url: URL, on server: OPDSServer) async throws -> OPDSDownload {
+    func download(from url: URL, on server: OPDSRequestConfiguration) async throws -> OPDSDownload {
         try validateScheme(url: url, server: server)
         let request = try makeRequest(url: url, server: server, accept: nil)
         let (data, response) = try await perform(request)
@@ -61,7 +79,7 @@ actor OPDSClient {
         return OPDSDownload(data: data, filename: filename)
     }
 
-    func testConnection(_ server: OPDSServer) async throws -> Bool {
+    func testConnection(_ server: OPDSRequestConfiguration) async throws -> Bool {
         guard let base = server.baseURL else { throw OPDSError.invalidURL }
         let feed = try await fetchFeed(url: base, on: server)
         return !feed.entries.isEmpty || !feed.navigationLinks.isEmpty || !feed.title.isEmpty
@@ -77,7 +95,7 @@ actor OPDSClient {
         }
     }
 
-    private func validateScheme(url: URL, server: OPDSServer) throws {
+    private func validateScheme(url: URL, server: OPDSRequestConfiguration) throws {
         guard let scheme = url.scheme?.lowercased() else { throw OPDSError.invalidURL }
         if scheme == "http" && !server.allowInsecureHTTP {
             throw OPDSError.insecureSchemeBlocked
@@ -96,7 +114,7 @@ actor OPDSClient {
         }
     }
 
-    private func makeRequest(url: URL, server: OPDSServer, accept: String?) throws -> URLRequest {
+    private func makeRequest(url: URL, server: OPDSRequestConfiguration, accept: String?) throws -> URLRequest {
         var request = URLRequest(url: url, cachePolicy: .reloadRevalidatingCacheData)
         request.httpMethod = "GET"
         if let accept { request.setValue(accept, forHTTPHeaderField: "Accept") }

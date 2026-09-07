@@ -4,6 +4,7 @@ import PDFKit
 @testable import SpeedRead
 
 @Suite("PDF Extractor Tests")
+@MainActor
 struct PDFExtractorTests {
 
     @Test func extractsTextFromPDFData() throws {

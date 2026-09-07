@@ -98,18 +98,6 @@ nonisolated final class OPDSAtomParser: NSObject {
     private var currentEntryNavigationLink: URL?
     private var currentEntryAcquisitions: [OPDSAcquisition] = []
 
-    private static let iso8601Full: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-
-    private static let iso8601Basic: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]
-        return f
-    }()
-
     init(baseURL: URL) {
         self.baseURL = baseURL
     }
@@ -134,9 +122,13 @@ nonisolated final class OPDSAtomParser: NSObject {
     }
 
     static func parseDate(_ string: String) -> Date? {
-        if let d = iso8601Full.date(from: string) { return d }
-        if let d = iso8601Basic.date(from: string) { return d }
-        return nil
+        // Formatters are mutable and non-Sendable. Each call owns its formatter, so
+        // concurrent feed parses never share it; retain the same options and fallback.
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: string) { return date }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: string)
     }
 
     private func resolveURL(_ href: String) -> URL? {

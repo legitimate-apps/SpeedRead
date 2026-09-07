@@ -13,6 +13,7 @@ private func inMemoryContext() throws -> ModelContext {
 }
 
 @Suite("DocumentImporter.importData")
+@MainActor
 struct DocumentImporterDataTests {
 
     /// `defaultTitle` stripped the extension with

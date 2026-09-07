@@ -41,6 +41,7 @@ struct WatchSettingsViewLogicTests {
 }
 
 @Suite("Watch RSVP view decisions")
+@MainActor
 struct WatchRSVPViewLogicTests {
     @Test func pausedCrownBrowsingChangesOnlyTheDeviceLocalBrowseMarker() {
         let originalReadDate = Date(timeIntervalSince1970: 500)
@@ -100,6 +101,7 @@ struct WatchRSVPViewLogicTests {
 }
 
 @Suite("Watch app launch decisions")
+@MainActor
 struct WatchAppLaunchLogicTests {
     @Test func crownDirectionArgumentSelectsOnlyTheDeterministicFixture() {
         #expect(WatchAppLaunchLogic.destination(arguments: ["SpeedReadWatch"]) == .library)
@@ -130,6 +132,7 @@ struct WatchAppLaunchLogicTests {
 }
 
 @Suite("Watch launch destination")
+@MainActor
 struct WatchLaunchDestinationTests {
     @Test("Seeded-library argument shows the library, not the fixture surface")
     func seededLibraryArgumentShowsTheLibrary() {

@@ -36,7 +36,7 @@ nonisolated enum BookTokenizer {
 
 #if !os(watchOS)
 
-enum BookTokenCache {
+nonisolated enum BookTokenCache {
     static func ensure(tokens: inout [String], wordCount: inout Int, extractedText: String) {
         guard tokens.isEmpty else { return }
         let migratedTokens = Book.tokenize(extractedText)
@@ -47,7 +47,7 @@ enum BookTokenCache {
     }
 }
 
-enum BookPositionMigration {
+nonisolated enum BookPositionMigration {
     static func ensure(
         browseWordIndex: inout Int,
         furthestReadWordIndex: inout Int,

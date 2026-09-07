@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import Synchronization
 @testable import SpeedRead
 
 private func makeServer(
@@ -38,6 +39,21 @@ private func tinyAtom(title: String = "Mock Feed") -> Data {
 @Suite("OPDS Client", .serialized)
 struct OPDSClientTests {
 
+    @Test func requestConfigurationDoesNotRetainMutableModelState() {
+        let server = makeServer(user: "")
+        let configuration = OPDSRequestConfiguration(server)
+        let originalTag = server.keychainTag
+        server.baseURLString = "http://changed.example.com"
+        server.username = "changed"
+        server.keychainTag = "changed"
+        server.allowInsecureHTTP = true
+        #expect(configuration.baseURL == URL(string: "https://books.example.com"))
+        #expect(configuration.username.isEmpty)
+        #expect(configuration.keychainTag == originalTag)
+        #expect(!configuration.allowInsecureHTTP)
+        #expect(!configuration.requiresAuth)
+    }
+
     @Test func fetchFeedHappyPath() async throws {
         let server = makeServer()
         MockURLProtocol.handler = { _ in
@@ -50,7 +66,7 @@ struct OPDSClientTests {
             return (resp, tinyAtom(title: "Live"))
         }
         let client = OPDSClient(session: mockSession())
-        let feed = try await client.fetchFeed(url: server.baseURL!, on: server)
+        let feed = try await client.fetchFeed(url: server.baseURL!, on: OPDSRequestConfiguration(server))
         #expect(feed.title == "Live")
         #expect(feed.entries.count == 1)
     }
@@ -60,30 +76,30 @@ struct OPDSClientTests {
         try KeychainStore.setPassword("rabbit", for: server.keychainTag)
         defer { try? KeychainStore.deletePassword(for: server.keychainTag) }
 
-        nonisolated(unsafe) var capturedAuth: String?
+        let capturedAuth = Mutex<String?>(nil)
         MockURLProtocol.handler = { req in
-            capturedAuth = req.value(forHTTPHeaderField: "Authorization")
+            capturedAuth.withLock { $0 = req.value(forHTTPHeaderField: "Authorization") }
             let resp = HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, tinyAtom())
         }
         let client = OPDSClient(session: mockSession())
-        _ = try await client.fetchFeed(url: server.baseURL!, on: server)
+        _ = try await client.fetchFeed(url: server.baseURL!, on: OPDSRequestConfiguration(server))
 
         let expectedCombo = "alice:rabbit".data(using: .utf8)!.base64EncodedString()
-        #expect(capturedAuth == "Basic \(expectedCombo)")
+        #expect(capturedAuth.withLock { $0 } == "Basic \(expectedCombo)")
     }
 
     @Test func fetchFeedOmitsAuthHeaderWhenNoUsername() async throws {
         let server = makeServer(user: "")
-        nonisolated(unsafe) var capturedAuth: String?
+        let capturedAuth = Mutex<String?>(nil)
         MockURLProtocol.handler = { req in
-            capturedAuth = req.value(forHTTPHeaderField: "Authorization")
+            capturedAuth.withLock { $0 = req.value(forHTTPHeaderField: "Authorization") }
             let resp = HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, tinyAtom())
         }
         let client = OPDSClient(session: mockSession())
-        _ = try await client.fetchFeed(url: server.baseURL!, on: server)
-        #expect(capturedAuth == nil)
+        _ = try await client.fetchFeed(url: server.baseURL!, on: OPDSRequestConfiguration(server))
+        #expect(capturedAuth.withLock { $0 } == nil)
     }
 
     @Test func fetchFeedThrowsOn401() async throws {
@@ -94,7 +110,7 @@ struct OPDSClientTests {
         }
         let client = OPDSClient(session: mockSession())
         await #expect(throws: OPDSError.httpError(status: 401)) {
-            _ = try await client.fetchFeed(url: server.baseURL!, on: server)
+            _ = try await client.fetchFeed(url: server.baseURL!, on: OPDSRequestConfiguration(server))
         }
     }
 
@@ -106,7 +122,7 @@ struct OPDSClientTests {
         }
         let client = OPDSClient(session: mockSession())
         await #expect(throws: OPDSError.httpError(status: 503)) {
-            _ = try await client.fetchFeed(url: server.baseURL!, on: server)
+            _ = try await client.fetchFeed(url: server.baseURL!, on: OPDSRequestConfiguration(server))
         }
     }
 
@@ -127,7 +143,7 @@ struct OPDSClientTests {
         let client = OPDSClient(session: mockSession())
 
         await #expect(throws: OPDSError.httpError(status: 302)) {
-            _ = try await client.fetchFeed(url: server.baseURL!, on: server)
+            _ = try await client.fetchFeed(url: server.baseURL!, on: OPDSRequestConfiguration(server))
         }
     }
 
@@ -141,7 +157,7 @@ struct OPDSClientTests {
         let server = makeServer(base: "http://insecure.example.com", allowInsecure: false)
         let client = OPDSClient(session: mockSession())
         await #expect(throws: OPDSError.insecureSchemeBlocked) {
-            _ = try await client.fetchFeed(url: server.baseURL!, on: server)
+            _ = try await client.fetchFeed(url: server.baseURL!, on: OPDSRequestConfiguration(server))
         }
     }
 
@@ -152,7 +168,7 @@ struct OPDSClientTests {
             return (resp, tinyAtom())
         }
         let client = OPDSClient(session: mockSession())
-        let feed = try await client.fetchFeed(url: server.baseURL!, on: server)
+        let feed = try await client.fetchFeed(url: server.baseURL!, on: OPDSRequestConfiguration(server))
         #expect(feed.title == "Mock Feed")
     }
 
@@ -173,7 +189,7 @@ struct OPDSClientTests {
         }
         let client = OPDSClient(session: mockSession())
         let url = URL(string: "https://books.example.com/opds/download/525/epub/")!
-        let download = try await client.download(from: url, on: server)
+        let download = try await client.download(from: url, on: OPDSRequestConfiguration(server))
         #expect(download.data == bookData)
         #expect(download.filename == "The Poppy War.epub")
     }
@@ -186,7 +202,7 @@ struct OPDSClientTests {
         }
         let client = OPDSClient(session: mockSession())
         let url = URL(string: "https://books.example.com/files/sample.epub")!
-        let download = try await client.download(from: url, on: server)
+        let download = try await client.download(from: url, on: OPDSRequestConfiguration(server))
         #expect(download.filename == "sample.epub")
     }
 

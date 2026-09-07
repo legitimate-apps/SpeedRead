@@ -4,6 +4,7 @@ import Testing
 @testable import SpeedRead
 
 @Suite("Chapter token-stream identity")
+@MainActor
 struct ChapterTokenIdentityTests {
     @Test func bundledBooksRetainTheirExactExtractedTextAndTokenStreams() throws {
         let expected: [String: (text: String, tokens: String)] = [

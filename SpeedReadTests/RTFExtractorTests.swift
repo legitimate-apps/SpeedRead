@@ -3,6 +3,7 @@ import Foundation
 @testable import SpeedRead
 
 @Suite("RTF Extractor")
+@MainActor
 struct RTFExtractorTests {
 
     @Test func extractsPlainTextFromRTF() throws {

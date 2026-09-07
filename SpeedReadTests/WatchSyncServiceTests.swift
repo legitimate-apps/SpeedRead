@@ -97,11 +97,16 @@ struct WatchSyncServiceTests {
         #expect(connection.files.count == 1)
     }
 
-    @Test func delegateDeactivationReactivatesTheInjectedConnection() {
+    @Test func delegateDeactivationReactivatesTheInjectedConnection() async {
         let connection = FakeWatchConnectivitySession()
         let service = WatchSyncService(session: connection)
 
-        service.sessionDidDeactivate(.default)
+        await Task.detached {
+            service.session(.default, activationDidCompleteWith: .activated, error: nil)
+            service.sessionDidBecomeInactive(.default)
+            service.sessionDidDeactivate(.default)
+        }.value
+        for _ in 0..<100 where connection.activationCount == 0 { await Task.yield() }
 
         #expect(connection.activationCount == 1)
     }

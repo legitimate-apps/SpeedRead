@@ -19,18 +19,19 @@ import SwiftData
 /// Pre-condition: that server is reachable and the user exists with read
 /// access to the catalog.
 @Suite("OPDS Live Integration", .serialized)
+@MainActor
 struct OPDSLiveIntegrationTests {
-    private static let env = ProcessInfo.processInfo.environment
-    private static let liveURLString = env["SPEEDREAD_TEST_OPDS_URL"] ?? ""
-    private static let username = env["SPEEDREAD_TEST_OPDS_USER"] ?? ""
-    private static let password = env["SPEEDREAD_TEST_OPDS_PASSWORD"] ?? ""
+    nonisolated private static let env = ProcessInfo.processInfo.environment
+    nonisolated private static let liveURLString = env["SPEEDREAD_TEST_OPDS_URL"] ?? ""
+    nonisolated private static let username = env["SPEEDREAD_TEST_OPDS_USER"] ?? ""
+    nonisolated private static let password = env["SPEEDREAD_TEST_OPDS_PASSWORD"] ?? ""
 
     /// Falls back to an unroutable address so a misconfigured run fails fast
     /// and loudly rather than silently pointing somewhere real.
-    private static let liveURL =
+    nonisolated private static let liveURL =
         URL(string: liveURLString) ?? URL(string: "https://unconfigured.invalid/opds/")!
 
-    private static let liveEnabled =
+    nonisolated private static let liveEnabled =
         env["SPEEDREAD_LIVE_OPDS"] == "1"
         && !liveURLString.isEmpty
         && !username.isEmpty
@@ -66,7 +67,7 @@ struct OPDSLiveIntegrationTests {
         let server = makeServer()
         defer { teardown(server) }
         let client = OPDSClient()
-        let feed = try await client.fetchFeed(url: server.baseURL!, on: server)
+        let feed = try await client.fetchFeed(url: server.baseURL!, on: OPDSRequestConfiguration(server))
         #expect(feed.title.contains("Calibre-Web"))
         #expect(!feed.entries.isEmpty)
         #expect(feed.searchTemplate != nil)
@@ -84,7 +85,7 @@ struct OPDSLiveIntegrationTests {
         defer { try? KeychainStore.deletePassword(for: server.keychainTag) }
         let client = OPDSClient()
         await #expect(throws: OPDSError.httpError(status: 401)) {
-            _ = try await client.fetchFeed(url: server.baseURL!, on: server)
+            _ = try await client.fetchFeed(url: server.baseURL!, on: OPDSRequestConfiguration(server))
         }
     }
 
@@ -94,14 +95,14 @@ struct OPDSLiveIntegrationTests {
         defer { teardown(server) }
         let client = OPDSClient()
 
-        let root = try await client.fetchFeed(url: server.baseURL!, on: server)
+        let root = try await client.fetchFeed(url: server.baseURL!, on: OPDSRequestConfiguration(server))
         guard let recent = root.entries.first(where: { $0.title.localizedCaseInsensitiveContains("recently") || $0.title.localizedCaseInsensitiveContains("new") }),
               let recentURL = recent.navigationLink else {
             Issue.record("Live root feed did not expose a 'Recently added' navigation link")
             return
         }
 
-        let recentFeed = try await client.fetchFeed(url: recentURL, on: server)
+        let recentFeed = try await client.fetchFeed(url: recentURL, on: OPDSRequestConfiguration(server))
         let booksOnly = recentFeed.entries.filter { !$0.acquisitions.isEmpty }
         #expect(!booksOnly.isEmpty, "Recently-added feed had no acquisition entries")
 
@@ -112,22 +113,18 @@ struct OPDSLiveIntegrationTests {
             return
         }
 
-        let download = try await client.download(from: epubAcquisition.url, on: server)
+        let download = try await client.download(from: epubAcquisition.url, on: OPDSRequestConfiguration(server))
         #expect(download.data.count > 0)
         #expect(!download.filename.isEmpty)
 
-        let context = try await inMemoryContext()
+        let context = try inMemoryContext()
         let filename = download.filename.hasSuffix(".epub") || download.filename.hasSuffix(".pdf")
             ? download.filename
             : (download.filename + ".epub")
-        let book = try await MainActor.run {
-            let importer = DocumentImporter(modelContext: context)
-            return try importer.importData(download.data, filename: filename)
-        }
-        await MainActor.run {
-            #expect(book.wordCount > 0, "Imported book had no words")
-            #expect(!book.title.isEmpty)
-        }
+        let importer = DocumentImporter(modelContext: context)
+        let book = try importer.importData(download.data, filename: filename)
+        #expect(book.wordCount > 0, "Imported book had no words")
+        #expect(!book.title.isEmpty)
     }
 
     @Test(.enabled(if: OPDSLiveIntegrationTests.liveEnabled))
@@ -136,7 +133,7 @@ struct OPDSLiveIntegrationTests {
         defer { teardown(server) }
         let client = OPDSClient()
         let searchURL = Self.liveURL.appending(path: "search/the")
-        let feed = try await client.fetchFeed(url: searchURL, on: server)
+        let feed = try await client.fetchFeed(url: searchURL, on: OPDSRequestConfiguration(server))
         #expect(!feed.entries.isEmpty, "Search for 'the' returned no entries from a non-empty library")
     }
 
@@ -145,7 +142,7 @@ struct OPDSLiveIntegrationTests {
         let server = makeServer()
         defer { teardown(server) }
         let client = OPDSClient()
-        let ok = try await client.testConnection(server)
+        let ok = try await client.testConnection(OPDSRequestConfiguration(server))
         #expect(ok == true)
     }
 }

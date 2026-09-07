@@ -3,6 +3,7 @@ import Testing
 @testable import SpeedRead
 
 @Suite("Bundled Sample Book Tests")
+@MainActor
 struct BundledSampleBookTests {
     @Test func yellowWallpaperEPUBContentIsPinned() throws {
         let (result, words) = try extractEPUB(named: "TheYellowWallpaper")

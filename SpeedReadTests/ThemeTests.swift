@@ -10,6 +10,7 @@ import UIKit
 @testable import SpeedRead
 
 @Suite("Theme Manager Tests")
+@MainActor
 struct ThemeTests {
     private let storage = IsolatedDefaults()
 

@@ -3,6 +3,7 @@ import Testing
 @testable import SpeedReadWatch_Watch_App
 
 @Suite("Watch position clamp boundaries")
+@MainActor
 struct WatchPositionClampTests {
     @Test(arguments: [-100, 1000])
     func progressAndCrownClampBothSides(index: Int) {

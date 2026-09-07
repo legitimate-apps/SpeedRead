@@ -3,6 +3,7 @@ import Testing
 @testable import SpeedRead
 
 @Suite("OPDS format availability logic")
+@MainActor
 struct OPDSFormatAvailabilityLogicTests {
     @Test("A mixed list separates readable and unreadable acquisitions")
     func mixedListSeparatesReadableAndUnreadableAcquisitions() {

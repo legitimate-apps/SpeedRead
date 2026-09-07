@@ -37,7 +37,7 @@ final class BrowseServerSession {
         error = nil
         let client = makeClient()
         do {
-            let result = try await client.fetchFeed(url: url, on: server)
+            let result = try await client.fetchFeed(url: url, on: OPDSRequestConfiguration(server))
             self.feed = result
             self.paginatedEntries = result.entries
             self.nextPageURL = result.nextPageURL
@@ -56,7 +56,7 @@ final class BrowseServerSession {
         loadingMore = true
         let client = makeClient()
         do {
-            let more = try await client.fetchFeed(url: next, on: server)
+            let more = try await client.fetchFeed(url: next, on: OPDSRequestConfiguration(server))
             self.paginatedEntries.append(contentsOf: more.entries)
             self.nextPageURL = more.nextPageURL
         } catch {
@@ -84,7 +84,7 @@ final class BrowseServerSession {
         }
         let client = makeClient()
         do {
-            searchedFeed = try await client.fetchFeed(url: searchURL, on: server)
+            searchedFeed = try await client.fetchFeed(url: searchURL, on: OPDSRequestConfiguration(server))
         } catch {
             searchedFeed = nil
             self.error = (error as? OPDSError)?.errorDescription ?? error.localizedDescription
@@ -97,7 +97,7 @@ final class BrowseServerSession {
         }
         let client = makeClient()
         do {
-            let payload = try await client.download(from: url, on: server)
+            let payload = try await client.download(from: url, on: OPDSRequestConfiguration(server))
             #if canImport(UIKit)
             if let ui = UIImage(data: payload.data) {
                 let image = Image(uiImage: ui)

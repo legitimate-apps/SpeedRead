@@ -3,6 +3,7 @@ import Testing
 @testable import SpeedRead
 
 @Suite("Server edit view decisions")
+@MainActor
 struct ServerEditLogicTests {
     @Test func initialValuesAreEmptyForNewAndLoadEveryStoredFieldForEdit() {
         let server = makeServer()

@@ -30,7 +30,7 @@ protocol WatchConnectivitySession: AnyObject {
 extension WCSession: WatchConnectivitySession {}
 
 struct WatchSyncLogic {
-    struct BookPayload: Equatable {
+    nonisolated struct BookPayload: Equatable, Sendable {
         let id: UUID
         let title: String
         let author: String
@@ -125,7 +125,7 @@ struct WatchSyncLogic {
         }
     }
 
-    struct PositionPayload: Equatable {
+    nonisolated struct PositionPayload: Equatable, Sendable {
         let bookId: UUID
         let bookTitle: String
         let wordIndex: Int
@@ -265,7 +265,7 @@ struct WatchSyncLogic {
 final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     static let shared = WatchSyncService()
 
-    private static let logger = Logger(subsystem: "com.legitimateapps.SpeedRead", category: "WatchSync")
+    nonisolated private static let logger = Logger(subsystem: "com.legitimateapps.SpeedRead", category: "WatchSync")
     private let connectivitySession: any WatchConnectivitySession
 
     #if os(watchOS)
@@ -431,17 +431,18 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         Self.logger.info("Sending '\(title, privacy: .public)' — reachable=\(self.connectivitySession.isReachable) paired=\(self.connectivitySession.isPaired)")
 
         if WatchSyncLogic.initialBookDeliveryRoute(isReachable: connectivitySession.isReachable) == .message {
-            connectivitySession.sendMessage(payload.dictionary, replyHandler: { [weak self] reply in
+            connectivitySession.sendMessage(payload.dictionary, replyHandler: { @Sendable [weak self] reply in
                 Self.logger.debug("sendMessage reply: \(reply)")
+                let accepted = reply["status"] as? String == "ok"
                 Task { @MainActor [weak self] in
-                    if reply["status"] as? String == "ok" {
+                    if accepted {
                         self?.sendState = .sent(title)
                     } else {
                         self?.sendState = .failed("Apple Watch did not accept the book.")
                     }
                     self?.scheduleSendStateClear()
                 }
-            }, errorHandler: { [weak self] error in
+            }, errorHandler: { @Sendable [weak self] error in
                 Self.logger.warning("sendMessage failed: \(error.localizedDescription) — falling back to transferFile")
                 Task { @MainActor [weak self] in
                     self?.fallbackToFileTransfer(payload: payload)
@@ -458,7 +459,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             .appendingPathComponent("\(UUID().uuidString).txt")
         do {
             try payload.text.write(to: tempURL, atomically: true, encoding: .utf8)
-            connectivitySession.transferFile(tempURL, metadata: payload.fileMetadata)
+            _ = connectivitySession.transferFile(tempURL, metadata: payload.fileMetadata)
         } catch {
             Self.logger.error("transferFile prep failed: \(error.localizedDescription)")
             sendState = .failed("Failed to prepare book")
@@ -598,17 +599,21 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
 
     // MARK: - WCSessionDelegate
 
-    func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {
+    // WatchConnectivity enters these Objective-C callbacks on its own queue.
+    // Keep the entry points nonisolated; decode values here and hop to MainActor
+    // before touching observable state or the injected session.
+
+    nonisolated func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {
         Self.logger.info("Activation completed: state=\(state.rawValue) error=\(error?.localizedDescription ?? "none", privacy: .public)")
     }
 
     #if os(iOS)
-    func sessionDidBecomeInactive(_ session: WCSession) {}
-    func sessionDidDeactivate(_ session: WCSession) {
-        connectivitySession.activate()
+    nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
+    nonisolated func sessionDidDeactivate(_ session: WCSession) {
+        Task { @MainActor [weak self] in self?.connectivitySession.activate() }
     }
 
-    func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
+    nonisolated func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
         let title = fileTransfer.file.metadata?["title"] as? String ?? "Book"
         Task { @MainActor [weak self] in
             if let error {
@@ -621,7 +626,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     }
     #endif
 
-    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+    nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         guard let payload = WatchSyncLogic.PositionPayload.decode(from: applicationContext) else { return }
         Task { @MainActor [weak self] in
             #if os(watchOS)
@@ -761,7 +766,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     }
     #endif
 
-    func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         Self.logger.debug("didReceiveMessage keys: \(message.keys.sorted())")
         guard let payload = BookPayload.decode(from: message) else {
             replyHandler(["status": "error"])
@@ -778,7 +783,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         #endif
     }
 
-    func session(_ session: WCSession, didReceive file: WCSessionFile) {
+    nonisolated func session(_ session: WCSession, didReceive file: WCSessionFile) {
         Self.logger.debug("didReceive file with metadata: \(file.metadata ?? [:])")
         let metadata = file.metadata ?? [:]
         guard let text = try? String(contentsOf: file.fileURL, encoding: .utf8) else {
@@ -792,10 +797,12 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         }
 
         #if os(watchOS)
+        let title = metadata["title"] as? String
+        let payload = BookPayload.decode(from: metadata, inlineText: text)
         Task { @MainActor [weak self] in
             self?.isReceiving = true
-            self?.receivingTitle = metadata["title"] as? String
-            guard let payload = BookPayload.decode(from: metadata, inlineText: text) else {
+            self?.receivingTitle = title
+            guard let payload else {
                 self?.isReceiving = false
                 self?.receivingTitle = nil
                 return

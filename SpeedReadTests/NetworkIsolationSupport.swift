@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// iOS hermetic-lane network guard.
 ///
@@ -6,21 +7,23 @@ import Foundation
 /// not cover a session built from a custom configuration. Custom sessions therefore live in this
 /// harness file and must include `HermeticNetworkGuardURLProtocol` in `protocolClasses`.
 enum HermeticNetworkGuard {
-    nonisolated(unsafe) private(set) static var isInstalled = false
-    nonisolated(unsafe) private(set) static var blockedRequestCount = 0
-    private static let lock = NSLock()
+    private struct State {
+        var isInstalled = false
+        var blockedRequestCount = 0
+    }
+    private static let state = Mutex(State())
+    static var isInstalled: Bool { state.withLock { $0.isInstalled } }
+    static var blockedRequestCount: Int { state.withLock { $0.blockedRequestCount } }
 
     static func install() {
-        lock.lock()
-        defer { lock.unlock() }
-        guard !isInstalled else { return }
-        isInstalled = URLProtocol.registerClass(HermeticNetworkGuardURLProtocol.self)
+        state.withLock {
+            guard !$0.isInstalled else { return }
+            $0.isInstalled = URLProtocol.registerClass(HermeticNetworkGuardURLProtocol.self)
+        }
     }
 
     static func recordBlockedRequest(_ request: URLRequest, context: String) {
-        lock.lock()
-        blockedRequestCount += 1
-        lock.unlock()
+        state.withLock { $0.blockedRequestCount += 1 }
         fatalError(
             "Hermetic network isolation blocked an un-stubbed request "
                 + "(\(context)): \(request.url?.absoluteString ?? "<missing URL>")"
@@ -28,6 +31,7 @@ enum HermeticNetworkGuard {
     }
 }
 
+// URLProtocol requires restating its unchecked conformance; this subclass adds no mutable state.
 final class HermeticNetworkGuardURLProtocol: URLProtocol, @unchecked Sendable {
     override class func canInit(with request: URLRequest) -> Bool {
         request.url?.scheme == "http" || request.url?.scheme == "https"
@@ -46,10 +50,15 @@ func speedReadInstallHermeticNetworkGuard() {
     HermeticNetworkGuard.install()
 }
 
+// URLProtocol owns instance callback state; the only added shared state is protected by a mutex.
 nonisolated final class MockURLProtocol: URLProtocol, @unchecked Sendable {
-    typealias Handler = (URLRequest) -> (HTTPURLResponse, Data?)
+    typealias Handler = @Sendable (URLRequest) -> (HTTPURLResponse, Data?)
 
-    nonisolated(unsafe) static var handler: Handler?
+    private static let handlerStorage = Mutex<Handler?>(nil)
+    static var handler: Handler? {
+        get { handlerStorage.withLock { $0 } }
+        set { handlerStorage.withLock { $0 = newValue } }
+    }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -72,13 +81,17 @@ nonisolated final class MockURLProtocol: URLProtocol, @unchecked Sendable {
             }
             return
         }
-        guard let handler = Self.handler else {
+        let nextHandler = Self.handlerStorage.withLock { value in
+            let handler = value
+            value = nil
+            return handler
+        }
+        guard let handler = nextHandler else {
             HermeticNetworkGuard.recordBlockedRequest(request, context: "mock session without a stub")
             return
         }
         // A handler is one request's stub, not ambient suite state. Consuming it prevents a later
         // test that forgot to stub from receiving a stale success response.
-        Self.handler = nil
         let (response, data) = handler(request)
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         if let data { client?.urlProtocol(self, didLoad: data) }
@@ -104,50 +117,41 @@ func mockSession(script: MockRequestScript? = nil) -> URLSession {
 
 /// Finite, per-session scripts. Matching is by exact URL, with FIFO consumption for repeats.
 /// Unknown URLs and exhausted queues use the same fatal guard as a missing single-shot stub.
-nonisolated final class MockRequestScript: @unchecked Sendable {
+nonisolated final class MockRequestScript: Sendable {
     typealias Reply = Result<(HTTPURLResponse, Data?), URLError>
     private struct Stub {
         let url: URL
         let reply: Reply
         let held: Bool
     }
-    private static let registryLock = NSLock()
-    nonisolated(unsafe) private static var registry: [String: MockRequestScript] = [:]
+    private static let registry = Mutex<[String: MockRequestScript]>([:])
     let id = UUID().uuidString
-    private let lock = NSLock()
-    private var stubs: [Stub] = []
-    private var requests: [URLRequest] = []
-    private var pending: [() -> Void] = []
+    private struct State {
+        var stubs: [Stub] = []
+        var requests: [URLRequest] = []
+        var pending: [@Sendable () -> Void] = []
+    }
+    private let state = Mutex(State())
 
     init() {
-        Self.registryLock.lock()
-        Self.registry[id] = self
-        Self.registryLock.unlock()
+        Self.registry.withLock { $0[id] = self }
     }
 
     static func registered(_ id: String) -> MockRequestScript? {
-        registryLock.lock()
-        defer { registryLock.unlock() }
-        return registry[id]
+        registry.withLock { $0[id] }
     }
 
     func close() {
         release()
-        Self.registryLock.lock()
-        Self.registry[id] = nil
-        Self.registryLock.unlock()
+        Self.registry.withLock { $0[id] = nil }
     }
 
     var observed: [URLRequest] {
-        lock.lock()
-        defer { lock.unlock() }
-        return requests
+        state.withLock { $0.requests }
     }
 
     var remaining: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return stubs.count
+        state.withLock { $0.stubs.count }
     }
 
     func enqueue(_ url: URL, data: Data = Data(), status: Int = 200,
@@ -161,30 +165,32 @@ nonisolated final class MockRequestScript: @unchecked Sendable {
     }
 
     private func append(_ url: URL, reply: Reply, held: Bool) {
-        lock.lock()
-        stubs.append(Stub(url: url, reply: reply, held: held))
-        lock.unlock()
+        state.withLock { $0.stubs.append(Stub(url: url, reply: reply, held: held)) }
     }
 
-    func consume(_ request: URLRequest, deliver: @escaping (Reply) -> Void) {
-        lock.lock()
-        requests.append(request)
-        guard let index = stubs.firstIndex(where: { $0.url == request.url }) else {
-            lock.unlock()
+    func consume(_ request: URLRequest, deliver: @escaping @Sendable (Reply) -> Void) {
+        let stub = state.withLock { state -> Stub? in
+            state.requests.append(request)
+            guard let index = state.stubs.firstIndex(where: { $0.url == request.url }) else {
+                return nil
+            }
+            let stub = state.stubs.remove(at: index)
+            if stub.held { state.pending.append { deliver(stub.reply) } }
+            return stub
+        }
+        guard let stub else {
             HermeticNetworkGuard.recordBlockedRequest(request, context: "exhausted or unmatched mock script")
             return
         }
-        let stub = stubs.remove(at: index)
-        if stub.held { pending.append { deliver(stub.reply) } }
-        lock.unlock()
         if !stub.held { deliver(stub.reply) }
     }
 
     func release() {
-        lock.lock()
-        let deliveries = pending
-        pending.removeAll()
-        lock.unlock()
+        let deliveries = state.withLock { state in
+            let deliveries = state.pending
+            state.pending.removeAll()
+            return deliveries
+        }
         deliveries.forEach { $0() }
     }
 }

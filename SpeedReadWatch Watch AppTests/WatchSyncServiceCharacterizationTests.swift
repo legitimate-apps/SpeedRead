@@ -57,7 +57,10 @@ struct WatchSyncServiceCharacterizationTests {
             timestamp: Date(timeIntervalSince1970: 200)
         )
 
-        service.session(.default, didReceiveApplicationContext: payload.dictionary)
+        await Task.detached {
+            service.session(.default, activationDidCompleteWith: .activated, error: nil)
+            service.session(.default, didReceiveApplicationContext: payload.dictionary)
+        }.value
         await waitUntil { service.library.currentBook?.lastReadDate == payload.timestamp }
 
         #expect(service.library.currentBook?.lastReadIndex == 2)

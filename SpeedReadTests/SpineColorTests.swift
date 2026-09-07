@@ -11,6 +11,7 @@ import Testing
 @testable import SpeedRead
 #endif
 
+@MainActor
 struct SpineColorTests {
     @Test func sameTitle_returnsSameIndex() {
         // Mutation: replace stable title hashing with per-call randomness.

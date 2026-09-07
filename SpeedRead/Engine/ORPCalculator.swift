@@ -1,7 +1,7 @@
 //  ORPCalculator.swift
 import Foundation
 
-enum ORPCalculator {
+nonisolated enum ORPCalculator {
 
     struct WordSegments: Equatable, Sendable {
         let before: String
@@ -49,7 +49,7 @@ enum ORPCalculator {
     }
 }
 
-private extension Character {
+nonisolated private extension Character {
     var isPunctuationOrSymbol: Bool {
         !isLetter && !isNumber
     }

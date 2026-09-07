@@ -5,7 +5,7 @@ import Foundation
 /// This type deliberately lives outside `RSVPWordView.swift`: attributable coverage is
 /// measured per source file, so testable decisions beside SwiftUI markup make both look untested.
 /// Segment widths are nonnegative intrinsic measurements, before scaling.
-struct RSVPWordFit {
+nonisolated struct RSVPWordFit {
     let before: CGFloat
     let focus: CGFloat
     let after: CGFloat

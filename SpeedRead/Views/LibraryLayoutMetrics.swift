@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Shared shelf measurements. Compact-width values intentionally preserve the
 /// shipping iPhone layout; regular width presents the shelf as iPad furniture.
-struct LibraryLayoutMetrics: Equatable {
+nonisolated struct LibraryLayoutMetrics: Equatable {
     static let maximumBookContentWidth: CGFloat = 1_200
 
     let isRegularWidth: Bool

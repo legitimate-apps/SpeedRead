@@ -112,7 +112,7 @@ final class ServerEditSession {
 
         let client = makeClient()
         do {
-            _ = try await client.testConnection(probeServer)
+            _ = try await client.testConnection(OPDSRequestConfiguration(probeServer))
             testState = .success
         } catch let opdsError as OPDSError {
             testState = .failure(opdsError.errorDescription ?? "Unknown error")

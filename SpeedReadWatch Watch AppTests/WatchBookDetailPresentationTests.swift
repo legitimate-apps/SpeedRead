@@ -3,6 +3,7 @@ import Testing
 @testable import SpeedReadWatch_Watch_App
 
 @Suite("Watch book detail presentation")
+@MainActor
 struct WatchBookDetailPresentationTests {
     @Test func syncedLibraryCopyReplacesTheStaleNavigationValue() {
         let stale = makeBook(index: 1)

@@ -2,6 +2,7 @@ import Testing
 @testable import SpeedRead
 
 @Suite("Third-launch review prompt logic")
+@MainActor
 struct ReviewPromptLogicTests {
     @Test("Launch two does not request a review")
     func launchTwoDoesNotRequestAReview() {

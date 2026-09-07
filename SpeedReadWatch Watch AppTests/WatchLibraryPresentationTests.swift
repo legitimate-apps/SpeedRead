@@ -3,6 +3,7 @@ import Testing
 @testable import SpeedReadWatch_Watch_App
 
 @Suite("Watch library presentation")
+@MainActor
 struct WatchLibraryPresentationTests {
     @Test func nowReadingProgressIsHiddenAtZeroAndTruncatedAboveZero() {
         #expect(WatchLibraryPresentation.progressText(for: makeBook(index: 0)) == nil)

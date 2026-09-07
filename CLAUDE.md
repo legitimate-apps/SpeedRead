@@ -31,7 +31,7 @@ syncs phone ↔ watch over WatchConnectivity.
 | `SpeedReadIntegrationTests` (live OPDS, Swift Testing) | `com.legitimateapps.SpeedReadIntegrationTests` | iOS 26.2 |
 | `SpeedReadUITests` (XCTest) | `com.legitimateapps.SpeedReadUITests` | iOS 26.2 |
 
-- Swift 5, Xcode 16+ (uses `PBXFileSystemSynchronizedRootGroup` — files dropped into
+- Swift 6 language mode, Swift 6.3 toolchain (uses `PBXFileSystemSynchronizedRootGroup` — files dropped into
   source dirs auto-include).
 - `MARKETING_VERSION` = 1.3, `CURRENT_PROJECT_VERSION` = 5.
 
@@ -100,6 +100,18 @@ docs/plans/                    // Live working docs — design + plan + audit + 
 target membership (not a separate package).
 
 ## Architecture conventions
+
+Swift 6 language mode and complete strict-concurrency checking are explicit in every target
+configuration. App targets retain MainActor default isolation and approachable concurrency;
+pure value calculations opt out with `nonisolated`, while tests of actor-owned state use
+`@MainActor`. OPDS requests cross the network actor as Sendable configuration snapshots,
+never SwiftData models, and date parsing owns its mutable formatter per call. WatchConnectivity
+callbacks are nonisolated and forward Sendable values to MainActor for state changes.
+**Do not remove `nonisolated` from a `WCSessionDelegate` method.** WatchConnectivity calls
+them on its own queue; with MainActor default isolation they are implicitly `@MainActor`
+even with no annotation in sight, and under Swift 6 the executor check is compiled into the
+`@objc` thunk, so the app SIGTRAPs at launch. That is roadmap B27, and it was invisible for
+the whole life of the watch app because Swift 5 does not run the check.
 
 - **State**: SwiftUI + `@Observable` (RSVPEngine) + SwiftData `@Model`. Avoid
   `ObservableObject` for new code — `WatchSyncService` is the legacy holdout because

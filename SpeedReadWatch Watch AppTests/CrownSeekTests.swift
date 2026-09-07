@@ -3,6 +3,7 @@ import Testing
 @testable import SpeedReadWatch_Watch_App
 
 @Suite("Digital Crown seek mapping")
+@MainActor
 struct CrownSeekTests {
 
     // Reported by the operator 2026-08-29: stepping through words with the crown moved through the

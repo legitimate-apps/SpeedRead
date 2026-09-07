@@ -26,6 +26,7 @@ enum WatchNetworkIsolationScope {
     }
 }
 
+// URLProtocol requires restating its unchecked conformance; this subclass adds no mutable state.
 final class WatchHermeticNetworkGuardURLProtocol: URLProtocol, @unchecked Sendable {
     override class func canInit(with request: URLRequest) -> Bool {
         request.url?.scheme == "http" || request.url?.scheme == "https"

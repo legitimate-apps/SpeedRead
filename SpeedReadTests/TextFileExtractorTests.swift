@@ -3,6 +3,7 @@ import Foundation
 @testable import SpeedRead
 
 @Suite("Plain Text Extractor")
+@MainActor
 struct TextFileExtractorTests {
 
     @Test func extractsUTF8Text() throws {

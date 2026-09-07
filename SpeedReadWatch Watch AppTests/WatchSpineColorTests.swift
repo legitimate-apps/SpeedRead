@@ -3,6 +3,7 @@ import Testing
 @testable import SpeedReadWatch_Watch_App
 
 @Suite("Watch spine color policy")
+@MainActor
 struct WatchSpineColorTests {
     @Test func watchDeliberatelyUsesTheSharedClassicPaletteUntilThemeSelectionSyncs() {
         let title = "The Metamorphosis"

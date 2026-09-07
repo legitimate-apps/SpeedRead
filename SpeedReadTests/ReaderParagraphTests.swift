@@ -3,6 +3,7 @@ import Foundation
 @testable import SpeedRead
 
 @Suite("Reader Paragraphizer")
+@MainActor
 struct ReaderParagraphTests {
 
     @Test func splitsBlockOnDoubleNewlines() {

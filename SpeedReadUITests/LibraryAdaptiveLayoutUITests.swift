@@ -6,9 +6,9 @@ final class LibraryAdaptiveLayoutUITests: XCTestCase {
     // the simulator settle before the suite moved on; removing that sleep (it made this a capture
     // holder) exposed the real defect underneath. Restoring state belongs in teardown, not in a
     // sleep at the end of the happy path.
-    override func tearDown() {
-        XCUIDevice.shared.orientation = .portrait
-        super.tearDown()
+    override func tearDown() async throws {
+        await MainActor.run { XCUIDevice.shared.orientation = .portrait }
+        try await super.tearDown()
     }
 
     @MainActor

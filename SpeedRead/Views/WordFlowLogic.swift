@@ -1,12 +1,12 @@
 import CoreGraphics
 
-struct WordFlowArrangement {
+nonisolated struct WordFlowArrangement {
     let size: CGSize
     let origins: [CGPoint]
 }
 
 /// Shared row breaks for measurement and placement, using each caller's available width.
-enum WordFlowLogic {
+nonisolated enum WordFlowLogic {
     static func arrange(
         sizes: [CGSize], width: CGFloat, hSpacing: CGFloat, vSpacing: CGFloat
     ) -> WordFlowArrangement {
