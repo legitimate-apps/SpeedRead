@@ -2488,3 +2488,103 @@ and arm64 macOS 15 target. `descriptor-probe.log` records acceptance of all thre
 descriptors. This establishes runtime behavior on macOS, not iOS test success or coverage.
 DerivedData was released; simulator release itself exceeded 15 seconds with no output, so
 cleanup is unconfirmed and its leased UDID remains recorded for host recovery.
+
+
+## 5as. Correct rejected sends, offer ordering, ZIP descriptors, and watch-local completion (2026-09-06, leg 26)
+
+**OBSERVED: scope and implementation.** The three leg-25 characterization tests were retained,
+renamed to describe corrected behavior, and their assertions reversed only after executing them
+against the production fixes. No third-party dependency, coverage floor, gate exemption, transport
+field, or `finishedAt` parity was added. This leg leaves its changes uncommitted for manager review.
+
+- **OBSERVED, rejected sends:** `WatchSyncService.sendBook` accepts only a string `status` equal to
+  `ok`. Explicit rejection, empty reply dictionaries, absent status, wrong-type status and unknown
+  status produce `.failed("Apple Watch did not accept the book.")`; they do not enqueue a file.
+  The existing transport-error fallback remains. The reply callback's dictionary is nonoptional;
+  a callback that never arrives is not covered by this change and no reply timeout was added.
+- **OBSERVED, pending positions:** `WatchSyncLogic.shouldOfferWatchPosition` additionally rejects
+  timestamps older than or equal to the same book's pending offer. The service passes the pending
+  date only for a matching book ID. Stored-book timestamp and material-distance reconciliation
+  remain in place, and furthest-read merging still precedes offer selection.
+- **OBSERVED, ZIP descriptors:** local-header fallback now bounds the promised descriptor and
+  validates its CRC, compressed size and uncompressed size against the values used to extract and
+  validate the payload. Both signed and unsigned known-size descriptors are checked. Tests mutate
+  the actual sampled mimetype record, accept valid descriptors, reject each corrupt field and
+  every one-to-twelve-byte truncation. All three SampleBooks EPUBs extract identically with and
+  without their central directories, including chapter and complete entry-map comparisons.
+- **OBSERVED, watch-local completion:** `WatchBook.hasFinishedLocally` is a persisted Bool, defaulting
+  to false when decoding legacy JSON. Actual `RSVPEngine.didFinish` is captured in the local session
+  commit, observed by the view, and persisted after committing its last-word position. Completion
+  commits also survive dismissal before the observation callback. Completed books report progress
+  1; reaching the last word alone does not complete a book. Browsing preserves completion; committing
+  an earlier position clears it. A received phone position at the last index remains unfinished.
+  This Bool and local commit metadata are never added to `PositionPayload`.
+
+**OBSERVED: required failing characterizations, before updating assertions.**
+`characterization-red` ran 64 tests in 3 suites and failed with exactly 7 issues:
+
+```text
+rejectedBookReplyIsCurrentlyMisreportedAsSent:
+Expectation failed: (service.sendState → .failed("Apple Watch did not accept the book. Please try sending it again.")) == .sent("Rejected")
+pendingOfferCurrentlyRegressesWhenContextsArriveOutOfOrder:
+Expectation failed: (offer.wordIndex → 80) == 60
+Expectation failed: (offer.timestamp → 1970-01-01 00:05:00 +0000) == (Date(timeIntervalSince1970: 200) → 1970-01-01 00:03:20 +0000)
+Expectation failed: (book.lastReadWordIndex → 80) == 60
+localHeaderCurrentlyIgnoresRequiredDescriptorIntegrity:
+kind → "missing": Caught error: .invalidData
+kind → "unsigned": Caught error: .invalidData
+kind → "signed": Caught error: .invalidData
+```
+
+**OBSERVED: corrected passing forms.** `rejectedBookReplyFailsWithoutFileFallback` expects `.failed`
+and zero files (the final failure copy removes the retry suggestion). The pending-offer test now
+expects word 80, timestamp 300 and acceptance at word 80. `localHeaderValidatesRequiredDescriptorIntegrity`
+expects `ExtractionError.invalidData` for all three original variants. The exact old failure output
+and final passing output are preserved in the evidence directory.
+
+**OBSERVED: watch red/green.** Before watch production changes, the real engine finished the sampled
+eight-word Gutenberg heading, then the test failed with `finished.progress → 0.875`, detail percentage
+`87`, and library text `"87% complete"`, each compared with completion (1, 100, `"100% complete"`).
+The same test now passes both the observation-handler and immediate-dismissal paths, reloads the
+store, and checks rereading and transport keys. Legacy decoding and phone-position noncompletion
+assertions also pass. The text was sampled verbatim from TheYellowWallpaper.epub's `pg-header-heading`.
+
+**OBSERVED: commands and final results.** Reproducible shell runners, raw logs, exit codes, leases,
+and running STATE.md are in `~/Dispatcher/briefs/leg26-evidence/`. Result bundles are on the external
+volume under `agent-artifacts/leg26/`.
+
+```text
+bash ~/Dispatcher/briefs/leg26-evidence/run-focused.sh samples-final
+✔ Test run with 68 tests in 3 suites passed after 22.617 seconds.
+** TEST SUCCEEDED **
+bash ~/Dispatcher/briefs/leg26-evidence/run-watch.sh watch-final
+✔ Test run with 50 tests in 8 suites passed after 0.467 seconds.
+** TEST SUCCEEDED **
+Scripts/honesty-gates.sh
+PASS: all honesty gates
+```
+
+**OBSERVED: selectors and setup.** The iOS runner uses `xcodebuild test`, scheme SpeedRead, plan
+Hermetic, with `-only-testing:SpeedReadTests/EPUBExtractorTests`, `WatchSyncServiceTests`, and
+`WatchSyncLogicTests` (each fully target-qualified). The watch runner uses scheme
+`SpeedReadWatch Watch App`, plan WatchHermetic, and target-qualified selectors for
+WatchReadingCompositionTests, WatchPositionModelTests, WatchRSVPSessionTests,
+WatchPresentationCharacterizationTests, WatchLibraryTests, WatchSyncServiceCharacterizationTests,
+WatchBookDetailPresentationTests, and WatchLibraryPresentationTests. Both use leased DerivedData,
+explicit leased simulator IDs, `-parallel-testing-enabled NO`, and code coverage enabled.
+Neither `Scripts/coverage.sh` nor `Scripts/ui-lanes.sh` was run.
+
+**OBSERVED: infrastructure limitation and recovery.** The initial watch run compiled but executed
+no tests because the simulator rejected launch with `Unknown application display identifier`.
+An install probe found it Shutdown; bounded boot and install succeeded, after which the expected-red
+and green watch tests executed. No simctl call exceeded its short bound. An early watch selector
+named the test file instead of its two actual suite types; this was corrected for the final
+50-test run. A concurrent manager commit changed the lane scripts; this agent did not edit them.
+
+**OBSERVED verification boundary / ASSUMED unexercised links.** Tests observed the real engine
+finishing, then invoked the view's composition callback or disappearance method directly, and
+observed persistence plus presentation values. SwiftUI's automatic delivery of the `.onChange`
+callback is source-inspected and compiled but ASSUMED at runtime in this leg. Physical paired
+WatchConnectivity delivery and actual library/detail screen rendering at completion were not
+exercised. No full UI or physical-device end-to-end claim is made. Cross-device completion remains
+explicitly outside this leg.

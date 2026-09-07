@@ -159,6 +159,48 @@ struct WatchReadingCompositionTests {
 
     }
 
+    @Test(arguments: [false, true])
+    func finishingOnWatchPersistsCompleteAndRereadingClearsIt(disappearFirst: Bool) async throws {
+        let wire = CompositionWatchSession()
+        let service = WatchSyncService(session: wire, store: storage.store)
+        // Sampled verbatim from SampleBooks/TheYellowWallpaper.epub, pg-header-heading.
+        let text = "The Project Gutenberg eBook of The Yellow Wallpaper"
+        let book = WatchBook(id: UUID(), title: "Completion", author: "", text: text,
+            lastReadIndex: 0, lastReadDate: nil, wordCount: BookTokenizer.tokenize(text).count,
+            dateAdded: .distantPast)
+        service.library = WatchLibrary(books: [book], currentBookId: book.id)
+        let session = WatchRSVPSession()
+        let content = WatchRSVPContent(syncService: service, session: session,
+            showSettings: .constant(false), crownValue: .constant(0), wpm: 1500)
+        content.load()
+        session.engine.seek(to: book.wordCount - 1)
+        content.togglePlayback()
+        let atLastWord = try #require(storage.store.load().currentBook)
+        #expect(atLastWord.progress < 1, "Displaying the last word is not completion")
+        let deadline = ContinuousClock.now + .seconds(3)
+        while !session.engine.didFinish && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(session.engine.didFinish)
+        if disappearFirst { content.disappear() } else { content.synchronizePosition() }
+        let finished = try #require(storage.store.load().currentBook)
+        #expect(finished.progress == 1)
+        #expect(WatchBookDetailPresentation.progressPercentage(for: finished) == 100)
+        #expect(WatchLibraryPresentation.progressText(for: finished) == "100% complete")
+        content.disappear()
+        #expect(storage.store.load().currentBook?.progress == 1)
+        content.load()
+        session.engine.seek(to: 0)
+        content.synchronizePosition()
+        #expect(storage.store.load().currentBook?.progress == 1, "Browsing does not clear completion")
+        content.togglePlayback()
+        content.togglePlayback()
+        let rereading = try #require(storage.store.load().currentBook)
+        #expect(rereading.lastReadIndex == 0)
+        #expect(rereading.progress == 0)
+        #expect(wire.contexts.allSatisfy { $0["finishedAt"] == nil && $0["didFinish"] == nil })
+    }
+
     private func makeBook() -> WatchBook {
         WatchBook(id: UUID(), title: "Composition", author: "Reader",
                   text: (0..<20).map { "word\($0)" }.joined(separator: " "), lastReadIndex: 2,

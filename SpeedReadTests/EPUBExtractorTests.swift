@@ -598,16 +598,50 @@ struct EPUBExtractorTests {
         #expect(throws: ExtractionError.invalidData) { try EPUBExtractor.unzipEntries(from: archive) }
     }
 
-    @Test("Known bug: known-size local records accept a missing or contradictory descriptor",
+    @Test("Known-size local records reject a missing or contradictory descriptor",
           arguments: ["missing", "unsigned", "signed"])
-    func localHeaderCurrentlyIgnoresRequiredDescriptorIntegrity(kind: String) throws {
+    func localHeaderValidatesRequiredDescriptorIntegrity(kind: String) throws {
         var archive = Data(try sampledArchive().prefix(58))
         patch(&archive, at: 6, value: 8, width: 2)
         if kind == "signed" { archive.append(contentsOf: [0x50, 0x4b, 0x07, 0x08]) }
         if kind != "missing" { archive.append(Data(repeating: 0, count: 12)) }
-        // Bit 3 promises a descriptor, but either no descriptor or zero CRC/sizes is accepted.
-        // Characterization fails when descriptor bounds/checksum/size validation is repaired.
-        #expect(try EPUBExtractor.unzipEntries(from: archive) == ["mimetype": Data("application/epub+zip".utf8)])
+        #expect(throws: ExtractionError.invalidData) { try EPUBExtractor.unzipEntries(from: archive) }
+    }
+
+    @Test(arguments: [false, true])
+    func sampledLocalRecordAcceptsValidDescriptorAndRejectsEachCorruptField(signed: Bool) throws {
+        let sample = try sampledArchive()
+        var archive = Data(sample.prefix(58))
+        patch(&archive, at: 6, value: 8, width: 2)
+        if signed { archive.append(contentsOf: [0x50, 0x4b, 0x07, 0x08]) }
+        let fieldsStart = archive.count
+        archive.append(sample[14..<26])
+        let expected = try EPUBExtractor.unzipEntries(from: Data(sample.prefix(58)))
+        #expect(try EPUBExtractor.unzipEntries(from: archive) == expected)
+        for field in [0, 4, 8] {
+            var corrupt = archive
+            corrupt[fieldsStart + field] ^= 1
+            #expect(throws: ExtractionError.invalidData) { try EPUBExtractor.unzipEntries(from: corrupt) }
+        }
+        for removed in 1...12 {
+            #expect(throws: ExtractionError.invalidData) {
+                try EPUBExtractor.unzipEntries(from: Data(archive.dropLast(removed)))
+            }
+        }
+    }
+
+    @Test(arguments: ["TheYellowWallpaper", "AChristmasCarol", "TheMetamorphosis"])
+    func realSampleBooksStillExtractWithAndWithoutDirectory(name: String) throws {
+        let url = try #require(Bundle.main.url(forResource: name, withExtension: "epub"))
+        let archive = try Data(contentsOf: url)
+        let eocd = try #require(archive.range(of: Data([0x50, 0x4b, 0x05, 0x06]), options: .backwards)?.lowerBound)
+        let localOnly = Data(archive.prefix(littleEndian(archive, at: eocd + 16)))
+        let original = try EPUBExtractor().extractText(from: archive)
+        let recovered = try EPUBExtractor().extractText(from: localOnly)
+        #expect(!original.text.isEmpty)
+        #expect(recovered.text == original.text)
+        #expect(recovered.chapters == original.chapters)
+        #expect(try EPUBExtractor.unzipEntries(from: localOnly) == EPUBExtractor.unzipEntries(from: archive))
     }
 
     private func sampledArchive() throws -> Data {

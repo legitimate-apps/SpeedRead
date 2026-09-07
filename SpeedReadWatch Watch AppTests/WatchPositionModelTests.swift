@@ -33,6 +33,8 @@ struct WatchPositionModelTests {
         #expect(decoded.browseWordIndex == 2)
         #expect(decoded.furthestReadWordIndex == 2)
         #expect(decoded.chapters.isEmpty)
+        #expect(!decoded.hasFinishedLocally)
+        #expect(decoded.progress == 0.5)
     }
 
     @Test func browsingOnWatchPublishesNothingAndCannotAlterReadingPosition() {

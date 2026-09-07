@@ -203,8 +203,10 @@ struct WatchSyncLogic {
         incoming: PositionPayload,
         localIndex: Int,
         localDate: Date?,
-        wordCount: Int
+        wordCount: Int,
+        pendingOfferDate: Date? = nil
     ) -> Bool {
+        if let pendingOfferDate, incoming.timestamp <= pendingOfferDate { return false }
         guard wordCount > 0,
               reconcile(
                 incoming: incoming,
@@ -390,7 +392,11 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             connectivitySession.sendMessage(payload.dictionary, replyHandler: { [weak self] reply in
                 Self.logger.debug("sendMessage reply: \(reply)")
                 Task { @MainActor [weak self] in
-                    self?.sendState = .sent(title)
+                    if reply["status"] as? String == "ok" {
+                        self?.sendState = .sent(title)
+                    } else {
+                        self?.sendState = .failed("Apple Watch did not accept the book.")
+                    }
                     self?.scheduleSendStateClear()
                 }
             }, errorHandler: { [weak self] error in
@@ -612,7 +618,9 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             incoming: payload,
             localIndex: book.lastReadWordIndex,
             localDate: book.lastReadDate,
-            wordCount: book.wordCount
+            wordCount: book.wordCount,
+            pendingOfferDate: pendingWatchPositionOffer?.bookId == book.id
+                ? pendingWatchPositionOffer?.timestamp : nil
         ) {
             pendingWatchPositionOffer = PositionOffer(
                 bookId: book.id,

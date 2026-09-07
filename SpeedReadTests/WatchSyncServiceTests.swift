@@ -347,8 +347,8 @@ struct WatchSyncServiceTests {
         #expect(offer.displayText == "Continue from Apple Watch — 0%, word 1")
     }
 
-    @Test("Known bug: an explicit error reply is displayed as a successful send")
-    func rejectedBookReplyIsCurrentlyMisreportedAsSent() async {
+    @Test("An explicit error reply fails without retrying the rejected payload")
+    func rejectedBookReplyFailsWithoutFileFallback() async {
         let connection = FakeWatchConnectivitySession()
         connection.activationState = .activated
         connection.isReachable = true
@@ -360,25 +360,41 @@ struct WatchSyncServiceTests {
         service.sendBook(id: payload.id, title: payload.title, author: payload.author,
                          text: payload.text, wordCount: payload.wordCount)
         for _ in 0..<50 where service.sendState == .sending("Rejected") { await Task.yield() }
-        // Characterization, not desired behavior: fails when reply validation is fixed.
-        #expect(service.sendState == .sent("Rejected"))
+        // A decoder rejection is deterministic; do not retry the same payload as a file.
+        #expect(service.sendState == .failed("Apple Watch did not accept the book."))
         #expect(connection.messages.count == 1)
         #expect(connection.files.isEmpty)
     }
 
-    @Test("Known bug: a delayed older context replaces a newer pending offer")
-    func pendingOfferCurrentlyRegressesWhenContextsArriveOutOfOrder() throws {
+    @Test("A delayed older context preserves the newer pending offer")
+    func pendingOfferPreservesNewestWhenContextsArriveOutOfOrder() throws {
         let (service, container, book) = try positionFixture()
         service.applyIncomingPosition(position(book, index: 80, time: 300))
         #expect(service.pendingWatchPositionOffer?.wordIndex == 80)
         service.applyIncomingPosition(position(book, index: 60, time: 200))
         let offer = try #require(service.pendingWatchPositionOffer)
-        #expect(offer.wordIndex == 60)
-        #expect(offer.timestamp == Date(timeIntervalSince1970: 200))
+        #expect(offer.wordIndex == 80)
+        #expect(offer.timestamp == Date(timeIntervalSince1970: 300))
         #expect(service.continueFromWatch(offer))
-        #expect(book.lastReadWordIndex == 60)
+        #expect(book.lastReadWordIndex == 80)
         #expect(book.furthestReadWordIndex == 80)
         #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 1)
+    }
+
+    @Test(arguments: ["missing", "type", "unknown"])
+    func malformedBookRepliesFailWithoutFileFallback(kind: String) async {
+        let connection = FakeWatchConnectivitySession()
+        connection.activationState = .activated
+        connection.isReachable = true
+        let reply: [String: Any] = kind == "missing" ? [:]
+            : ["status": kind == "type" ? 1 as Any : "unexpected" as Any]
+        connection.messageResult = .reply(reply)
+        let service = WatchSyncService(session: connection)
+        service.sendBook(id: UUID(), title: "Malformed", author: "", text: "body", wordCount: 1)
+        for _ in 0..<50 where service.sendState == .sending("Malformed") { await Task.yield() }
+        #expect(service.sendState == .failed("Apple Watch did not accept the book."))
+        #expect(connection.messages.count == 1)
+        #expect(connection.files.isEmpty)
     }
 
     private func positionFixture() throws -> (WatchSyncService, ModelContainer, Book) {

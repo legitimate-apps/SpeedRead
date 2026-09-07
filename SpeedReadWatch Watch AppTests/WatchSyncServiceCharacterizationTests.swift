@@ -62,6 +62,9 @@ struct WatchSyncServiceCharacterizationTests {
 
         #expect(service.library.currentBook?.lastReadIndex == 2)
         #expect(service.library.currentBook?.lastReadDate == payload.timestamp)
+        #expect(service.library.currentBook?.hasFinishedLocally == false)
+        #expect(service.library.currentBook?.progress == 2.0 / 3.0)
+        #expect(storage.store.load().currentBook?.hasFinishedLocally == false)
     }
 
     @Test("Characterization: delegate application context rejects stale and malformed positions")

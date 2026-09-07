@@ -5,6 +5,7 @@ struct WatchRSVPPositionCommit: Equatable {
     let bookId: UUID
     let bookTitle: String
     let wordIndex: Int
+    var didFinish: Bool = false
 }
 
 @Observable
@@ -60,6 +61,9 @@ final class WatchRSVPSession {
         book: WatchBook?,
         now: Date = Date()
     ) -> WatchRSVPPositionCommit? {
+        if let book, engine.didFinish {
+            return makePositionCommit(book: book, index: engine.currentIndex)
+        }
         guard let book,
               engine.state == .playing,
               positionCommitPolicy.shouldCommitAdvance(at: engine.currentIndex, now: now) else {
@@ -129,7 +133,8 @@ final class WatchRSVPSession {
     }
 
     private func makePositionCommit(book: WatchBook, index: Int) -> WatchRSVPPositionCommit {
-        WatchRSVPPositionCommit(bookId: book.id, bookTitle: book.title, wordIndex: index)
+        WatchRSVPPositionCommit(bookId: book.id, bookTitle: book.title, wordIndex: index,
+                                didFinish: engine.didFinish)
     }
 }
 

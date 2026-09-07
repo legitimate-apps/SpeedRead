@@ -8,6 +8,8 @@ struct WatchBook: Codable, Identifiable, Hashable {
     let text: String
     var lastReadIndex: Int
     var lastReadDate: Date?
+    // Local playback completion only; never inferred from a phone position payload.
+    var hasFinishedLocally: Bool = false
     var browseWordIndex: Int
     var furthestReadWordIndex: Int
     let wordCount: Int
@@ -41,7 +43,7 @@ struct WatchBook: Codable, Identifiable, Hashable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, title, author, text, lastReadIndex, lastReadDate
+        case id, title, author, text, lastReadIndex, lastReadDate, hasFinishedLocally
         case browseWordIndex, furthestReadWordIndex, wordCount, dateAdded, chapters
     }
 
@@ -53,6 +55,7 @@ struct WatchBook: Codable, Identifiable, Hashable {
         text = try container.decode(String.self, forKey: .text)
         lastReadIndex = try container.decode(Int.self, forKey: .lastReadIndex)
         lastReadDate = try container.decodeIfPresent(Date.self, forKey: .lastReadDate)
+        hasFinishedLocally = try container.decodeIfPresent(Bool.self, forKey: .hasFinishedLocally) ?? false
         browseWordIndex = try container.decodeIfPresent(Int.self, forKey: .browseWordIndex)
             ?? lastReadIndex
         furthestReadWordIndex = try container.decodeIfPresent(Int.self, forKey: .furthestReadWordIndex)
@@ -68,7 +71,8 @@ struct WatchBook: Codable, Identifiable, Hashable {
 
     var progress: Double {
         guard wordCount > 0 else { return 0 }
-        return Double(lastReadIndex) / Double(wordCount)
+        if hasFinishedLocally { return 1 }
+        return Double(min(max(0, lastReadIndex), wordCount - 1)) / Double(wordCount)
     }
 }
 
@@ -111,10 +115,21 @@ struct WatchLibrary: Codable, Equatable {
         let upperBound = max(0, books[i].wordCount - 1)
         let clamped = min(max(0, index), upperBound)
         let incomingFurthest = min(max(0, furthestReadWordIndex ?? clamped), upperBound)
+        if clamped < upperBound { books[i].hasFinishedLocally = false }
         books[i].lastReadIndex = clamped
         books[i].lastReadDate = timestamp
         books[i].browseWordIndex = clamped
         books[i].furthestReadWordIndex = max(books[i].furthestReadWordIndex, incomingFurthest)
+        return true
+    }
+
+    @discardableResult
+    mutating func markFinishedLocally(bookId: UUID) -> Bool {
+        guard let i = books.firstIndex(where: { $0.id == bookId }),
+              books[i].wordCount > 0,
+              books[i].lastReadIndex == books[i].wordCount - 1,
+              !books[i].hasFinishedLocally else { return false }
+        books[i].hasFinishedLocally = true
         return true
     }
 

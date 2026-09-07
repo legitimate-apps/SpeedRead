@@ -216,6 +216,17 @@ struct WatchSyncLogicTests {
         #expect(WatchSyncLogic.BookPayload.decode(from: valid)?.chapters == [ChapterMark(title: "Last word", startWordIndex: 2)])
     }
 
+    @Test(arguments: [200.0, 300.0, 400.0])
+    func pendingOfferTimestampAddsToStoredPositionReconciliation(timestamp: Double) {
+        let incoming = position(at: timestamp)
+        #expect(WatchSyncLogic.shouldOfferWatchPosition(incoming: incoming, localIndex: 0,
+            localDate: Date(timeIntervalSince1970: 100), wordCount: 100,
+            pendingOfferDate: Date(timeIntervalSince1970: 300)) == (timestamp > 300))
+        #expect(!WatchSyncLogic.shouldOfferWatchPosition(incoming: incoming, localIndex: 0,
+            localDate: Date(timeIntervalSince1970: 500), wordCount: 100,
+            pendingOfferDate: Date(timeIntervalSince1970: 100)))
+    }
+
     private func position(at timestamp: TimeInterval) -> WatchSyncLogic.PositionPayload {
         WatchSyncLogic.PositionPayload(
             bookId: UUID(),

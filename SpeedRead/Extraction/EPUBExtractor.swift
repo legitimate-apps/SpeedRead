@@ -288,6 +288,18 @@ struct EPUBExtractor: TextExtractor {
             guard compressedSize <= bytes.count - dataStart else {
                 throw ExtractionError.invalidData
             }
+            if hasDescriptor {
+                let descriptorStart = dataStart + compressedSize
+                guard descriptorLength <= bytes.count - descriptorStart else {
+                    throw ExtractionError.invalidData
+                }
+                let fieldsStart = descriptorStart + (descriptorLength == 16 ? 4 : 0)
+                guard readUInt32(bytes, at: fieldsStart) == checksum,
+                      Int(readUInt32(bytes, at: fieldsStart + 4)) == compressedSize,
+                      Int(readUInt32(bytes, at: fieldsStart + 8)) == uncompressedSize else {
+                    throw ExtractionError.invalidData
+                }
+            }
             if !name.hasSuffix("/") {
                 let compressedData = Data(bytes[dataStart..<(dataStart + compressedSize)])
                 let extracted = try extractZIPPayload(

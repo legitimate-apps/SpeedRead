@@ -50,6 +50,9 @@ struct WatchRSVPContent: View {
         )
         .onChange(of: crownValue) { _, newValue in seek(newValue) }
         .onChange(of: engine.currentIndex) { _, _ in synchronizePosition() }
+        .onChange(of: engine.didFinish) { _, finished in
+            if finished { synchronizePosition() }
+        }
         .onAppear(perform: load)
         .onDisappear(perform: disappear)
         .sheet(isPresented: $showSettings) { settings }
@@ -82,7 +85,7 @@ struct WatchRSVPContent: View {
     func synchronizePosition() {
         let normalized = session.synchronizeCrownValue(wordCount: words.count)
         if crownValue != normalized { crownValue = normalized }
-        if engine.state == .playing {
+        if engine.state == .playing || engine.didFinish {
             sync(session.commitPlaybackAdvanceIfNeeded(book: currentBook))
         }
     }
@@ -108,6 +111,9 @@ struct WatchRSVPContent: View {
             bookTitle: commit.bookTitle,
             wordIndex: commit.wordIndex
         )
+        if commit.didFinish, syncService.library.markFinishedLocally(bookId: commit.bookId) {
+            syncService.persistLibrary()
+        }
     }
 
     private func persistBrowsePosition() {
