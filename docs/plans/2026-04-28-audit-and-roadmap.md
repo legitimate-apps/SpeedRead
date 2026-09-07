@@ -41,7 +41,7 @@ This document is the source of truth for known issues, planned improvements, and
 | B15 | Low | Gesture | `RSVPView.swift` / `RSVPPresentationSession.swift` | Tap and scrub were two independent recognizers on one surface. Now a single `DragGesture(minimumDistance: 0)` whose completed movement is classified against `ReaderConfig.RSVP.scrubActivationDistance` — below it is play/pause, at or above is scrub-only. Fixed red-first in `f063ad6`. | fixed |
 | B16 | Low | UI dup | `ReaderView.swift:418-495` vs `BookmarkListView`/`HighlightListView` | Two divergent list implementations for the same model | pending |
 | B17 | High | iPad layout | `SpeedRead/Views/LibraryView.swift:21-27,172-203`; `SpeedRead/Views/BookshelfRowView.swift:13-20,26-50`; `SpeedRead/Views/BookSpineView.swift:12-15,44-56,74` | iPad library is phone-scale and top-heavy: fixed four-book chunks, model-only rows with no viewport fill, fixed 60×120-180 pt spines, fixed 9/7 pt type, leading-edge packing plus one trailing `Spacer`, a full-width plank masking narrow content, no adaptive grid/size-class branch, and no vertical-fill policy. Estimated fix: ~25-50 lines across `LibraryView` / `BookshelfRowView` / `BookSpineView`. | fixed |
-| B18 | Med | Swift 6 / SwiftData | `SpeedReadIntegrationTests/OPDSLiveIntegrationTests.swift` (moved out of the hermetic target 2026-08-29 — **re-check whether the warnings survived the move before working this**) | Three warning groups become errors in Swift 6 mode: unavailable `Book: Sendable`, non-Sendable `ModelContext` captured by an `@Sendable` closure, and non-Sendable `Book` captured by the generated `#expect` closure. | pending |
+| B18 | Med -> **High once measured** | Swift 6 / concurrency | project-wide, not one file | **The row said three warning groups in one integration-test file. Measured 2026-09-07 with `SWIFT_STRICT_CONCURRENCY=complete` so the build completes instead of failing fast: 4,218 occurrences on iOS (562 unique) and 530 on watchOS (126 unique), plus two hard errors under `SWIFT_VERSION=6.0` from shared-mutable `ISO8601DateFormatter` statics in `OPDSAtomParser`.** The scale came from `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`, which isolates types nobody annotated — so the fix was `nonisolated` on the pure-logic types, not thousands of edits. A count from a failed `build-for-testing` is a floor, never a total; the first probe reported 2 errors because it stopped at the first failing module. | **fixed** 2026-09-07 (leg 30) |
 | B19 | Low | watchOS assets | `SpeedRead/Assets.xcassets` (Xcode 26.6 watch build diagnostic; no source line) | Asset catalog warns: `Could not get trait set for device Watch7,18 with version 26.5`. | pending |
 | B20 | **High** | Watch sync | `SpeedRead/Connectivity/WatchSyncService.swift:390` | **A rejected book is reported as successfully sent.** The `sendMessage` reply handler logs the reply and unconditionally sets `sendState = .sent(title)`; it never inspects it. The receiver answers `["status": "error"]` when `BookPayload.decode` returns nil, so the reader is told a book reached the watch that the watch refused. `SendState` already has `.failed`. The rejection is deterministic (the payload did not decode), so falling back to `transferFile` would fail identically — surface the failure. Found by leg 25 coverage work; pinned by `rejectedBookReplyIsCurrentlyMisreportedAsSent`. **Affects the live 1.2 build.** | **fixed** 2026-09-07 (leg 26) — characterization test failed against the fix first, then updated to assert the corrected behaviour; see TDD-MISSION 5as |
 | B21 | Med | Watch sync | `SpeedRead/Connectivity/WatchSyncService.swift:611` | **An older incoming position replaces a newer pending offer.** Reconciliation compares the incoming payload against the stored book timestamp but not against the pending offer's. Reproduction: stored `20/100`; receive `80/300` then `60/200`; the offer regresses to `60/200` and accepting it moves the book back to word 60. Rule belongs in `WatchSyncLogic`. Pinned by `pendingOfferCurrentlyRegressesWhenContextsArriveOutOfOrder`. | **fixed** 2026-09-07 (leg 26) — characterization test failed against the fix first, then updated to assert the corrected behaviour; see TDD-MISSION 5as |
@@ -50,6 +50,7 @@ This document is the source of truth for known issues, planned improvements, and
 | B24 | **High** | Watch sync | `SpeedRead/Connectivity/WatchSyncService.swift:128-157` | **Completion does not cross the wire.** `PositionPayload` carries five fields — `bookId`, `bookTitle`, `wordIndex`, `timestamp`, `furthestReadWordIndex` — and no completion marker, so a book finished on one device is never finished on the other. This is the transport half of B23, which the B23 note explicitly deferred ("Cross-device completion … needs `finishedAt` in `PositionPayload` and is the deferred watch-parity leg"). Confirmed by reading the struct and its `dictionary`/`decode(from:)` pair, not by report. | **fixed** 2026-09-07 (leg 29) |
 | B25 | **High** | Watch sync | `SpeedRead/Connectivity/WatchSyncService.swift:681` | **Accepting a watch position silently un-finishes a finished book.** `acceptPendingWatchPosition` sets `book.finishedAt = nil` unconditionally, so finishing a book on the phone and then accepting any incoming watch position — including one at the final word — clears the completion the user just earned. The clearing rule is right; applying it without asking what arrived is not. Distinct from B24: B24 is the missing field, B25 is what the receiver does when the field is missing. | **fixed** 2026-09-07 (leg 29) |
 | B26 | Med | Watch | `SpeedReadWatch Watch App/Shared/WatchBook.swift:118` | **The watch keeps completion on a non-finishing commit at the last word.** `WatchLibrary.updatePosition` clears `hasFinishedLocally` only `if clamped < upperBound`, so committing the final index leaves it true; the phone's `ReadingPositionCoordinator.commit` (`ReaderSession.swift:57`) clears completion on every non-finishing commit regardless of index. Reachable in production: pressing Play calls `engine.play()`, which clears `didFinish`, and the resulting commit reaches that condition. Same shape as B23 and I34 — a rule written twice, diverging at the copy nobody re-read. Found by leg 29 while implementing B24; verified against source before being accepted. | **fixed** 2026-09-07 (leg 29) |
+| B27 | **Critical (latent)** | Watch sync / concurrency | `SpeedRead/Connectivity/WatchSyncService.swift:606,611,612,616,629,769,786` | **Every `WCSessionDelegate` entry point ran on the wrong actor for the app's entire life.** WatchConnectivity invokes its delegate on its own queue; the project sets `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`, so all seven callbacks were implicitly `@MainActor` without the annotation appearing anywhere near them. Swift 5 does not enforce the executor check, so this was invisible; under Swift 6 the check is compiled into the `@objc` thunk and the app **SIGTRAPs at launch** — observed, not reasoned: `_dispatch_assert_queue_fail` -> `_swift_task_checkIsolatedSwift` -> `_checkExpectedExecutor` -> `@objc WatchSyncService.session(_:activationDidCompleteWith:error:)` -> `-[WCSession onqueue_completeSwitchTask:withSessionState:]`. The tell was in the source all along: sibling callbacks open with `Task { @MainActor [weak self] in }`, working around arriving off-main without naming why; the two that did not hop are the two that trapped. Not shipped-broken — 1.3 is Swift 5 and does not enforce the check — but the data races were real before the trap existed. Fixed by making all seven entry points `nonisolated`, decoding values at the boundary and hopping explicitly. | **fixed** 2026-09-07 (leg 30) |
 
 ## B. Improvements (code quality, polish)
 
@@ -89,6 +90,7 @@ This document is the source of truth for known issues, planned improvements, and
 | I32 | Integration | **STANDING GOAL (operator):** “see my Calibre library in SpeedRead” remote-library integration; remain generic-OPDS-first, with Calibre-Web-NextGen as the recommended path | pending |
 | I33 | Docs | **OPERATOR-GATED — DO NOT START:** full general Calibre-Web-NextGen setup tutorial. SpeedRead ships only a brief local-instance tutorial; the operator will write the fuller walkthrough. | pending |
 | I34 | Correctness risk | **The last-word clamp is written out eleven times, and one of them was already wrong.** Consolidated 2026-09-07 onto `ReadingPositionCoordinator.clampedIndex`, now in `Engine/` and symlinked into the watch tree. The original entry said six copies that "all agree today"; both halves were wrong. `CrownSeek` (x2) and `WatchBook` (x3) held five more, and `WatchSyncService:609` had no lower bound while `:218` and `:656` did. VERIFIED reachable through the type's own API — `PositionPayload`'s typed initializer does no validation, so an internal caller reaches `applyIncomingPosition` and gets an offer at index -1 — but NOT through the shipping transport, since `decode(from:)` rejects `wordIndex < 0` and `continueFromWatch` re-clamps before persisting. Ruled a latent hazard, not a shipping bug, and fixed anyway: for every non-negative input the change is a strict narrowing. The decoder's check is now pinned by its own test so the invariant the other sites relied on cannot be deleted silently, and the two-sided rule is recorded in `CLAUDE.md`. | fixed 2026-09-07 |
+| F1 | Search within a book (jump to a match, then read on from it). **Row added 2026-09-07: F1 was cited in the Round 3 plan below since this file was written and never had a row of its own — an ID referenced but nowhere defined, which reads exactly like an ID that was triaged.** | pending |
 | F2 | Table of Contents (EPUB has the data) | pending |
 | F3 | Reading goals + streaks (calendar heatmap) | pending |
 | F4 | User-facing punctuation pause slider | pending |
@@ -149,6 +151,18 @@ This document is the source of truth for known issues, planned improvements, and
 6. **Round 6 — 2026-08-13 health and backlog truth sweep** (completed)
    - Reclassified every B1-B16 and I1-I19 row against current source; added B17-B19 and standing/gated improvements I31-I33.
    - Audit basis: Xcode 26.6; 134/134 unit tests passing; watch target building clean.
+7. **Round 7 — 1.4, scope set by the operator 2026-09-07**
+   - Asked which of four directions 1.4 should be built around; the answer was
+     **I32 (Calibre/OPDS depth)**, followed immediately by "and do chapters too".
+     Both tracks are in scope; F3 (goals/streaks) and a quality-only release were not chosen.
+   - F2 is a UI feature over finished data: `ChapterMark`/`ChapterIndex` exist and are
+     `nonisolated`/`Sendable`, `Book.chapters` persists and crosses the watch wire, and both
+     `EPUBExtractor` and `PDFExtractor` emit marks pinned by `ChapterTokenIdentityTests`.
+     Nothing on iOS reads `ChapterIndex` — its only consumer is `WatchSettingsLogic`.
+   - I32 needs discovery before it needs a design: the parser already handles OpenSearch
+     templates and pagination links, `.searchable` is wired in `BrowseServerView.swift:170`
+     with a Calibre-Web `/search/{searchTerms}` fallback, and `OPDSCoverCache` exists.
+     Facets are absent. The gap is not the list I would have guessed, so measure first.
 
 Each round is its own session/PR. This doc gets the Changelog updated.
 
@@ -226,3 +240,27 @@ Each round is its own session/PR. This doc gets the Changelog updated.
   than passing a typed struct between peers. Written by a delegate that was killed for memory
   mid-edit and verified from the diff, not from its report — see
   [TDD-MISSION 5ay](../testing/TDD-MISSION.md#5ay-the-constraint-that-turned-a-leg-into-a-question-2026-09-07-leg-29).
+- **2026-09-07** — Leg 30, Swift 6 language mode. `SWIFT_VERSION` 5.0 -> 6.0 and
+  `SWIFT_STRICT_CONCURRENCY = complete` across all 14 build configurations. Strict-concurrency
+  diagnostics went 4,218 -> 0 on iOS and 530 -> 0 on watchOS, with zero `@preconcurrency` and
+  zero `nonisolated(unsafe)` anywhere, and no escape hatch at all in shipping code; the four
+  `@unchecked Sendable` that remain are pre-existing `URLProtocol` subclasses in the test trees,
+  each now carrying a written justification. B18's real scale is recorded above. The reason the
+  count was so large and the fix so small is `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`, which
+  isolates types nobody annotated: marking the pure-logic types `nonisolated` retired thousands
+  of diagnostics at once, and is the architecturally correct answer rather than a silencer.
+  **The migration's real find was B27**, a launch-time SIGTRAP that only exists once the executor
+  check is switched on — the app had been calling every WatchConnectivity delegate on the wrong
+  actor since the watch app shipped. Verified after the fix, by the manager rather than the
+  delegate: nine gates pass, iOS 417 tests and watchOS 97 (both `** TEST SUCCEEDED **`), UI lanes
+  5 and 4, combined ATTRIBUTABLE 92.49% (12061/13041) against a floor of 90, and no new crash
+  report during the run. Coverage rose while the denominator grew, which is the honest direction.
+  Two process notes worth keeping. The lane caught the crash and refused to certify it — the run
+  reported `** TEST FAILED **` with "Early unexpected exit, operation never finished
+  bootstrapping" and preserved the evidence, so no green gate was ever produced over an app that
+  could not launch. And the leg stopped one step short of its own done condition because the
+  brief said "run the two simulator lanes ONCE, at the end": that was written as a capacity
+  guard and read, correctly, as a hard limit, so after fixing the defect the delegate would not
+  re-run to prove it and said so plainly ("Combined ATTRIBUTABLE coverage is unavailable, not
+  zero") rather than claiming a pass. A constraint has to carry its own reason, or it gets
+  honoured to the letter in the one case where the letter is wrong. Same family as leg 29.
