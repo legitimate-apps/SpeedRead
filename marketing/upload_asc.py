@@ -153,6 +153,11 @@ def push_text(dry: bool) -> None:
         "keywords": meta["Keywords"],
         "promotionalText": meta["Promotional text"],
     }
+    # whatsNew was set by hand for 1.2 while this file claimed METADATA.md was the single source
+    # of truth for the listing -- so the one field that is rewritten every release was the one
+    # field not under that guarantee. It is optional because a first version has no release notes.
+    if meta.get("What's New"):
+        version_attrs["whatsNew"] = meta["What's New"]
     info_attrs = {"subtitle": meta["Subtitle"]}
     for k, v in {**info_attrs, **version_attrs}.items():
         print(f"  {k}: {len(v)} chars — {v.splitlines()[0][:64]}…")

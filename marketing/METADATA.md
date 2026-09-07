@@ -42,3 +42,15 @@ here, never in the ASC web UI, so the listing cannot drift from what was reviewe
     Rapid Serial Visual Presentation is a research-backed reading technique that presents text one word at a time at the same on-screen position. By eliminating saccadic eye movement, readers can comprehend text 2–4× faster than traditional reading. SpeedRead pairs RSVP with a classic paragraph reader so you can switch modes whenever you want — speed when you need to cover ground, paragraph when you want to savor it.
     
     The library is yours. The pace is yours. Sit back and read.
+
+## What's New (4000 max)
+
+    A book can finish now.
+
+    Reaching the last word marks a book complete — 100%, and it says "finished" instead of sitting at 99% with "under a minute left" forever. Your Apple Watch agrees with your iPhone about it.
+
+    Long words stay on screen in RSVP. They scale down to fit, and the red pivot letter stays exactly where your eye is already looking rather than sliding around.
+
+    Apple Watch syncing is more careful. Your iPhone no longer tells you a book was sent when the watch turned it down, and a reading position that arrives late can no longer overwrite a newer one you just made.
+
+    Damaged EPUB files are rejected with a clear message instead of importing with text quietly missing.
