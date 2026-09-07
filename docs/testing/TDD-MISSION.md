@@ -2588,3 +2588,63 @@ callback is source-inspected and compiled but ASSUMED at runtime in this leg. Ph
 WatchConnectivity delivery and actual library/detail screen rendering at completion were not
 exercised. No full UI or physical-device end-to-end claim is made. Cross-device completion remains
 explicitly outside this leg.
+
+## 5at. The cleanup that released an empty array (2026-09-07)
+
+Not a test leg. A verification-harness leg, and it belongs in this ledger because the harness
+had been reporting success at a step it never performed.
+
+`Scripts/coverage.sh` and `Scripts/ui-lanes.sh` lease their simulators from `sim-lease` and
+release them in an EXIT trap. The release loop iterated `leased_sims`. `leased_sims` was
+always empty, because `lease_sim()` appended to it and every call site is
+
+```sh
+ios_udid="$(lease_sim "iPhone 17 Pro" "tests")"
+```
+
+A command substitution is a subshell. The append mutated a copy that died with it. So the
+trap ran, reported nothing, exited zero, and released no simulator — on green runs as much as
+on red ones. Twenty-two leases accumulated in one session. Combined with other sessions and
+CI, 2026-09-07 reached ten booted simulators, 27.6 GB of swap and a one-minute load average of
+964 on a machine whose measured ceiling is about two booted simulators.
+
+**The evidence was already on the table and I repaired the wrong thing.** On 2026-09-06 that
+loop returned 1 *on an empty array* and turned a green lane — 385 + 80 tests, 91.37% — into
+`exit 1`. I captured the exit status, wrote a careful comment about EXIT traps reporting their
+own last command, and never asked why the array was empty. The defect announced itself in the
+one way it could, and I fixed the announcement. That is the same shape as §5ah's classifier and
+§5ai's `pgrep`: an instrument that fails toward a confident answer, where the confident answer
+is "nothing to clean up."
+
+Four things are now true that were not:
+
+1. The parent shell records the lease; `lease_sim` only prints a udid.
+2. `our_leased_sims()` unions that array with a scoped `sim-lease list --json` query — same
+   project, same owning session, one of this script's own purposes, created no earlier than
+   this script started. In-process bookkeeping cannot cover the window between `sim-lease
+   create` writing its lease file and the shell receiving the udid; a signal arriving there
+   strands a simulator no code knows about. MEASURED: with the array fixed and only the array
+   consulted, the control leaked 1 of 1 from `coverage.sh` while `ui-lanes.sh` passed — same
+   code, different timing, which is exactly how a race presents.
+3. `trap 'exit 143' TERM` alongside `trap cleanup EXIT`. An EXIT trap does not run when the
+   shell is killed by a signal, and `ci.yml` sets `concurrency: cancel-in-progress: true`, so
+   every superseded CI run was SIGTERMed holding its leases. Nothing covers SIGKILL; that is
+   what a reaper is for.
+4. `activate_sim` boots one simulator immediately before its lane and shuts the previous one
+   down after. Both lanes are serial, so leasing both up front held a booted simulator idle
+   through the other lane — half the machine, held by a script not using it.
+
+**How it was verified, and why the verification is the point.** Code review passed this file
+twice. The control that found it starts the script, waits until it genuinely holds a lease,
+sends SIGTERM, and asserts the lease count returns to baseline — 6/6 across three rounds on
+both scripts, and the same control FAILS against HEAD, so it detects the defect rather than
+agreeing with the new code. Forty seconds to write, and it caught what reading could not: a
+cleanup function is trivially readable and proves nothing about whether its input was ever
+populated. **Prove a cleanup path by killing the process.**
+
+A related footgun, fixed in the shared tool: `sim-lease release --session X --project Y`
+treated the two filters as a UNION, so a call written to scope a destructive verb to my own
+session disposed every lease in the project — including four owned by no session, killing a
+mid-flight CI `xcodebuild`. Adding a filter that matched nothing narrowed nothing. Now they
+intersect when both are given; control at `~/.local/bin/sim-lease-tests.py`, 6/6 on the fix and
+4/6 against the preserved pre-fix copy.
