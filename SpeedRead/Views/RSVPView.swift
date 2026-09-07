@@ -12,6 +12,7 @@ struct RSVPView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var syncService: WatchSyncService
 
+    private let chapters: ChapterNavigation
     @State private var engine: RSVPEngine
     @State private var presentation: RSVPPresentationSession
     @AppStorage("rsvpLastWPM") private var persistedWPM: Int = ReaderConfig.RSVP.defaultWPM
@@ -24,6 +25,7 @@ struct RSVPView: View {
         presentation: RSVPPresentationSession? = nil
     ) {
         self.book = book
+        chapters = ChapterNavigation(chapters: book.chapters)
         _engine = State(initialValue: engine ?? RSVPEngine())
         _presentation = State(initialValue: presentation ?? RSVPPresentationSession())
     }
@@ -99,10 +101,20 @@ struct RSVPView: View {
                 }
 
                 ToolbarItem(placement: .principal) {
-                    Text(book.title)
-                        .font(.system(size: 13, weight: .medium, design: .serif))
-                        .foregroundStyle(Color.rsvpText.opacity(0.4))
-                        .lineLimit(1)
+                    VStack(spacing: 2) {
+                        Text(book.title)
+                            .font(.system(size: 13, weight: .medium, design: .serif))
+                            .foregroundStyle(Color.rsvpText.opacity(0.4))
+                            .lineLimit(1)
+                        if let chapter = chapters.current(at: engine.currentIndex) {
+                            Text(chapter.title)
+                                .font(.caption)
+                                .foregroundStyle(Color.rsvpText.opacity(0.7))
+                                .lineLimit(1)
+                                .accessibilityLabel("Current chapter: \(chapter.title)")
+                                .accessibilityIdentifier("rsvp-current-chapter")
+                        }
+                    }
                 }
 
                 ToolbarItem(placement: .primaryAction) {

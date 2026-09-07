@@ -18,6 +18,7 @@ struct ReaderView: View {
 
     @State private var session: ReaderSession
     @State private var showRSVP = false
+    @State private var showChapters = false
     @State private var showBookmarks = false
     @State private var showHighlights = false
     @State private var showSettings = false
@@ -38,7 +39,7 @@ struct ReaderView: View {
                         header
 
                         if !session.cachedWords.isEmpty {
-                            paragraphList
+                            paragraphList(scrollProxy: scrollProxy)
                         } else {
                             ProgressView()
                                 .padding(.top, 80)
@@ -51,11 +52,11 @@ struct ReaderView: View {
                     .padding(.top, 12)
                 }
                 .onChange(of: session.pendingScrollIndex) { _, newValue in
-                    guard let target = newValue else { return }
+                    guard let target = newValue,
+                          let paragraph = session.paragraphAnchorID(for: target) else { return }
                     withAnimation(.easeInOut(duration: ReaderConfig.Classic.scrollAnimationDuration)) {
-                        scrollProxy.scrollTo(session.scrollAnchorID(for: target), anchor: .center)
+                        scrollProxy.scrollTo(paragraph, anchor: .center)
                     }
-                    _ = session.consumePendingScroll()
                 }
                 // Once paragraphs have been laid out, scroll to the last-read word.
                 // Triggered by the cachedWords flip from empty → loaded, which
@@ -86,6 +87,12 @@ struct ReaderView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
+                    if !book.chapters.isEmpty {
+                        Button {
+                            showChapters = true
+                        } label: { Label("Chapters", systemImage: "list.bullet") }
+                        .accessibilityLabel("Chapters")
+                    }
                     Button {
                         showBookmarks = true
                     } label: { Label("Bookmarks", systemImage: "bookmark") }
@@ -100,6 +107,7 @@ struct ReaderView: View {
                     Image(systemName: "ellipsis.circle")
                         .foregroundStyle(currentTheme.accent)
                 }
+                .accessibilityLabel("Reader menu")
             }
         }
         .task {
@@ -134,16 +142,20 @@ struct ReaderView: View {
         }) {
             RSVPView(book: book)
         }
+        .sheet(isPresented: $showChapters) {
+            ReaderChapterPicker(chapters: ChapterNavigation(chapters: book.chapters),
+                                wordIndex: book.browseWordIndex) { index in
+                browse(to: index)
+            }
+        }
         .sheet(isPresented: $showBookmarks) {
             ReaderBookmarkPicker(book: book) { index in
-                commitReadingPosition(index)
-                session.reconcileRSVPDismiss(for: book)
+                browse(to: index)
             }
         }
         .sheet(isPresented: $showHighlights) {
             ReaderHighlightPicker(book: book) { index in
-                commitReadingPosition(index)
-                session.reconcileRSVPDismiss(for: book)
+                browse(to: index)
             }
         }
         .sheet(isPresented: $showSettings) {
@@ -175,11 +187,19 @@ struct ReaderView: View {
         }
     }
 
-    private var paragraphList: some View {
+    private func paragraphList(scrollProxy: ScrollViewProxy) -> some View {
         LazyVStack(alignment: .leading, spacing: lineSpacingPref + 8) {
             ForEach(session.paragraphs) { paragraph in
                 paragraphView(paragraph)
                     .id(paragraph.id)
+                    .task(id: session.pendingScrollIndex) {
+                        guard let target = session.pendingScrollIndex,
+                              session.paragraphAnchorID(for: target) == paragraph.id else { return }
+                        // This task only runs after the lazy paragraph is mounted, so its
+                        // word anchors now exist. No delay guesses for layout timing.
+                        scrollProxy.scrollTo(session.scrollAnchorID(for: target), anchor: .center)
+                        _ = session.consumePendingScroll()
+                    }
             }
         }
     }
@@ -335,15 +355,9 @@ struct ReaderView: View {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
-    private func commitReadingPosition(_ index: Int) {
-        let result = session.commitReadingPosition(
-            index,
-            book: book,
-            saver: modelContext,
-            sync: syncService
-        )
-        if !result.didSave {
-            Self.logger.error("Failed to persist lastReadWordIndex")
+    private func browse(to index: Int) {
+        if !session.browse(to: index, book: book, saver: modelContext) {
+            Self.logger.error("Failed to persist reader browse position")
         }
     }
 

@@ -167,3 +167,48 @@ struct ReaderHighlightPicker: View {
         }
     }
 }
+
+struct ReaderChapterPicker: View {
+    let chapters: ChapterNavigation
+    let wordIndex: Int
+    let onSelect: (Int) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(chapters.rows.indices, id: \.self) { row in
+                    let chapter = chapters.rows[row]
+                    let isCurrent = chapters.isCurrent(row: row, at: wordIndex)
+                    Button {
+                        onSelect(chapter.startWordIndex)
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Text(chapter.title)
+                                .font(.system(size: 15, design: .serif))
+                            Spacer()
+                            if isCurrent {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(chapter.title)
+                    .accessibilityValue(isCurrent ? "Current chapter" : "")
+                    .accessibilityHint("Browse to chapter without changing your reading position")
+                }
+            }
+            .navigationTitle("Chapters")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                        .accessibilityLabel("Close chapters")
+                }
+            }
+        }
+    }
+}

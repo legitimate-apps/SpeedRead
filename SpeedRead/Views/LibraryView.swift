@@ -53,6 +53,10 @@ struct LibraryView: View {
                         ?? books.first
                 }
                 #if DEBUG
+                if let fixture = ChapterUITestFixture.book() {
+                    modelContext.insert(fixture)
+                    autoOpenedBook = fixture
+                }
                 if ProcessInfo.processInfo.arguments.contains("--seed-test-opds-server") {
                     seedTestOPDSServer()
                 }

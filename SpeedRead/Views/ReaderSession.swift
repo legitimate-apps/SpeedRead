@@ -112,6 +112,11 @@ final class ReaderSession {
         ReadingPositionCoordinator.clampedIndex(index, wordCount: cachedWords.count)
     }
 
+    func paragraphAnchorID(for index: Int) -> Int? {
+        let target = clampedIndex(index)
+        return paragraphs.last { $0.startIndex <= target }?.id
+    }
+
     func scrollAnchorID(for index: Int) -> String {
         "word-\(index)"
     }
@@ -158,12 +163,28 @@ final class ReaderSession {
         wordFlash = nil
     }
 
+    @discardableResult
+    func browse(to index: Int, book: Book, saver: any ReadingPositionSaving) -> Bool {
+        book.ensurePositionMarkersInitialized()
+        let target = clampedIndex(index)
+        book.browseWordIndex = target
+        pendingScrollIndex = target
+        do {
+            try saver.save()
+            return true
+        } catch {
+            return false
+        }
+    }
+
     func requestInitialScroll(for book: Book) {
-        pendingScrollIndex = clampedIndex(book.lastReadWordIndex)
+        book.browseWordIndex = clampedIndex(book.lastReadWordIndex)
+        pendingScrollIndex = book.browseWordIndex
     }
 
     func reconcileRSVPDismiss(for book: Book) {
-        pendingScrollIndex = clampedIndex(book.lastReadWordIndex)
+        book.browseWordIndex = clampedIndex(book.lastReadWordIndex)
+        pendingScrollIndex = book.browseWordIndex
     }
 
     func consumePendingScroll() -> Int? {
