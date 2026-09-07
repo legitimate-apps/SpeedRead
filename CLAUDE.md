@@ -99,6 +99,11 @@ target membership (not a separate package).
   call `book.ensureTokensCached()` on appear for legacy migration.
 - **Tokenization**: `Book.tokenize(_:)` is the single source of truth. RSVP and reader
   must use it (or the cached `book.words`) so word indices line up across views.
+- **Position bounds**: `ReadingPositionCoordinator.clampedIndex` in
+  `Engine/ReadingPositionCoordinator.swift` is the shared iOS/watchOS implementation; reader,
+  RSVP, sync, watch library and crown conversions use it. Clamp both sides even for decoded
+  payloads: internal callers can construct payloads directly. iOS commit operations extend
+  the coordinator in `Views/ReaderSession.swift`.
 - **Reader↔RSVP handoff**:
   - Reader writes `book.lastReadWordIndex` on tap, then opens RSVP.
   - RSVP `Close` button: `engine.snapshotIndexAndPause()` → save → dismiss (atomic; do

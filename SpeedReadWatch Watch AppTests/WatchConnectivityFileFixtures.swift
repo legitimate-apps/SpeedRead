@@ -1,0 +1,1 @@
+../SpeedReadTests/WatchConnectivityFileFixtures.swift

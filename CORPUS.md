@@ -87,8 +87,7 @@ These are testable statements. Breaking one is a defect regardless of what it en
    worse the more logic you extract, which is exactly backwards.
 9. **Files shared between the app and the watch are ONE file, symlinked — never two copies**, even
    byte-identical ones. A copy that is identical today is a copy that drifts tomorrow, and the
-   drift is invisible: tests name one of the two. `SpineColor.swift` is the standing exception and
-   is a known defect, not a decision.
+   drift is invisible: tests name one of the two. `SpineColor.swift`, the RSVP engine, watch sync, and the position clamp all follow this rule.
 
 ## 5. Standing goals
 

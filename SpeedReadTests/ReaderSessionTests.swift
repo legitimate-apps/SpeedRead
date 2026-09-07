@@ -190,6 +190,23 @@ struct ReaderSessionTests {
         #expect(session.cycleTheme(from: "corrupt-value") == ReaderThemeMode.sepia.rawValue)
     }
 
+    @Test(arguments: [-100, 1000])
+    func readerCommitClampsBothBoundsBeforeSavingAndSyncing(index: Int) {
+        // Mutation: bypass either bound at the coordinator commit call site.
+        let book = makeBook(text: "zero one two")
+        let session = ReaderSession()
+        let saver = RecordingPositionSaver()
+        let sync = RecordingPositionSync()
+        session.load(book: book)
+        let result = session.commitReadingPosition(index, book: book, saver: saver, sync: sync)
+        let expected = index < 0 ? 0 : 2
+        #expect(result.index == expected)
+        #expect(book.lastReadWordIndex == expected)
+        #expect(book.browseWordIndex == expected)
+        #expect(saver.saveCount == 1)
+        #expect(sync.events.map(\.wordIndex) == [expected])
+    }
+
     private func makeBook(text: String) -> Book {
         Book(title: "Test", author: "Author", extractedText: text, sourceFileName: "test.txt")
     }

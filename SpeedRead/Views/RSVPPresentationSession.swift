@@ -282,7 +282,7 @@ final class RSVPPresentationSession {
         lastDragTime = now
 
         guard wordDelta != 0 else { return nil }
-        let target = min(max(0, currentIndex + wordDelta), wordCount - 1)
+        let target = ReadingPositionCoordinator.clampedIndex(currentIndex + wordDelta, wordCount: wordCount)
         dragAccumulator -= CGFloat(wordDelta) * effectivePointsPerWord
         return RSVPScrubUpdate(
             targetIndex: target,

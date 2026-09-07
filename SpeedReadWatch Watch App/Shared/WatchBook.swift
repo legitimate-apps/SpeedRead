@@ -72,7 +72,7 @@ struct WatchBook: Codable, Identifiable, Hashable {
     var progress: Double {
         guard wordCount > 0 else { return 0 }
         if hasFinishedLocally { return 1 }
-        return Double(min(max(0, lastReadIndex), wordCount - 1)) / Double(wordCount)
+        return Double(ReadingPositionCoordinator.clampedIndex(lastReadIndex, wordCount: wordCount)) / Double(wordCount)
     }
 }
 
@@ -113,8 +113,8 @@ struct WatchLibrary: Codable, Equatable {
     ) -> Bool {
         guard let i = books.firstIndex(where: { $0.id == bookId }) else { return false }
         let upperBound = max(0, books[i].wordCount - 1)
-        let clamped = min(max(0, index), upperBound)
-        let incomingFurthest = min(max(0, furthestReadWordIndex ?? clamped), upperBound)
+        let clamped = ReadingPositionCoordinator.clampedIndex(index, wordCount: books[i].wordCount)
+        let incomingFurthest = ReadingPositionCoordinator.clampedIndex(furthestReadWordIndex ?? clamped, wordCount: books[i].wordCount)
         if clamped < upperBound { books[i].hasFinishedLocally = false }
         books[i].lastReadIndex = clamped
         books[i].lastReadDate = timestamp
@@ -136,14 +136,14 @@ struct WatchLibrary: Codable, Equatable {
     @discardableResult
     mutating func updateBrowsePosition(bookId: UUID, index: Int) -> Bool {
         guard let i = books.firstIndex(where: { $0.id == bookId }) else { return false }
-        books[i].browseWordIndex = min(max(0, index), max(0, books[i].wordCount - 1))
+        books[i].browseWordIndex = ReadingPositionCoordinator.clampedIndex(index, wordCount: books[i].wordCount)
         return true
     }
 
     @discardableResult
     mutating func mergeFurthestReadPosition(bookId: UUID, index: Int) -> Bool {
         guard let i = books.firstIndex(where: { $0.id == bookId }) else { return false }
-        let clamped = min(max(0, index), max(0, books[i].wordCount - 1))
+        let clamped = ReadingPositionCoordinator.clampedIndex(index, wordCount: books[i].wordCount)
         guard clamped > books[i].furthestReadWordIndex else { return false }
         books[i].furthestReadWordIndex = clamped
         return true

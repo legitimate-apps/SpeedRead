@@ -227,6 +227,19 @@ struct WatchSyncLogicTests {
             pendingOfferDate: Date(timeIntervalSince1970: 100)))
     }
 
+    @Test func legacyPayloadFallbacksDeriveCountAndHighWater() throws {
+        // Mutation: replace missing wordCount with zero, tokenize without whitespace splitting,
+        // or default missing furthestReadWordIndex to zero instead of the reading index.
+        let id = UUID()
+        let book = try #require(WatchSyncLogic.BookPayload.decode(from: [
+            "id": id.uuidString, "title": "Legacy", "author": "", "text": "one  two\nthree"]))
+        #expect(book.wordCount == 3)
+        let position = try #require(WatchSyncLogic.PositionPayload.decode(from: [
+            "bookId": id.uuidString, "bookTitle": "Legacy", "wordIndex": 7,
+            "timestamp": 200.0]))
+        #expect(position.furthestReadWordIndex == 7)
+    }
+
     private func position(at timestamp: TimeInterval) -> WatchSyncLogic.PositionPayload {
         WatchSyncLogic.PositionPayload(
             bookId: UUID(),

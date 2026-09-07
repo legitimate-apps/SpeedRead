@@ -1,0 +1,1 @@
+../SpeedReadTests/SpineColorTests.swift

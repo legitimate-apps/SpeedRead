@@ -92,7 +92,7 @@ final class RSVPEngine {
             self.currentWord = ""
             self.state = .idle
         } else {
-            let clamped = index.clamped(to: 0...(words.count - 1))
+            let clamped = ReadingPositionCoordinator.clampedIndex(index, wordCount: words.count)
             self.currentIndex = clamped
             self.currentWord = words[clamped]
             self.state = .paused
@@ -148,7 +148,7 @@ final class RSVPEngine {
 
     func seek(to index: Int) {
         guard !words.isEmpty else { return }
-        let clamped = index.clamped(to: 0...(words.count - 1))
+        let clamped = ReadingPositionCoordinator.clampedIndex(index, wordCount: words.count)
         currentIndex = clamped
         currentWord = words[clamped]
         didFinish = false

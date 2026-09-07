@@ -215,7 +215,7 @@ struct WatchSyncLogic {
               ) == .apply else {
             return false
         }
-        let clampedIncoming = min(max(0, incoming.wordIndex), wordCount - 1)
+        let clampedIncoming = ReadingPositionCoordinator.clampedIndex(incoming.wordIndex, wordCount: wordCount)
         let materialDifference = max(5, Int(ceil(Double(wordCount) * 0.01)))
         return abs(clampedIncoming - localIndex) >= materialDifference
     }
@@ -302,6 +302,14 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     init(session: any WatchConnectivitySession = WCSession.default) {
         connectivitySession = session
         super.init()
+    }
+    #endif
+
+    #if os(iOS) && DEBUG
+    // Lets unit tests exercise acceptance independently of the ingress clamp.
+    convenience init(session: any WatchConnectivitySession, pendingOffer: PositionOffer) {
+        self.init(session: session)
+        pendingWatchPositionOffer = pendingOffer
     }
     #endif
 
@@ -606,13 +614,13 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         let descriptor = FetchDescriptor<Book>(predicate: #Predicate { $0.id == bookId })
         guard let book = try? modelContext.fetch(descriptor).first else { return }
         book.ensurePositionMarkersInitialized()
-        let clampedIndex = min(payload.wordIndex, max(0, book.wordCount - 1))
-        book.furthestReadWordIndex = min(
+        let clampedIndex = ReadingPositionCoordinator.clampedIndex(payload.wordIndex, wordCount: book.wordCount)
+        book.furthestReadWordIndex = ReadingPositionCoordinator.clampedIndex(
             WatchSyncLogic.mergedFurthestRead(
                 local: book.furthestReadWordIndex,
                 incoming: payload.furthestReadWordIndex
             ),
-            max(0, book.wordCount - 1)
+            wordCount: book.wordCount
         )
         if WatchSyncLogic.shouldOfferWatchPosition(
             incoming: payload,
@@ -653,18 +661,12 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             pendingWatchPositionOffer = nil
             return false
         }
-        let lastValidIndex = max(0, book.wordCount - 1)
-        let acceptedIndex = min(max(0, offer.wordIndex), lastValidIndex)
-        let existingFurthestIndex = min(
-            max(0, book.furthestReadWordIndex),
-            lastValidIndex
-        )
+        let acceptedIndex = ReadingPositionCoordinator.clampedIndex(offer.wordIndex, wordCount: book.wordCount)
         let payload = WatchSyncLogic.PositionPayload(
             bookId: offer.bookId,
             bookTitle: offer.bookTitle,
             wordIndex: acceptedIndex,
-            timestamp: offer.timestamp,
-            furthestReadWordIndex: existingFurthestIndex
+            timestamp: offer.timestamp
         )
         guard WatchSyncLogic.reconcile(
             incoming: payload,
@@ -679,12 +681,12 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         book.finishedAt = nil
         book.lastReadDate = offer.timestamp
         book.browseWordIndex = acceptedIndex
-        book.furthestReadWordIndex = min(
+        book.furthestReadWordIndex = ReadingPositionCoordinator.clampedIndex(
             WatchSyncLogic.mergedFurthestRead(
                 local: book.furthestReadWordIndex,
                 incoming: acceptedIndex
             ),
-            lastValidIndex
+            wordCount: book.wordCount
         )
         do {
             try modelContext.save()

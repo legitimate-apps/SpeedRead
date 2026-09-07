@@ -181,6 +181,83 @@ struct WatchSyncServiceCharacterizationTests {
         #expect(FileManager.default.fileExists(atPath: legacyURL.path))
     }
 
+    @Test func fileReceiptPersistsTextChaptersAndClearsReceivingState() async throws {
+        // Mutation: ignore inline file text/chapters, omit ingestion/persistence, or leave receiving set.
+        let service = WatchSyncService(session: FakeWatchSession(), store: storage.store)
+        let payload = WatchSyncLogic.BookPayload(id: UUID(), title: "File", author: "Author",
+            text: "zero one two", wordCount: 3,
+            chapters: [ChapterMark(title: "Chapter", startWordIndex: 1)])
+        let file = storage.directory.appendingPathComponent("book.txt")
+        try payload.text.write(to: file, atomically: true, encoding: .utf8)
+        service.isReceiving = true
+        service.receivingTitle = "Waiting"
+        service.session(.default, didReceive: WatchFileFixture(url: file, metadata: payload.fileMetadata))
+        await waitUntil { service.library.currentBook?.id == payload.id }
+        let stored = try #require(storage.store.load().currentBook)
+        #expect(stored.id == payload.id)
+        #expect(stored.text == payload.text)
+        #expect(stored.chapters == payload.chapters)
+        #expect(!service.isReceiving)
+        #expect(service.receivingTitle == nil)
+    }
+
+    @Test(arguments: ["missingFile", "invalidUTF8", "missingMetadata", "badChapter"])
+    func rejectedFileClearsReceivingWithoutChangingLibrary(kind: String) async throws {
+        // Mutation: ingest unreadable/malformed files, clear the existing library, or omit failure cleanup.
+        let service = WatchSyncService(session: FakeWatchSession(), store: storage.store)
+        let book = makeBook(index: 1, timestamp: nil)
+        service.library = WatchLibrary(books: [book], currentBookId: book.id)
+        service.persistLibrary()
+        let original = service.library
+        let file = storage.directory.appendingPathComponent("rejected.txt")
+        if kind != "missingFile" {
+            try (kind == "invalidUTF8" ? Data([0xFF]) : Data("zero one".utf8)).write(to: file)
+        }
+        let payload = WatchSyncLogic.BookPayload(id: UUID(), title: "Invalid", author: "",
+            text: "zero one", wordCount: 2)
+        var metadata: [String: Any]? = payload.fileMetadata
+        if kind == "missingMetadata" { metadata = nil }
+        if kind == "badChapter" { metadata?["chapters"] = [["title": "Outside", "startWordIndex": 2]] }
+        service.isReceiving = true
+        service.receivingTitle = "Waiting"
+        service.session(.default, didReceive: WatchFileFixture(url: file, metadata: metadata))
+        await waitUntil { !service.isReceiving }
+        #expect(!service.isReceiving)
+        #expect(service.receivingTitle == nil)
+        #expect(service.library == original)
+        #expect(storage.store.load() == original)
+    }
+
+    @Test func outgoingUnknownBookRetainsExplicitHighWater() throws {
+        // Mutation: replace the missing-local-book fallback with zero or the reading index.
+        let connection = FakeWatchSession()
+        connection.activationState = .activated
+        let service = WatchSyncService(session: connection, store: storage.store)
+        let id = UUID()
+        service.syncReadingPosition(bookId: id, bookTitle: "Not stored", wordIndex: 7,
+            timestamp: Date(timeIntervalSince1970: 300), furthestReadWordIndex: 22)
+        let context = try #require(connection.applicationContexts.first)
+        let decoded = try #require(WatchSyncLogic.PositionPayload.decode(from: context))
+        #expect(decoded.bookId == id)
+        #expect(decoded.wordIndex == 7)
+        #expect(decoded.furthestReadWordIndex == 22)
+        #expect(service.library == .empty)
+    }
+
+    @Test func legacyFileDerivesCountWithoutChapterMetadata() async throws {
+        // Mutation: default absent wordCount to zero, omit whitespace token counting,
+        // or reject the legacy missing-chapters form instead of ingesting it.
+        let service = WatchSyncService(session: FakeWatchSession(), store: storage.store)
+        let file = storage.directory.appendingPathComponent("legacy.txt")
+        try "zero  one\ntwo".write(to: file, atomically: true, encoding: .utf8)
+        let id = UUID()
+        service.session(.default, didReceive: WatchFileFixture(url: file, metadata: ["id": id.uuidString, "title": "Legacy", "author": ""]))
+        await waitUntil { service.library.currentBook?.id == id }
+        let book = try #require(storage.store.load().currentBook)
+        #expect(book.wordCount == 3)
+        #expect(book.chapters.isEmpty)
+    }
+
     private func makeBook(index: Int, timestamp: Date?) -> WatchBook {
         WatchBook(
             id: UUID(),

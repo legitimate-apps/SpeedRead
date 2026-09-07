@@ -39,11 +39,7 @@ struct ReaderTapOutcome: Equatable {
 }
 
 @MainActor
-enum ReadingPositionCoordinator {
-    static func clampedIndex(_ index: Int, wordCount: Int) -> Int {
-        guard wordCount > 0 else { return 0 }
-        return min(max(0, index), wordCount - 1)
-    }
+extension ReadingPositionCoordinator {
 
     static func commit(
         _ index: Int,

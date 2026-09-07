@@ -397,6 +397,84 @@ struct WatchSyncServiceTests {
         #expect(connection.files.isEmpty)
     }
 
+    @Test func positionDecoderRejectsNegativeButAcceptsZero() throws {
+        // Mutation caught: deleting wordIndex >= 0, or changing it to wordIndex > 0.
+        let id = UUID()
+        let negative = WatchSyncLogic.PositionPayload(
+            bookId: id, bookTitle: "Boundary", wordIndex: -1,
+            timestamp: Date(timeIntervalSince1970: 200))
+        #expect(WatchSyncLogic.PositionPayload.decode(from: negative.dictionary) == nil)
+        var zero = negative.dictionary
+        zero["wordIndex"] = 0
+        let decoded = try #require(WatchSyncLogic.PositionPayload.decode(from: zero))
+        #expect(decoded.wordIndex == 0)
+        #expect(decoded.bookId == id)
+    }
+
+    @Test func directlyConstructedNegativePositionCannotProduceNegativeOffer() throws {
+        // Mutation caught: omitting the lower bound when constructing an incoming offer.
+        // Direct callers are not protected by the transport decoder.
+        let (service, container, book) = try positionFixture()
+        service.applyIncomingPosition(position(book, index: -1, time: 200))
+        let offer = try #require(service.pendingWatchPositionOffer)
+        #expect(offer.wordIndex == 0)
+        #expect(book.lastReadWordIndex == 20)
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 1)
+    }
+
+    @Test(arguments: [-100, 1000])
+    func incomingOfferAndHighWaterClampBothSides(index: Int) throws {
+        // Mutation: remove either ingress offer bound, or the high-water upper bound.
+        let (service, container, book) = try positionFixture()
+        book.furthestReadWordIndex = index
+        service.applyIncomingPosition(position(book, index: index, time: 200))
+        let expected = index < 0 ? 0 : 99
+        #expect(service.pendingWatchPositionOffer?.wordIndex == expected)
+        // Legacy migration raises a negative high-water to the existing reading index (20).
+        #expect(book.furthestReadWordIndex == (index < 0 ? 20 : 99))
+        let saved = try #require(ModelContext(container).fetch(FetchDescriptor<Book>()).first)
+        #expect(saved.furthestReadWordIndex == book.furthestReadWordIndex)
+    }
+
+    @Test(arguments: [-100, 1000])
+    func acceptanceIndependentlyClampsBothSides(index: Int) throws {
+        // Mutation: remove either acceptance bound; an ingress clamp must not mask this test.
+        let (_, container, book) = try positionFixture()
+        let offer = WatchSyncService.PositionOffer(bookId: book.id, bookTitle: book.title,
+            wordIndex: index, wordCount: book.wordCount, timestamp: Date(timeIntervalSince1970: 200))
+        let service = WatchSyncService(session: FakeWatchConnectivitySession(), pendingOffer: offer)
+        service.configure(modelContext: container.mainContext)
+        book.furthestReadWordIndex = index
+        #expect(service.continueFromWatch(offer))
+        let saved = try #require(ModelContext(container).fetch(FetchDescriptor<Book>()).first)
+        let expected = index < 0 ? 0 : 99
+        #expect(saved.lastReadWordIndex == expected)
+        #expect(saved.browseWordIndex == expected)
+        #expect(saved.furthestReadWordIndex == (index < 0 ? 20 : 99))
+        #expect(service.pendingWatchPositionOffer == nil)
+    }
+
+    @Test(arguments: ["Transferred", ""])
+    func fileCompletionReportsTitleAndFallback(title: String) async {
+        // Mutation: never mark a finished transfer sent, or drop the metadata/default title.
+        let service = WatchSyncService(session: FakeWatchConnectivitySession())
+        service.session(.default, didFinish: WatchFileTransferFixture(metadata: title.isEmpty ? nil : ["title": title]), error: nil)
+        for _ in 0..<50 where service.sendState == .idle { await Task.yield() }
+        #expect(service.sendState == .sent(title.isEmpty ? "Book" : title))
+    }
+
+    @Test func fileCompletionFailureReportsErrorThenClears() async throws {
+        // Mutation: treat an error as success, discard its description, or omit delayed clearing.
+        let service = WatchSyncService(session: FakeWatchConnectivitySession())
+        let error = NSError(domain: "TransferTest", code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "Transfer interrupted"])
+        service.session(.default, didFinish: WatchFileTransferFixture(metadata: ["title": "Failed"]), error: error)
+        for _ in 0..<50 where service.sendState == .idle { await Task.yield() }
+        #expect(service.sendState == .failed("Transfer interrupted"))
+        try await Task.sleep(for: .milliseconds(2800))
+        #expect(service.sendState == .idle)
+    }
+
     private func positionFixture() throws -> (WatchSyncService, ModelContainer, Book) {
         let container = try ModelContainer(for: Book.self, Bookmark.self, Highlight.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true))
