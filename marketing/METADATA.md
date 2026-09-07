@@ -9,7 +9,13 @@ here, never in the ASC web UI, so the listing cannot drift from what was reviewe
 
 ## Promotional text (170 max) — editable without review
 
-    Chapters on your wrist, three places kept instead of one, and a reader that goes as fast as you do. New in 1.2.
+<!-- This field names the version, so it goes stale the moment the next one ships, and nothing
+fails when it does: it needs no App Review, so no gate ever looks at it. 1.2's copy was still
+saying "New in 1.2." while 1.3 was being prepared. Re-read this line at every release.
+Note also: continuation lines here must NOT be indented four spaces. parse_metadata treats any
+four-space-indented line as section content, so an aligned comment silently becomes the copy. -->
+
+    A book can finish now. Reach the last word and it says finished — 100%, not 99% — on your iPhone and your Apple Watch. New in 1.3.
 
 ## Keywords (100 byte max)
 
