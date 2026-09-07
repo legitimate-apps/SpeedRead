@@ -145,7 +145,7 @@ trap 'exit 129' HUP
 # exit status instead of asking why the array was empty. Recording belongs to the parent shell.
 lease_sim() {  # $1 = device name, $2 = purpose ; prints a udid. Does NOT boot, does NOT record.
   local device="$1" purpose="$2" udid
-  udid="$(sim-lease create --project speedread --device "$device" --purpose "$purpose" \
+  udid="$(sim-lease create --project speedread --owner-pid "$$" --device "$device" --purpose "$purpose" \
     --ttl-hours 2 2>/dev/null | tail -1)"
   if [[ ! "$udid" =~ ^[0-9A-F-]{36}$ ]]; then
     return 1
