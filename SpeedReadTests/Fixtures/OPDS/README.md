@@ -24,11 +24,17 @@ this repo that the shape drifts under us.
 
 ## A sampled fixture is necessary and not sufficient
 
-`cwng-new.xml` contains `<dcterms:language>` 59 times and has since May. `OPDSAtomParser`
-sets `shouldProcessNamespaces = false`, so its delegate receives the qualified element name
-and its `case "language"` never matches — `OPDSEntry.language` has been nil in production
-the whole time. A test loads this very fixture and passed throughout.
+An earlier version of this file claimed `OPDSEntry.language` was never populated because the
+parser matched `"language"` while the server sends `<dcterms:language>`. **That was wrong.**
+`OPDSAtomParser` normalises every element name through `localOPDSName` before switching on it,
+which strips any namespace prefix, so the case matches and language parses correctly. The claim
+was written after grepping for the `case` and the namespace flag without reading the two lines
+above the switch, and it was disproved by running a test against the unmodified parser: 59
+language values across 60 entries.
 
-So the ground truth was already here, already correct, already being read. What was missing
-was a test that asked the question. Sampling the fixture stops you asserting against
-something you invented; it does not, on its own, make anyone look.
+The point the wrong example was reaching for still stands, so here it is with a true one. These
+fixtures were sampled from a real server in May and committed, and a test has loaded them ever
+since. That did not stop a real defect living in the parser the whole time: nested element text
+was being dropped, so a `<summary>` containing markup returned only its final text node. Sampling
+the fixture is what makes an assertion meaningful; it is not what makes someone write the
+assertion. Ground truth in the repo that nothing interrogates is just a large file.
