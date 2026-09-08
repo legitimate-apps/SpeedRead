@@ -1,0 +1,1806 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/terms/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:calibre="http://calibre.kovidgoyal.net/2009/metadata">
+  <icon>/static/favicon.ico</icon>
+  <id>urn:uuid:2853dacf-ed79-42f5-8e8a-a7bb3d1ae6a2</id>
+  <updated>2026-09-07T20:22:54+00:00</updated>
+  <link rel="self"
+        href="/opds/hot?"
+        type="application/atom+xml;profile=opds-catalog;type=feed;kind=navigation"/>
+  <link rel="start"
+        href="/opds"
+        type="application/atom+xml;profile=opds-catalog;type=feed;kind=navigation"/>
+  <link rel="up"
+        href="/opds"
+        type="application/atom+xml;profile=opds-catalog;type=feed;kind=navigation"/>
+
+
+    <link rel="search"
+      href="/opds/osd"
+      type="application/opensearchdescription+xml"/>
+  <link type="application/atom+xml" rel="search" title="Search" href="/opds/search/{searchTerms}" />
+  <title>Calibre-Web NextGen - Hot Books</title>
+  <author>
+    <name>Calibre-Web NextGen</name>
+    <uri>https://github.com/new-usemame/Calibre-Web-NextGen</uri>
+  </author>
+
+  
+  
+  <entry>
+    <title>Bartleby, the Scrivener: A Story of Wall-Street</title>
+    <id>urn:uuid:43007c93-4ae6-473c-ac54-9783a204f650</id>
+    <updated>2026-08-31T03:06:17+00:00</updated>
+    
+      <author>
+        <name>Herman Melville</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Project Gutenberg</name>
+      </publisher>
+    
+    <published>2004-02-02T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Copyists -- Fiction"
+              label="Copyists -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="N.Y.) -- Fiction"
+              label="N.Y.) -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="New York (N.Y.) -- Fiction"
+              label="New York (N.Y.) -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Psychological fiction"
+              label="Psychological fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Wall Street (New York"
+              label="Wall Street (New York"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Young men -- Fiction"
+              label="Young men -- Fiction"/>
+    
+    
+    <summary type="text">“I would prefer not to.</summary>
+    <content type="text">“I would prefer not to.” First published anonymously in Putnam’s Magazine in 1853, Herman Melville’s Bartleby, the Scrivener: A Story of Wall-Street is narrated by an elderly Manhattan lawyer who hires a pallid, impassive copyist for his chambers. Bartleby works prodigiously at first, then begins meeting every request — and finally every necessity of life — with the same unanswerable formula of refusal, until his passive resistance quietly dismantles the comfortable world of the office around him.A cornerstone of American short fiction, it has been read as a parable of alienated labour, of clinical melancholy, and of the limits of charity, and its closing lament — “Ah Bartleby! Ah humanity!” — remains one of the most quoted lines in nineteenth-century literature.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/545" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/545" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/545/epub/"
+          length="102717" mtime="2026-08-31T03:06:17+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/545/kepub/"
+          length="109154" mtime="2026-08-31T03:06:17+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Heat Will Kill You First: Life and Death on a Scorched Planet</title>
+    <id>urn:uuid:053742ff-9094-43b2-8511-c0763c90ffab</id>
+    <updated>2026-08-18T01:45:25+00:00</updated>
+    
+      <author>
+        <name>Jeff Goodell</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Little, Brown and Company</name>
+      </publisher>
+    
+    <published>2023-07-11T01:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Climate Change"
+              label="Climate Change"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Ecology"
+              label="Ecology"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Environment"
+              label="Environment"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="History"
+              label="History"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Nature"
+              label="Nature"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Non-Fiction"
+              label="Non-Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Politics"
+              label="Politics"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Science"
+              label="Science"/>
+    
+    
+    <summary type="text">The Heat Will Kill You First Jeff Goodell&#39;s &#34;masterful, bracing&#34; (David Wallace-Wells) investigation exposes &#34;through stellar reporting, artful storytelling and fascinating scientific explanations&#34; (Naomi Klein) an explosive new understanding of heat and the impact that rising temperatures will have on our lives and on our planet.</summary>
+    <content type="text">The Heat Will Kill You First Jeff Goodell&#39;s &#34;masterful, bracing&#34; (David Wallace-Wells) investigation exposes &#34;through stellar reporting, artful storytelling and fascinating scientific explanations&#34; (Naomi Klein) an explosive new understanding of heat and the impact that rising temperatures will have on our lives and on our planet. &#34;Entertaining and thoroughly researched,&#34; (Al Gore), it will completely change the way you see the world, and despite its urgent themes, is injected with &#34;eternal optimism&#34; (Michael Mann) on how to combat one of the most important issues of our time. “When heat comes, it’s invisible. It doesn’t bend tree branches or blow hair across your face to let you know it’s arrived…. The sun feels like the barrel of a gun pointed at you.” The world is waking up to a new wildfires are now seasonal in California, the Northeast is getting less and less snow each winter, and the ice sheets in the Arctic and Antarctica are melting fast. Heat is the first order threat that drives all other impacts of the climate crisis. And as the temperature rises, it is revealing fault lines in our governments, our politics, our economy, and our values. The basic science is not Stop burning fossil fuels tomorrow, and the global temperature will stop rising tomorrow. Stop burning fossil fuels in 50 years, and the temperature will keep rising for 50 years, making parts of our planet virtually uninhabitable. It’s up to us. The hotter it gets, the deeper and wider our fault lines will open. The Heat Will Kill You First is about the extreme ways in which our planet is already changing. It is about why spring is coming a few weeks earlier and fall is coming a few weeks later and the impact that will have on everything from our food supply to disease outbreaks. It is about what will happen to our lives and our communities when typical summer days in Chicago or Boston go from 90° F to 110°F. A heatwave, Goodell explains, is a predatory event— one that culls out the most vulnerable people. But that is changing. As heatwaves become more intense and more common, they will become more democratic. As an award-winning journalist who has been at the forefront of environmental journalism for decades, Goodell’s new book may be his most provocative yet, explaining how extreme heat will dramatically change the world as we know it. Masterfully reported, mixing the latest scientific insight with on-the-ground storytelling, Jeff Goodell tackles the big questions and uncovers how extreme heat is a force beyond anything we have reckoned with before.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/540" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/540" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/540/epub/"
+          length="1573595" mtime="2026-08-18T01:45:25+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/540/kepub/"
+          length="1617796" mtime="2026-08-18T01:45:25+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>1984</title>
+    <id>urn:uuid:6bb9b6e5-9643-4e43-9eba-b593f7724419</id>
+    <updated>2026-05-03T14:45:22+00:00</updated>
+    
+      <author>
+        <name>George Orwell</name>
+      </author>
+    
+    
+    <published>1949-06-08T08:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Among the seminal texts of the 20th century, Nineteen Eighty-Four is a rare work that grows more haunting as its futuristic purgatory becomes more real.</summary>
+    <content type="text">Among the seminal texts of the 20th century, Nineteen Eighty-Four is a rare work that grows more haunting as its futuristic purgatory becomes more real. Published in 1949, the book offers political satirist George Orwell&#39;s nightmare vision of a totalitarian, bureaucratic world and one poor stiff&#39;s attempt to find individuality. The brilliance of the novel is Orwell&#39;s prescience of modern life--the ubiquity of television, the distortion of the language--and his ability to construct such a thorough version of hell. Required reading for students since it was published, it ranks among the most terrifying novels ever written.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/350" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/350" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/350/epub/"
+          length="263029" mtime="2026-05-03T14:45:22+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/350/kepub/"
+          length="310358" mtime="2026-05-03T14:45:22+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Animal Farm</title>
+    <id>urn:uuid:b3d1b38b-74fd-43b7-a796-996e5a6a8b04</id>
+    <updated>2026-07-08T03:34:24+00:00</updated>
+    
+      <author>
+        <name>George Orwell</name>
+      </author>
+    
+    
+      <publisher>
+        <name>The University of Adelaide Library</name>
+      </publisher>
+    
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Animal Farm / George Orwell.</summary>
+    <content type="text">Animal Farm / George Orwell</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/348" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/348" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/348/kepub/"
+          length="253628" mtime="2026-07-08T03:34:24+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/348/epub/"
+          length="239977" mtime="2026-07-08T03:34:24+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>I Have No Mouth &amp; I Must Scream</title>
+    <id>urn:uuid:f8590852-8cf5-4531-98fa-e14a087b00d0</id>
+    <updated>2026-08-18T02:26:56+00:00</updated>
+    
+      <author>
+        <name>Harlan Ellison</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Pyramid Books</name>
+      </publisher>
+    
+    <published>1967-03-02T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/317" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/317" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/317/epub/"
+          length="1594087" mtime="2026-08-18T02:26:56+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/317/kepub/"
+          length="608397" mtime="2026-08-18T02:26:56+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Great Gatsby</title>
+    <id>urn:uuid:bcbd428c-51aa-4959-ab68-b879e38f32bf</id>
+    <updated>2026-08-31T02:52:20+00:00</updated>
+    
+      <author>
+        <name>F. Scott Fitzgerald</name>
+      </author>
+    
+    
+    <published>2021-01-17T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="First loves -- Fiction"
+              label="First loves -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Long Island (N.Y.) -- Fiction"
+              label="Long Island (N.Y.) -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Married women -- Fiction"
+              label="Married women -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Psychological fiction"
+              label="Psychological fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Rich people -- Fiction"
+              label="Rich people -- Fiction"/>
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/553" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/553" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/553/epub/"
+          length="352693" mtime="2026-08-31T02:52:20+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/553/kepub/"
+          length="374758" mtime="2026-08-31T02:52:20+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Metamorphosis</title>
+    <id>urn:uuid:c5acb783-6f5b-4428-a0b7-566b8ce375b1</id>
+    <updated>2026-08-31T02:52:41+00:00</updated>
+    
+      <author>
+        <name>Franz Kafka</name>
+      </author>
+    
+    
+    <published>2005-08-17T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Metamorphosis -- Fiction"
+              label="Metamorphosis -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Psychological fiction"
+              label="Psychological fiction"/>
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/552" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/552" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/552/epub/"
+          length="279299" mtime="2026-08-31T02:52:41+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/552/kepub/"
+          length="284982" mtime="2026-08-31T02:52:41+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The King in Yellow</title>
+    <id>urn:uuid:2e1c04e4-691a-4857-8206-67a95c4237cc</id>
+    <updated>2026-08-31T02:52:38+00:00</updated>
+    
+      <author>
+        <name>Robert W. Chambers</name>
+      </author>
+    
+    
+    <published>2005-07-01T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Gutenberg Most Read"
+              label="Gutenberg Most Read"/>
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/550" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/550" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/550/epub/"
+          length="321495" mtime="2026-08-31T02:52:38+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/550/kepub/"
+          length="321766" mtime="2026-08-31T02:52:38+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>I&#39;m Glad My Mom Died</title>
+    <id>urn:uuid:7daef262-3b90-4646-915d-696691948363</id>
+    <updated>2026-08-31T02:52:23+00:00</updated>
+    
+      <author>
+        <name>Jennette McCurdy</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Simon &amp; Schuster</name>
+      </publisher>
+    
+    <published>2022-08-10T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="imports"
+              label="imports"/>
+    
+    
+    <summary type="text">A heartbreaking and hilarious memoir by iCarly and Sam &amp; Cat star Jennette McCurdy about her struggles as a former child actor--including eating disorders, addiction, and a complicated relationship with her overbearing mother--and how she retook control of her life.</summary>
+    <content type="text">A heartbreaking and hilarious memoir by iCarly and Sam &amp; Cat star Jennette McCurdy about her struggles as a former child actor--including eating disorders, addiction, and a complicated relationship with her overbearing mother--and how she retook control of her life. Jennette McCurdy was six years old when she had her first acting audition. Her mother&#39;s dream was for her only daughter to become a star, and Jennette would do anything to make her mother happy. So she went along with what Mom called &#34;calorie restriction,&#34; eating little and weighing herself five times a day. She endured extensive at-home makeovers while Mom chided, &#34;Your eyelashes are invisible, okay? You think Dakota Fanning doesn&#39;t tint hers?&#34; She was even showered by Mom until age sixteen while sharing her diaries, email, and all her income. In I&#39;m Glad My Mom Died, Jennette recounts all this in unflinching detail--just as she chronicles what happens when the dream finally comes true. Cast in a new Nickelodeon series called iCarly, she is thrust into fame. Though Mom is ecstatic, emailing fan club moderators and getting on a first-name basis with the paparazzi (&#34;Hi Gale!&#34;), Jennette is riddled with anxiety, shame, and self-loathing, which manifest into eating disorders, addiction, and a series of unhealthy relationships. These issues only get worse when, soon after taking the lead in the iCarly spinoff Sam &amp; Cat alongside Ariana Grande, her mother dies of cancer. Finally, after discovering therapy and quitting acting, Jennette embarks on recovery and decides for the first time in her life what she really wants. Told with refreshing candor and dark humor, I&#39;m Glad My Mom Died is an inspiring story of resilience, independence, and the joy of shampooing your own hair.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/547" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/547" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/547/epub/"
+          length="2188298" mtime="2026-08-31T02:52:23+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/547/kepub/"
+          length="2185405" mtime="2026-08-31T02:52:23+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Iliad</title>
+    <id>urn:uuid:0f420239-22a0-462b-9680-4fc12c265ca0</id>
+    <updated>2026-08-31T02:52:30+00:00</updated>
+    
+      <author>
+        <name>Homer| Emily Wilson</name>
+      </author>
+    
+    
+      <publisher>
+        <name>W. W. Norton &amp; Company</name>
+      </publisher>
+    
+    <published>2023-08-10T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="imports"
+              label="imports"/>
+    
+    
+    <summary type="text">The greatest literary landmark of antiquity masterfully rendered by the most celebrated translator of our time.</summary>
+    <content type="text">The greatest literary landmark of antiquity masterfully rendered by the most celebrated translator of our time.When Emily Wilson&#39;s translation of The Odyssey appeared in 2017—revealing the ancient poem in a contemporary idiom that was &#34;fresh, unpretentious and lean&#34; (Madeline Miller, Washington Post)—critics lauded it as &#34;a revelation&#34; (Susan Chira, New York Times) and &#34;a cultural landmark&#34; (Charlotte Higgins, Guardian) that would forever change how Homer is read in English. Now Wilson has returned with an equally revelatory translation of Homer&#39;s other great epic—the most revered war poem of all time.The Iliad roars with the clamor of arms, the bellowing boasts of victors, the fury and grief of loss, and the anguished cries of dying men. It sings, too, of the sublime magnitude of the world—the fierce beauty of nature and the gods&#39; grand schemes beyond the ken of mortals. In Wilson&#39;s hands, this thrilling, magical, and...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/546" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/546" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/546/epub/"
+          length="7161669" mtime="2026-08-31T02:52:30+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/546/kepub/"
+          length="7161126" mtime="2026-08-31T02:52:30+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Modelland</title>
+    <id>urn:uuid:b38a4cae-9924-4770-bc2b-9ceeab3b29ab</id>
+    <updated>2026-08-07T08:11:49+00:00</updated>
+    
+      <author>
+        <name>Tyra Banks</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Random House Children&#39;s Books</name>
+      </publisher>
+    
+    <published>2011-09-13T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">No one gets in without being asked.</summary>
+    <content type="text">No one gets in without being asked. And with her untamable hair, large forehead, and gawky body, Tookie De La Crème isn&#39;t expecting an invitation. Modelland--the exclusive, mysterious place on top of the mountain--never dares to make an appearance in her dreams.But someone has plans for Tookie. Before she can blink her mismatched eyes, Tookie finds herself in the very place every girl in the world obsesses about. And three unlikely girls have joined her.Only seven extraordinary young women become Intoxibellas each year. Famous. Worshipped. Magical. What happens to those who don&#39;t make it? Well, no one really speaks of that. Some things are better left unsaid.Thrown into a world where she doesn&#39;t seem to belong, Tookie glimpses a future that could be hers--if she survives the beastly Catwalk Corridor and terrifying Thigh-High Boot Camp. Or could it? Dark rumors like silken threads swirl around the question of why Tookie and her new friends were...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/539" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/539" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/539/epub/"
+          length="2803334" mtime="2026-08-07T08:11:49+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/539/kepub/"
+          length="2890397" mtime="2026-08-07T08:11:49+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Between Two Fires</title>
+    <id>urn:uuid:a05b392b-b8ad-4570-ab86-21a785eddd09</id>
+    <updated>2026-07-20T16:08:24+00:00</updated>
+    
+      <author>
+        <name>Christopher Buehlman</name>
+      </author>
+    
+    
+    <published>2020-04-01T16:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/538" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/538" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/538/epub/"
+          length="427591" mtime="2026-07-20T16:08:24+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/538/kepub/"
+          length="479978" mtime="2026-07-20T16:08:24+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Angel Down: A Novel</title>
+    <id>urn:uuid:4586fcbd-8daa-45ff-acfb-dd3dea242e1d</id>
+    <updated>2026-07-17T21:06:24+00:00</updated>
+    
+      <author>
+        <name>Daniel Kraus</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Atria Books</name>
+      </publisher>
+    
+    <published>2025-07-29T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">The critically acclaimed author of the &#34;crazily enjoyable&#34; (The New York Times) Whalefall returns with an immersive, cinematic novel about five World War I soldiers who stumble upon a fallen angel that could hold the key to ending the war.</summary>
+    <content type="text">The critically acclaimed author of the &#34;crazily enjoyable&#34; (The New York Times) Whalefall returns with an immersive, cinematic novel about five World War I soldiers who stumble upon a fallen angel that could hold the key to ending the war.Private Cyril Bagger has managed to survive the unspeakable horrors of the Great War through his wits and deception, swindling fellow soldiers at every opportunity. But his survival instincts are put to the ultimate test when he and four other grunts are given a deadly mission: venture into the perilous No Man&#39;s Land to euthanize a wounded comrade. What they find amid the ruined battlefield, however, is not a man in need of mercy but a fallen angel, seemingly struck down by artillery fire. This celestial being may hold the key to ending the brutal conflict, but only if the soldiers can suppress their individual desires and work together. As jealousy, greed, and paranoia take hold, the group is torn...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/537" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/537" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/537/epub/"
+          length="4129631" mtime="2026-07-17T21:06:24+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/537/kepub/"
+          length="4145003" mtime="2026-07-17T21:06:24+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Guns, Germs, and Steel</title>
+    <id>urn:uuid:6d06841f-f908-4f1a-aab3-7afdbb48934c</id>
+    <updated>2026-07-17T21:08:57+00:00</updated>
+    
+      <author>
+        <name>Jared Diamond</name>
+      </author>
+    
+    
+      <publisher>
+        <name>W.W.Norton</name>
+      </publisher>
+    
+    <published>1999-07-15T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">An epic detective story that offers a gripping expose on why the world is so unequal.</summary>
+    <content type="text">An epic detective story that offers a gripping expose on why the world is so unequal. Professor Jared Diamond traveled the globe for over 30 years trying to answer this question.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/536" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/536" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/536/epub/"
+          length="866878" mtime="2026-07-17T21:08:57+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/536/kepub/"
+          length="920415" mtime="2026-07-17T21:08:57+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Raw Dog: The Naked Truth About Hot Dogs</title>
+    <id>urn:uuid:c77a4a2e-8818-4016-a270-33264123d03e</id>
+    <updated>2026-08-18T02:26:59+00:00</updated>
+    
+      <author>
+        <name>Jamie Loftus</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Forge Books</name>
+      </publisher>
+    
+    <published>2023-05-23T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Cooking"
+              label="Cooking"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="History"
+              label="History"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Humor"
+              label="Humor"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Social Science"
+              label="Social Science"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Travel"
+              label="Travel"/>
+    
+    
+    <summary type="text">Part travelogue, part culinary history, all capitalist critique—comedian Jamie Loftus&#39;s debut, Raw Dog, will take you on a cross-country road trip in the summer of 2021, and reveal what the creation, culture, and class influence of hot dogs says about America now.</summary>
+    <content type="text">Part travelogue, part culinary history, all capitalist critique—comedian Jamie Loftus&#39;s debut, Raw Dog, will take you on a cross-country road trip in the summer of 2021, and reveal what the creation, culture, and class influence of hot dogs says about America now.&#34;Wise and funny&#34; —ANDY RICHTER &#34;Gonzo yet vulnerable&#34; —GABE DUNN &#34;Hot dog Moby-Dick&#34; —BRANSON REESE &#34;Revealing, funny, sad, horny, and insatiably curious&#34; —SARAH MARSHALL &#34;A wild ride&#34; —ROBERT EVANS &#34;Deeply incisive and hilariously honest&#34; —JACK O&#39;BRIEN &#34;One of the freshest and most insightful new comedic voices of this decade.&#34; —LINDSAY ELLIS Hot dogs. Poor people created them. Rich people found a way to charge fifteen dollars for them. They&#39;re high culture, they&#39;re low culture, they&#39;re sports food, they&#39;re kids&#39; food, they&#39;re hangover food, and they&#39;re deeply...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/535" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/535" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/535/epub/"
+          length="8582744" mtime="2026-08-18T02:26:59+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/535/kepub/"
+          length="8611937" mtime="2026-08-18T02:26:59+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Carmilla</title>
+    <id>urn:uuid:bf160f9d-a16f-4c0e-b230-34a245ffb12c</id>
+    <updated>2026-08-18T02:26:57+00:00</updated>
+    
+      <author>
+        <name>Joseph Sheridan Le Fanu</name>
+      </author>
+    
+    
+    <published>1872-01-02T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Classics"
+              label="Classics"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Gothic fiction"
+              label="Gothic fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Horror"
+              label="Horror"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Vampires -- Fiction"
+              label="Vampires -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Young women -- Fiction"
+              label="Young women -- Fiction"/>
+    
+    
+    <summary type="text">Carmilla is the 1872 Gothic vampire novella by Irish author Joseph Sheridan Le Fanu, a leading writer of ghost tales and horror fiction of the Victorian era.</summary>
+    <content type="text">Carmilla is the 1872 Gothic vampire novella by Irish author Joseph Sheridan Le Fanu, a leading writer of ghost tales and horror fiction of the Victorian era. His haunting and surprisingly modern Carmilla was one of the first works in the vampire fiction genre and was written decades before the publication of Bram Stoker&#39;s Dracula in 1897. Le Fanu&#39;s story has been widely influential and is notable for its depiction of homosexual desire between the female vampire and her beautiful young victims. Carmilla is told from the perspective of a case study by Dr. Hesselius, a medical doctor who investigates occult phenomena. The central character is Laura, a teenager living alone with her retired father in a lonely castle in the forests of Austria. Laura longs for a friend her own age and, not coincidentally, a carriage accident brings the lovely and seemingly young Carmilla to Laura&#39;s home. Before long Laura&#39;s health declines and she is haunted by nightmares as she becomes the latest victim of the vampire Carmilla. To save her, Laura&#39;s father must battle the cunning and evil vampire for her life and soul. Frightening, entertaining, and hauntingly romantic, Le Fanu&#39;s Gothic adventure remains a classic of vampire literature.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/527" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/527" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/527/epub/"
+          length="163955" mtime="2026-08-18T02:26:57+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/527/kepub/"
+          length="175453" mtime="2026-08-18T02:26:57+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Antichrist: Der Antichrist</title>
+    <id>urn:uuid:f71f2c10-bafd-4478-950c-bf57548ac82f</id>
+    <updated>2026-08-15T21:37:18+00:00</updated>
+    
+      <author>
+        <name>Friedrich Nietzsche</name>
+      </author>
+    
+    
+      <publisher>
+        <name>CreateSpace Independent Publishing Platform</name>
+      </publisher>
+    
+    <published>2017-04-08T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Biography &amp; Autobiography"
+              label="Biography &amp; Autobiography"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Philosophers"
+              label="Philosophers"/>
+    
+    
+    <summary type="text">The Antichrist is a book by the philosopher Friedrich Nietzsche, originally published in 1895.</summary>
+    <content type="text">The Antichrist is a book by the philosopher Friedrich Nietzsche, originally published in 1895. Although it was written in 1888, its controversial content made Franz Overbeck and Heinrich Koselitz delay its publication, along with Ecce Homo. The German title can be translated into English as both &#34;The Anti-Christ&#34; and &#34;The Anti-Christian&#34;. Save for his raucous, rhapsodical autobiography, &#34;Ecce Homo,&#34; &#34;The Antichrist&#34; is the last thing that Nietzsche ever wrote, and so it may be accepted as a statement of some of his most salient ideas in their final form. Notes for it had been accumulating for years and it was to have constituted the first volume of his long-projected magnum opus, &#34;The Will to Power. &#34;</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/526" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/526" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/526/epub/"
+          length="204134" mtime="2026-08-15T21:37:18+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/526/kepub/"
+          length="214428" mtime="2026-08-15T21:37:18+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Nineteen Eighty-Four. George Orwell</title>
+    <id>urn:uuid:70e7f999-9b71-4411-9b1e-24f718773089</id>
+    <updated>2026-06-09T04:13:32+00:00</updated>
+    
+      <author>
+        <name>George Orwell</name>
+      </author>
+    
+    
+      <publisher>
+        <name>CSA Word</name>
+      </publisher>
+    
+    <published>1949-06-08T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Adult"
+              label="Adult"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Classics"
+              label="Classics"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fantasy"
+              label="Fantasy"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Mobilism"
+              label="Mobilism"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Politics"
+              label="Politics"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Science fiction"
+              label="Science fiction"/>
+    
+    
+    <summary type="text">Newspeak, Doublethink, Big Brother, the Thought Police - the vocabulary of George Orwell&#39;s classic political satire, &#39;Nineteen Eighty-Four&#39;, has passed into the English language, symbolising the horrors of totalitarianism.</summary>
+    <content type="text">Newspeak, Doublethink, Big Brother, the Thought Police - the vocabulary of George Orwell&#39;s classic political satire, &#39;Nineteen Eighty-Four&#39;, has passed into the English language, symbolising the horrors of totalitarianism.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/523" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/523" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/523/epub/"
+          length="1044377" mtime="2026-06-09T04:13:32+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/523/kepub/"
+          length="1079930" mtime="2026-06-09T04:13:32+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>2001: A Space Odyssey</title>
+    <id>urn:uuid:194c0969-7981-4417-a1f7-f08e2a0850a2</id>
+    <updated>2026-08-15T21:28:47+00:00</updated>
+    
+      <author>
+        <name>Arthur C. Clarke</name>
+      </author>
+    
+    
+      <publisher>
+        <name>ePubLibre</name>
+      </publisher>
+    
+    <published>1968-01-01T05:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fiction"
+              label="Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Science fiction"
+              label="Science fiction"/>
+    
+    <calibre:series>Space Odyssey</calibre:series>
+    <calibre:series_index>1</calibre:series_index>
+    <dcterms:isPartOf>Space Odyssey</dcterms:isPartOf>
+    
+    
+    <summary type="text">The year is 2001, and cosmonauts uncover a mysterious monolith that has been buried on the Moon for at least three million years.</summary>
+    <content type="text">The year is 2001, and cosmonauts uncover a mysterious monolith that has been buried on the Moon for at least three million years. To their astonishment, the monolith releases an equally mysterious pulse-a kind of signal-in the direction of Saturn after it is unearthed. Whether alarm or communication, the human race must know what the signal is-and who it was intended for. The Discovery and its crew, assisted by the highly advanced HAL 9000 computer system, sets out to investigate. But as the crew draws closer to their rendezvous with a mysterious and ancient alien civilization, they realize that the greatest dangers they face come from within the spacecraft itself. HAL proves a dangerous traveling companion, and the crew must outwit him to survive. This novel version of the famous Stanley Kubrick film 2001: A Space Odyssey was written by Clarke in conjunction with the movie&#39;s production. It is meant to stand as a companion piece, and it offers a complementary narrative that&#39;s loaded with compelling science fiction ideas.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/510" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/510" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/510/epub/"
+          length="269466" mtime="2026-08-15T21:28:47+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/510/kepub/"
+          length="295647" mtime="2026-08-15T21:28:47+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Player Piano</title>
+    <id>urn:uuid:4c5f8f46-ad9b-4f1c-bf7f-b760c6f422cd</id>
+    <updated>2026-08-15T21:38:40+00:00</updated>
+    
+      <author>
+        <name>Kurt Vonnegut</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Random House Publishing Group</name>
+      </publisher>
+    
+    <published>1980-05-15T04:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/509" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/509" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/509/epub/"
+          length="2018153" mtime="2026-08-15T21:38:40+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/509/kepub/"
+          length="2069468" mtime="2026-08-15T21:38:40+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Overstory</title>
+    <id>urn:uuid:ae7f451f-42ae-4785-ae67-023470e4df86</id>
+    <updated>2026-05-06T05:24:39+00:00</updated>
+    
+      <author>
+        <name>Richard Powers</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Penguin Random House UK</name>
+      </publisher>
+    
+    <published>2018-04-11T21:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/481" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/481" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/481/epub/"
+          length="1306647" mtime="2026-05-06T05:24:39+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/481/kepub/"
+          length="1405352" mtime="2026-05-06T05:24:39+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>1979 The Stories of John Cheever</title>
+    <id>urn:uuid:15930ea6-0c22-43c6-b77a-b0c77c3a29b5</id>
+    <updated>2026-08-15T21:28:42+00:00</updated>
+    
+      <author>
+        <name>John Cheever</name>
+      </author>
+    
+    
+    <published>101-01-01T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/446" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/446" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/446/epub/"
+          length="1209176" mtime="2026-08-15T21:28:42+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/446/kepub/"
+          length="1327237" mtime="2026-08-15T21:28:42+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Fixer</title>
+    <id>urn:uuid:d59d289b-cee8-4db8-9854-4bfafb6ce885</id>
+    <updated>2026-08-15T21:37:45+00:00</updated>
+    
+      <author>
+        <name>Bernard Malamud</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Farrar, Straus and Giroux</name>
+      </publisher>
+    
+    <published>2004-04-30T23:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Antisemitism"
+              label="Antisemitism"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Classics"
+              label="Classics"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="False testimony"
+              label="False testimony"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fiction"
+              label="Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="General"
+              label="General"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Historical fiction"
+              label="Historical fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Jewish"
+              label="Jewish"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Jewish fiction"
+              label="Jewish fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Jews"
+              label="Jews"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Jews - Ukraine"
+              label="Jews - Ukraine"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Kiev (Ukraine)"
+              label="Kiev (Ukraine)"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Legal stories"
+              label="Legal stories"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Literary"
+              label="Literary"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Russia"
+              label="Russia"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Trials (Murder)"
+              label="Trials (Murder)"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Ukraine"
+              label="Ukraine"/>
+    
+    
+    <summary type="text">Set in Czarist Russia, The Fixer is the story of the strains and anxieties that beset a man who finds himself a stranger in his community and a victim of irrational prejudice as a wave of anti-Semitic hysteria engulfs a town after the murder of a boy.</summary>
+    <content type="text">Set in Czarist Russia, The Fixer is the story of the strains and anxieties that beset a man who finds himself a stranger in his community and a victim of irrational prejudice as a wave of anti-Semitic hysteria engulfs a town after the murder of a boy.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/437" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/437" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/437/epub/"
+          length="260535" mtime="2026-08-15T21:37:45+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/437/kepub/"
+          length="302287" mtime="2026-08-15T21:37:45+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>A.B. Guthrie Jr.</title>
+    <id>urn:uuid:6b0b48e4-a48f-415a-9e6b-908cdb9332af</id>
+    <updated>2026-08-15T21:28:50+00:00</updated>
+    
+      <author>
+        <name>Les Weil</name>
+      </author>
+    
+    
+    <published>101-01-01T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/422/epub/"
+          length="562491" mtime="2026-08-15T21:28:50+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/422/kepub/"
+          length="638336" mtime="2026-08-15T21:28:50+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Able McLaughlins</title>
+    <id>urn:uuid:42258268-e88c-43fc-8181-c4600fa7053b</id>
+    <updated>2026-08-18T00:29:07+00:00</updated>
+    
+      <author>
+        <name>Margaret Wilson</name>
+      </author>
+    
+    
+    <published>2019-07-02T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="1861-1865 -- Veterans -- Fiction"
+              label="1861-1865 -- Veterans -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Farm life -- Fiction"
+              label="Farm life -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Husband and wife -- Fiction"
+              label="Husband and wife -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Immigrants -- United States -- Fiction"
+              label="Immigrants -- United States -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Iowa -- Fiction"
+              label="Iowa -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Rape victims -- Fiction"
+              label="Rape victims -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Scottish Americans -- Fiction"
+              label="Scottish Americans -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="United States -- History -- Civil War"
+              label="United States -- History -- Civil War"/>
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/407" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/407" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/407/epub/"
+          length="279052" mtime="2026-08-18T00:29:07+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/407/kepub/"
+          length="309625" mtime="2026-08-18T00:29:07+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Alice Adams</title>
+    <id>urn:uuid:812dd6be-acdb-4b21-bd63-1275a3b0379d</id>
+    <updated>2026-08-15T21:36:54+00:00</updated>
+    
+      <author>
+        <name>Booth Tarkington</name>
+      </author>
+    
+    
+    <published>1997-07-02T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Bildungsromans"
+              label="Bildungsromans"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Domestic fiction"
+              label="Domestic fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Middle class families -- Fiction"
+              label="Middle class families -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Middle West -- Fiction"
+              label="Middle West -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Social classes -- Fiction"
+              label="Social classes -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Young women -- Fiction"
+              label="Young women -- Fiction"/>
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/405" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/405" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/405/epub/"
+          length="258276" mtime="2026-08-15T21:36:54+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/405/kepub/"
+          length="291603" mtime="2026-08-15T21:36:54+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Age of Innocence</title>
+    <id>urn:uuid:c65e568b-f5c7-481b-baf7-85ccb79c0305</id>
+    <updated>2026-08-15T21:36:53+00:00</updated>
+    
+      <author>
+        <name>Edith Wharton</name>
+      </author>
+    
+    
+    <published>1996-05-02T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Domestic fiction"
+              label="Domestic fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Love stories"
+              label="Love stories"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Married people -- Fiction"
+              label="Married people -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="New York (N.Y.) -- Fiction"
+              label="New York (N.Y.) -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Separated people -- Fiction"
+              label="Separated people -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Triangles (Interpersonal relations) -- Fiction"
+              label="Triangles (Interpersonal relations) -- Fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Upper class -- Fiction"
+              label="Upper class -- Fiction"/>
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/404" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/404" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/404/epub/"
+          length="295728" mtime="2026-08-15T21:36:53+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/404/kepub/"
+          length="334358" mtime="2026-08-15T21:36:53+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Fahrenheit 451</title>
+    <id>urn:uuid:feaeb791-cac5-41ea-8560-9e20ecd2120e</id>
+    <updated>2026-05-03T14:45:20+00:00</updated>
+    
+      <author>
+        <name>Ray Bradbury</name>
+      </author>
+    
+    
+      <publisher>
+        <name>ePubLibre</name>
+      </publisher>
+    
+    <published>1953-01-01T05:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Guy Montag is a fireman.</summary>
+    <content type="text">Guy Montag is a fireman. In his world, where television rules and literature is on the brink of extinction, firemen start fires rather than put them out. His job is to destroy the most illegal of commodities, the printed book, along with the houses in which they are hidden. Montag never questions the destruction and ruin his actions produce, returning each day to his bland life and wife, Mildred, who spends all day with her television “family.” But then he meets an eccentric young neighbor, Clarisse, who introduces him to a past where people didn’t live in fear and to a present where one sees the world through the ideas in books instead of the mindless chatter of television. When Mildred attempts suicide and Clarisse suddenly disappears, Montag begins to question everything he has ever known. He starts hiding books in his home, and when his pilfering is discovered, the fireman has to run for his life.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/349" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/349" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/349/epub/"
+          length="308346" mtime="2026-05-03T14:45:20+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/349/kepub/"
+          length="332898" mtime="2026-05-03T14:45:20+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Flatland: A Romance of Many Dimensions</title>
+    <id>urn:uuid:9e5251ad-d530-4e58-9121-8b8336099fdd</id>
+    <updated>2026-08-15T16:42:10+00:00</updated>
+    
+      <author>
+        <name>Edwin Abbott Abbott</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Seeley &amp; Co.</name>
+      </publisher>
+    
+    <published>1884-05-15T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Classic literature"
+              label="Classic literature"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Dystopia"
+              label="Dystopia"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Fourth dimension"
+              label="Fourth dimension"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Geometry"
+              label="Geometry"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Mathematical fiction"
+              label="Mathematical fiction"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Satire"
+              label="Satire"/>
+    
+    <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
+              term="Science fiction"
+              label="Science fiction"/>
+    
+    
+    <summary type="text">Flatland: A Romance of Many Dimensions (1884) is a satirical novella by the English schoolmaster Edwin Abbott Abbott, written under the pseudonym “A Square.</summary>
+    <content type="text">Flatland: A Romance of Many Dimensions (1884) is a satirical novella by the English schoolmaster Edwin Abbott Abbott, written under the pseudonym “A Square.” It is narrated by a square who lives in a two-dimensional world of geometric figures, where social rank is determined by the number of a person’s sides. When the Square is visited by a Sphere from the three-dimensional world of Space, he is forced to confront the possibility of higher dimensions that his fellow Flatlanders cannot perceive. At once a witty satire of the rigid hierarchy of Victorian England and an enduring thought experiment about the nature of dimensions, Flatland has become a classic of mathematical fiction.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/347" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/347" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/347/epub/"
+          length="366904" mtime="2026-08-15T16:42:10+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/347/kepub/"
+          length="732357" mtime="2026-08-15T16:42:10+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Wood at Midwinter</title>
+    <id>urn:uuid:cf82faaa-3bc9-428c-be00-57bc2cb6a4e0</id>
+    <updated>2026-08-15T21:36:07+00:00</updated>
+    
+      <author>
+        <name>Susanna Clarke</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Bloomsbury Publishing</name>
+      </publisher>
+    
+    <published>2024-04-15T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">From the internationally bestselling and prize-winning author of Piranesi and Jonathan Strange &amp; Mr Norrell, an enchanting, beautifully illustrated short story set in the world of Jonathan Strange and Mr Norrell.</summary>
+    <content type="text">From the internationally bestselling and prize-winning author of Piranesi and Jonathan Strange &amp; Mr Norrell, an enchanting, beautifully illustrated short story set in the world of Jonathan Strange and Mr Norrell.&#39;A church is a sort of wood. A wood is a sort of church. They&#39;re the same thing really.&#39; Nineteen-year-old Merowdis Scot is an unusual girl. She can talk to animals and trees-and she is only ever happy when she is walking in the woods. One snowy afternoon, out with her dogs and Apple the pig, Merowdis encounters a blackbird and a fox. As darkness falls, a strange figure enters in their midst-and the path of her life is changed forever.Featuring gorgeous illustrations truly worthy of the magic of this story and an afterword by Susanna Clarke explaining how she came to write it, this is a mesmerizing, must-have addition to any fantasy reader&#39;s bookshelf.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/327" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/327" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/327/epub/"
+          length="18037857" mtime="2026-08-15T21:36:07+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/327/kepub/"
+          length="18040865" mtime="2026-08-15T21:36:07+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Chronicles of Narnia (Complete 7-Book Collection)</title>
+    <id>urn:uuid:d087cd6e-fa00-43c9-86fe-020b9d7255cc</id>
+    <updated>2026-05-03T14:45:13+00:00</updated>
+    
+      <author>
+        <name>C. S. Lewis</name>
+      </author>
+    
+    
+      <publisher>
+        <name>HarperCollins</name>
+      </publisher>
+    
+    <published>1956-09-04T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">This collection contains all seven books in the classic fantasy series The Chronicles of Narnia without art, to appeal to older readers.</summary>
+    <content type="text">This collection contains all seven books in the classic fantasy series The Chronicles of Narnia without art, to appeal to older readers. This special ebook edition includes an introduction by C. S. Lewis&#39;s stepson, Douglas Gresham, and full text and art for Lewis&#39;s very first work--Boxen!Experience C. S. Lewis&#39;s The Chronicles of Narnia in its entirety--The Magician&#39;s Nephew; The Lion, the Witch and the Wardrobe; The Horse and His Boy; Prince Caspian; The Voyage of the Dawn Treader; The Silver Chair; and The Last Battle. This bundle comes with a special introduction by Douglas Gresham, C. S. Lewis&#39;s stepson, for a behind-the-scenes look at Lewis while he was writing the book. The Chronicles of Narnia has become part of the canon of classic literature, drawing readers of all ages into magical lands with unforgettable characters for over sixty years. Epic battles...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/324" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/324" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/324/epub/"
+          length="18350977" mtime="2026-05-03T14:45:13+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/324/kepub/"
+          length="18513976" mtime="2026-05-03T14:45:13+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>East of Eden</title>
+    <id>urn:uuid:4eec934d-a3ae-4f3c-a414-14360f6da5e3</id>
+    <updated>2026-05-03T14:45:11+00:00</updated>
+    
+      <author>
+        <name>John Steinbeck</name>
+      </author>
+    
+    
+      <publisher>
+        <name>The Viking Press</name>
+      </publisher>
+    
+    <published>1952-09-19T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">SUMMARY: Today, nearly forty years after his death, Nobel Prize winner John Steinbeck remains one of America&#39;s greatest writers and cultural figures.</summary>
+    <content type="text">SUMMARY: Today, nearly forty years after his death, Nobel Prize winner John Steinbeck remains one of America&#39;s greatest writers and cultural figures. We have begun publishing his many works for the first time as blackspine Penguin Classics featuring eye-catching, newly commissioned art. This season we continue with the seven spectacular and influential books East of Eden, Cannery Row, In Dubious Battle, The Long Valley, The Moon Is Down, The Pastures of Heaven, and Tortilla Flat. Penguin Classics is proud to present these seminal works to a new generation of readers—and to the many who revisit them again and again.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/322" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/322" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/322/epub/"
+          length="582457" mtime="2026-05-03T14:45:11+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/322/kepub/"
+          length="692143" mtime="2026-05-03T14:45:11+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Grapes of Wrath</title>
+    <id>urn:uuid:44a4b134-e263-4c36-b266-ca3fbf891060</id>
+    <updated>2026-05-03T14:45:10+00:00</updated>
+    
+      <author>
+        <name>John Steinbeck</name>
+      </author>
+    
+    
+      <publisher>
+        <name>The Viking Press</name>
+      </publisher>
+    
+    <published>1939-04-14T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">EDITORIAL REVIEW: Today, nearly forty years after his death, Nobel Prize winner John Steinbeck remains one of America’s greatest writers and cultural figures.</summary>
+    <content type="text">EDITORIAL REVIEW: Today, nearly forty years after his death, Nobel Prize winner John Steinbeck remains one of America’s greatest writers and cultural figures. Over the next year, his many works published as black-spine Penguin Classics for the first time and will feature eye-catching, newly commissioned art. Of this initial group of six titles, *The Grapes of Wrath* is in a new edition with a completely revised introduction and, for the first time, detailed notes by leading Steinbeck scholar Robert DeMott. Penguin Classics is proud to present these seminal works to a new generation of readers—and to the many who revisit them again and again.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/321" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/321" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/321/epub/"
+          length="603784" mtime="2026-05-03T14:45:10+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/321/kepub/"
+          length="713659" mtime="2026-05-03T14:45:10+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Nightwood</title>
+    <id>urn:uuid:6793b539-bcbf-4f9f-8663-91726b985721</id>
+    <updated>2026-05-03T14:45:09+00:00</updated>
+    
+      <author>
+        <name>Djuna Barnes</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Faber &amp; Faber</name>
+      </publisher>
+    
+    <published>1936-10-02T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/320" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/320" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/320/epub/"
+          length="334585" mtime="2026-05-03T14:45:09+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/320/kepub/"
+          length="352237" mtime="2026-05-03T14:45:09+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>All Quiet on the Western Front</title>
+    <id>urn:uuid:007ed27d-76bb-4185-9b9e-802989c28333</id>
+    <updated>2026-08-15T16:50:40+00:00</updated>
+    
+      <author>
+        <name>Erich Maria Remarque</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Little, Brown and Company</name>
+      </publisher>
+    
+    <published>1929-01-29T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Now repackaged--the timeless classic of World War I Germany that speaks to generation after generation.</summary>
+    <content type="text">Now repackaged--the timeless classic of World War I Germany that speaks to generation after generation.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/319" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/319" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/319/epub/"
+          length="689402" mtime="2026-08-15T16:50:40+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/319/kepub/"
+          length="265093" mtime="2026-08-15T16:50:40+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Native Son</title>
+    <id>urn:uuid:475e1025-2546-4d2f-b92a-981a99be2b7e</id>
+    <updated>2026-08-18T02:26:57+00:00</updated>
+    
+      <author>
+        <name>Richard Wright</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Harper &amp; Brothers</name>
+      </publisher>
+    
+    <published>1940-03-02T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">&#34;If one had to identify the single most influential shaping force in modern Black literary history, one would probably have to point to Wright and the publication of Native Son.</summary>
+    <content type="text">&#34;If one had to identify the single most influential shaping force in modern Black literary history, one would probably have to point to Wright and the publication of Native Son.&#34; – Henry Louis Gates Jr.Right from the start, Bigger Thomas had been headed for jail. It could have been for assault or petty larceny; by chance, it was for murder and rape. Native Son tells the story of this young black man caught in a downward spiral after he kills a young white woman in a brief moment of panic.Set in Chicago in the 1930s, Richard Wright&#39;s powerful novel is an unsparing reflection on the poverty and feelings of hopelessness experienced by people in inner cities across the country and of what it means to be black in America.This edition of Native Son includes an essay by Wright titled, How &#34;Bigger&#34; was Born, along with notes on the text.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/318" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/318" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/318/epub/"
+          length="2839047" mtime="2026-08-18T02:26:57+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/318/kepub/"
+          length="2930995" mtime="2026-08-18T02:26:57+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Left Hand of Darkness</title>
+    <id>urn:uuid:0c93fc58-be7f-4553-b196-b46f205d75ba</id>
+    <updated>2026-05-03T14:41:09+00:00</updated>
+    
+      <author>
+        <name>Ursula Le Guin</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Ace Books</name>
+      </publisher>
+    
+    <published>1969-01-08T16:57:05+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">THE LEFT HAND OF DARKNESS is a science fiction novel unlike any you&#39;ve read before.</summary>
+    <content type="text">THE LEFT HAND OF DARKNESS is a science fiction novel unlike any you&#39;ve read before. It is a novel of exotic adventure on a far planet whose people are completely human but for one thing: they are all of the same sex.The lack of sexual differentiation on the planet Winter provides the powerful theme of this book, but it is in no sense a &#34;sensational&#34; novel. As you see this world through the eyes of Earth&#39;s first envoy, caught up in subtle intrigues among the nations of Winter, battling across immense and forbidding ice-fields in a desperate bid for survival, you&#39;ll come to understand gradually and with wonder what it is to be an alien being ... and what it is to be human.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/152" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/152" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/152/epub/"
+          length="1426629" mtime="2026-05-03T14:41:09+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/152/kepub/"
+          length="1457884" mtime="2026-05-03T14:41:09+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Parable of the Talents</title>
+    <id>urn:uuid:d1731237-3326-465c-a0b4-2ce91c47c871</id>
+    <updated>2026-08-18T02:26:55+00:00</updated>
+    
+      <author>
+        <name>Octavia E. Butler</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Open Road Integrated Media</name>
+      </publisher>
+    
+    <published>2012-06-28T16:50:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    
+    <link type="image/jpeg" href="/opds/cover/151" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/151" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/151/epub/"
+          length="3861713" mtime="2026-08-18T02:26:55+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/151/kepub/"
+          length="3793595" mtime="2026-08-18T02:26:55+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Martyr!</title>
+    <id>urn:uuid:fbd5efde-6dd2-4709-96c9-5507292befb6</id>
+    <updated>2026-05-03T14:41:03+00:00</updated>
+    
+      <author>
+        <name>Kaveh Akbar</name>
+      </author>
+    
+    
+    <published>2024-01-23T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">Kaveh Akbar’s Martyr! is a paean to how we spend our lives seeking meaning—in faith, art, ourselves, others—in which a newly sober, orphaned son of Iranian immigrants, guided by the voices of artists, poets, and kings, embarks on a search that leads him to a terminally ill painter living out her final days in the Brooklyn Museum.</summary>
+    <content type="text">Kaveh Akbar’s Martyr! is a paean to how we spend our lives seeking meaning—in faith, art, ourselves, others—in which a newly sober, orphaned son of Iranian immigrants, guided by the voices of artists, poets, and kings, embarks on a search that leads him to a terminally ill painter living out her final days in the Brooklyn Museum. Cyrus Shams is a young man grappling with an inheritance of violence and loss: his mother’s plane was shot down over the skies of Tehran in a senseless accident; and his father’s life in America was circumscribed by his work killing chickens at a factory farm in the Midwest. Cyrus is a drunk, an addict, and a poet, whose obsession with martyrs leads him to examine the mysteries of his past—toward an uncle who rode through Iranian battlefields dressed as the Angel of death to inspire and comfort the dying, and toward his mother, through a painting discovered in a Brooklyn art gallery that suggests she may not have been who or what she seemed. Electrifying, funny, wholly original, and profound, Martyr! heralds the arrival of a blazing and essential new voice in contemporary fiction.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/107" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/107" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/107/epub/"
+          length="454738" mtime="2026-05-03T14:41:03+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/107/kepub/"
+          length="502085" mtime="2026-05-03T14:41:03+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>I&#39;m Glad My Mom Died</title>
+    <id>urn:uuid:05664210-0715-407f-a1e0-cb3a3ef7ad16</id>
+    <updated>2026-08-15T21:36:14+00:00</updated>
+    
+      <author>
+        <name>Jennette McCurdy</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Simon &amp; Schuster</name>
+      </publisher>
+    
+    <published>2022-08-10T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">A heartbreaking and hilarious memoir by iCarly and Sam &amp; Cat star Jennette McCurdy about her struggles as a former child actor--including eating disorders, addiction, and a complicated relationship with her overbearing mother--and how she retook control of her life.</summary>
+    <content type="text">A heartbreaking and hilarious memoir by iCarly and Sam &amp; Cat star Jennette McCurdy about her struggles as a former child actor--including eating disorders, addiction, and a complicated relationship with her overbearing mother--and how she retook control of her life. Jennette McCurdy was six years old when she had her first acting audition. Her mother&#39;s dream was for her only daughter to become a star, and Jennette would do anything to make her mother happy. So she went along with what Mom called &#34;calorie restriction,&#34; eating little and weighing herself five times a day. She endured extensive at-home makeovers while Mom chided, &#34;Your eyelashes are invisible, okay? You think Dakota Fanning doesn&#39;t tint hers?&#34; She was even showered by Mom until age sixteen while sharing her diaries, email, and all her income. In I&#39;m Glad My Mom Died, Jennette recounts all this in unflinching detail--just as she chronicles what happens when the dream finally comes true. Cast in a new Nickelodeon series called iCarly, she is thrust into fame. Though Mom is ecstatic, emailing fan club moderators and getting on a first-name basis with the paparazzi (&#34;Hi Gale!&#34;), Jennette is riddled with anxiety, shame, and self-loathing, which manifest into eating disorders, addiction, and a series of unhealthy relationships. These issues only get worse when, soon after taking the lead in the iCarly spinoff Sam &amp; Cat alongside Ariana Grande, her mother dies of cancer. Finally, after discovering therapy and quitting acting, Jennette embarks on recovery and decides for the first time in her life what she really wants. Told with refreshing candor and dark humor, I&#39;m Glad My Mom Died is an inspiring story of resilience, independence, and the joy of shampooing your own hair.</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/106" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/106" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/106/epub/"
+          length="2129016" mtime="2026-08-15T21:36:14+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/106/kepub/"
+          length="2174517" mtime="2026-08-15T21:36:14+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>The Song of Achilles</title>
+    <id>urn:uuid:d4ba08e0-e72d-4739-afe4-0d4ae4cca92f</id>
+    <updated>2026-06-09T15:13:40+00:00</updated>
+    
+      <author>
+        <name>Madeline Miller</name>
+      </author>
+    
+    
+      <publisher>
+        <name>Harper Collins, Inc.</name>
+      </publisher>
+    
+    <published>2012-03-06T06:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">March 6, 2012Amazon Best Books of the Month, March 2012The legend begins.</summary>
+    <content type="text">March 6, 2012Amazon Best Books of the Month, March 2012The legend begins...Greece in the age of heroes. Patroclus, an awkward young prince, has been exiled to the kingdom of Phthia to be raised in the shadow of King Peleus and his golden son, Achilles. “The best of all the Greeks”—strong, beautiful, and the child of a goddess—Achilles is everything the shamed Patroclus is not. Yet despite their differences, the boys become steadfast companions. Their bond deepens as they grow into young men and become skilled in the arts of war and medicine—much to the displeasure and the fury of Achilles’ mother, Thetis, a cruel sea goddess with a hatred of mortals.When word comes that Helen of Sparta has been kidnapped, the men of Greece, bound by blood and oath, must lay siege to Troy in her name. Seduced by the promise of a glorious destiny, Achilles joins their cause, and torn between love and fear for his friend, Patroclus follows. Little do they know that the Fates will test them both as never before and demand a terrible sacrifice.Built on the groundwork of the Iliad, Madeline Miller’s page-turning, profoundly moving, and blisteringly paced retelling of the epic</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/102" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/102" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/102/epub/"
+          length="338445" mtime="2026-06-09T15:13:40+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/102/kepub/"
+          length="390880" mtime="2026-06-09T15:13:40+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Babel</title>
+    <id>urn:uuid:51b0fb27-158e-4329-a083-dde4fc365677</id>
+    <updated>2026-05-03T14:40:55+00:00</updated>
+    
+      <author>
+        <name>R. F. Kuang</name>
+      </author>
+    
+    
+      <publisher>
+        <name>HarperCollins</name>
+      </publisher>
+    
+    <published>2022-06-02T00:00:00+00:00</published>
+    
+      <dcterms:language>eng</dcterms:language>
+    
+    
+    
+    <summary type="text">From award-winning author R.</summary>
+    <content type="text">From award-winning author R. F. Kuang comes Babel, a thematic response to The Secret History and a tonal retort to Jonathan Strange &amp; Mr. Norrell that grapples with student revolutions, colonial resistance, and the use of language and translation as the dominating tool of the British empire. Traduttore, traditore: An act of translation is always an act of betrayal.1828. Robin Swift, orphaned by cholera in Canton, is brought to London by the mysterious Professor Lovell. There, he trains for years in Latin, Ancient Greek, and Chinese, all in preparation for the day he&#39;ll enroll in Oxford University&#39;s prestigious Royal Institute of Translation—also known as Babel.Babel is the world&#39;s center for translation and, more importantly, magic. Silver working—the art of manifesting the meaning lost in translation using enchanted silver bars—has made the British unparalleled in power, as its knowledge serves the...</content>
+    
+    
+    <link type="image/jpeg" href="/opds/cover/100" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="/opds/cover/100" rel="http://opds-spec.org/image/thumbnail"/>
+    
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/100/epub/"
+          length="1012055" mtime="2026-05-03T14:40:55+00:00" type="application/epub+zip"/>
+    
+    <link rel="http://opds-spec.org/acquisition" href="/opds/download/100/kepub/"
+          length="1117401" mtime="2026-05-03T14:40:55+00:00" type="application/epub+zip"/>
+    
+  </entry>
+  
+  
+  
+  
+</feed>
