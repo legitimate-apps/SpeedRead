@@ -12,6 +12,7 @@ ground truth and the parser is what is wrong — never hand-edit one to make a t
 | `cwng-search.xml` | 2026-05-21 | search response |
 | `cwng-osd.xml` | 2026-05-21 | OpenSearch description (byte-identical on 2026-09-07) |
 | `cwng-books-navigation.xml` | 2026-09-07 | `/opds/books`, 28 entries |
+| `cwng-search-results.xml` | 2026-09-07 | a search response with **zero** results — the capture searched for the literal `{searchTerms}` placeholder, so this is the empty-result shape, which is worth having |
 | `cwng-acquisition-hot.xml` | 2026-09-07 | `/opds/hot`, 42 entries with cover links |
 
 ## Why there are two roots
