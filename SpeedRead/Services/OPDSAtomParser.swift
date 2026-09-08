@@ -27,6 +27,16 @@ nonisolated struct OPDSEntry: Equatable, Identifiable, Sendable {
     let thumbnailURL: URL?
     let navigationLink: URL?
     let acquisitions: [OPDSAcquisition]
+    var categories: [OPDSCategory] = []
+    var publisher: String? = nil
+}
+
+nonisolated struct OPDSCategory: Equatable, Sendable {
+    let term: String
+    let label: String?
+    let scheme: String?
+
+    var displayName: String { label ?? term }
 }
 
 nonisolated struct OPDSAcquisition: Equatable, Sendable {
@@ -85,6 +95,7 @@ nonisolated final class OPDSAtomParser: NSObject {
     private var elementStack: [String] = []
     private var inAuthor: Bool = false
     private var characterBuffer: String = ""
+    private var parentText: [String] = []
 
     private var currentEntryTitle: String = ""
     private var currentEntryID: String = ""
@@ -92,6 +103,8 @@ nonisolated final class OPDSAtomParser: NSObject {
     private var currentEntrySummary: String?
     private var currentEntryUpdated: Date?
     private var currentEntryPublished: Date?
+    private var currentEntryCategories: [OPDSCategory] = []
+    private var currentEntryPublisher: String?
     private var currentEntryLanguage: String?
     private var currentEntryCover: URL?
     private var currentEntryThumbnail: URL?
@@ -160,7 +173,8 @@ nonisolated final class OPDSAtomParser: NSObject {
                     )
                 }
             default:
-                if rel.isEmpty || rel == "subsection" || rel == "alternate" {
+                if (rel.isEmpty || rel == "subsection" || rel == "alternate"),
+                   type == nil || type?.lowercased().hasPrefix("application/atom+xml") == true {
                     if let url = resolveURL(href) {
                         currentEntryNavigationLink = url
                     }
@@ -202,8 +216,9 @@ nonisolated extension OPDSAtomParser: XMLParserDelegate {
     ) {
         let localName = elementName.localOPDSName
 
+        let parent = elementStack.last
         switch localName {
-        case "entry":
+        case "entry" where parent == "feed":
             inEntry = true
             currentEntryTitle = ""
             currentEntryID = ""
@@ -212,19 +227,29 @@ nonisolated extension OPDSAtomParser: XMLParserDelegate {
             currentEntryUpdated = nil
             currentEntryPublished = nil
             currentEntryLanguage = nil
+            currentEntryCategories = []
+            currentEntryPublisher = nil
             currentEntryCover = nil
             currentEntryThumbnail = nil
             currentEntryNavigationLink = nil
             currentEntryAcquisitions = []
-        case "author":
+        case "author" where parent == "entry":
             inAuthor = true
-        case "link":
+        case "category" where parent == "entry":
+            if let term = attrs["term"], !term.isEmpty {
+                let label = attrs["label"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+                currentEntryCategories.append(OPDSCategory(
+                    term: term, label: label.flatMap { $0.isEmpty ? nil : $0 }, scheme: attrs["scheme"]
+                ))
+            }
+        case "link" where parent == "entry" || parent == "feed":
             handleLinkAttributes(attrs)
         default:
             break
         }
 
         elementStack.append(localName)
+        parentText.append(characterBuffer)
         characterBuffer = ""
     }
 
@@ -241,23 +266,26 @@ nonisolated extension OPDSAtomParser: XMLParserDelegate {
         let localName = elementName.localOPDSName
         let trimmed = characterBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        let parent = elementStack.dropLast().last
         if inEntry {
             switch localName {
-            case "title":
+            case "title" where parent == "entry":
                 if currentEntryTitle.isEmpty { currentEntryTitle = trimmed }
-            case "id":
+            case "id" where parent == "entry":
                 currentEntryID = trimmed
-            case "summary", "content":
+            case "summary" where parent == "entry", "content" where parent == "entry":
                 if currentEntrySummary == nil { currentEntrySummary = trimmed }
-            case "updated":
+            case "updated" where parent == "entry":
                 currentEntryUpdated = OPDSAtomParser.parseDate(trimmed)
-            case "published":
+            case "published" where parent == "entry":
                 currentEntryPublished = OPDSAtomParser.parseDate(trimmed)
-            case "language":
+            case "language" where parent == "entry":
                 currentEntryLanguage = trimmed.isEmpty ? nil : trimmed
-            case "name" where inAuthor:
+            case "publisher" where parent == "entry":
+                currentEntryPublisher = trimmed.isEmpty ? nil : trimmed
+            case "name" where inAuthor && parent == "author":
                 if !trimmed.isEmpty { currentEntryAuthors.append(trimmed) }
-            case "author":
+            case "author" where parent == "entry":
                 inAuthor = false
             case "entry":
                 let entry = OPDSEntry(
@@ -271,14 +299,16 @@ nonisolated extension OPDSAtomParser: XMLParserDelegate {
                     coverURL: currentEntryCover,
                     thumbnailURL: currentEntryThumbnail,
                     navigationLink: currentEntryNavigationLink,
-                    acquisitions: currentEntryAcquisitions
+                    acquisitions: currentEntryAcquisitions,
+                    categories: currentEntryCategories,
+                    publisher: currentEntryPublisher
                 )
                 entries.append(entry)
                 inEntry = false
             default:
                 break
             }
-        } else {
+        } else if parent == "feed" {
             switch localName {
             case "title":
                 if feedTitle.isEmpty { feedTitle = trimmed }
@@ -291,7 +321,11 @@ nonisolated extension OPDSAtomParser: XMLParserDelegate {
             }
         }
 
-        characterBuffer = ""
+        let precedingText = parentText.popLast() ?? ""
+        // Entry/feed text is not a value. Discard it instead of accumulating the
+        // entire catalogue; retain child text only inside fields such as summary/publisher.
+        characterBuffer = parent == "entry" || parent == "feed" || parent == nil
+            ? "" : precedingText + characterBuffer
         if !elementStack.isEmpty { elementStack.removeLast() }
     }
 }

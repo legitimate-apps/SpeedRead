@@ -423,6 +423,46 @@ struct OPDSServerSurfaceTests {
         #expect(f.script.remaining == 0)
     }
 
+    // Mutations: ignoring captured navigation targets or next links prevents the session
+    // from requesting the advertised URL; dropping metadata leaves both surfaces empty.
+    @Test func capturedNavigationPaginationAndMetadataSurfaces() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        let server = f.server()
+        f.script.enqueue(f.base, data: try OPDSCapturedFixture.data("cwng-root-2026-09-07"))
+        await f.reload()
+        let sections = OPDSBrowseLogic.sections(for: f.browse.displayEntries)
+        #expect(sections.navigation.count == 17)
+        let recent = try #require(sections.navigation.first { $0.title == "Recently added Books" }?.navigationLink)
+        f.script.enqueue(recent, data: try OPDSCapturedFixture.data("cwng-new"))
+        await f.browse.load(url: recent, on: server, modelContext: f.container.mainContext, makeClient: f.client)
+        #expect(f.browse.displayEntries.count == 60)
+        let next = try #require(f.browse.nextPageURL)
+        #expect(next.path == "/opds/new" && next.query == "offset=60")
+        // A captured terminal feed is a hermetic response, not a claim about the live second page.
+        f.script.enqueue(next, data: try OPDSCapturedFixture.data("cwng-acquisition-hot"))
+        await f.more()
+        #expect(f.browse.displayEntries.count == 102)
+        #expect(f.browse.nextPageURL == nil)
+        await f.more()
+        #expect(f.script.observed.map(\.url) == [f.base, recent, next])
+        let book = try #require(f.browse.displayEntries.dropFirst(60).first)
+        #expect(OPDSMetadataLogic.discoveryFields(for: book).last?.value == "Project Gutenberg")
+        let row = try f.host(OPDSEntryRowView(entry: book, coverProvider: { _ in Image(systemName: "book.closed") }))
+        #expect(Set(try await row.signature()).count > 8)
+        try row.saveJPEG("leg32-browse-row")
+        row.close()
+        let cover = try #require(book.coverURL)
+        f.script.enqueue(cover, data: coverData())
+        let detail = try f.host(RemoteBookDetailView(server: server, entry: book, onAdded: { _ in }))
+        defer { detail.close() }
+        try await eventually { f.detail.coverImage != nil }
+        #expect(Set(try await detail.signature()).count > 8)
+        #expect(OPDSMetadataLogic.detailFields(for: book).last?.value == "ENG")
+        try detail.saveJPEG("leg32-book-detail")
+        #expect(f.script.remaining == 0)
+    }
+
     @Test func scriptConsumesDistinctAndRepeatedStubsWithoutReuse() async throws {
         let f = try Fixture()
         defer { f.close() }
@@ -564,6 +604,15 @@ struct OPDSServerSurfaceTests {
             field.sendActions(for: submitEvent)
         }
         func close() { window.isHidden = true; window.rootViewController = nil }
+        func saveJPEG(_ name: String) throws {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let image = UIGraphicsImageRenderer(bounds: view.bounds, format: format).image {
+                view.layer.render(in: $0.cgContext)
+            }
+            let jpeg = try #require(image.jpegData(compressionQuality: 0.35))
+            try jpeg.write(to: URL(fileURLWithPath: "/tmp/\(name).jpg"))
+        }
         func signature() async throws -> [UInt32] {
             try await Task.sleep(for: .milliseconds(300))
             view.setNeedsLayout()

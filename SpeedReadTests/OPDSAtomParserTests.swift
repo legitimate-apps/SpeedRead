@@ -4,7 +4,7 @@ import Foundation
 
 private final class _FixtureAnchor {}
 
-private enum Fixture {
+enum OPDSCapturedFixture {
     static func data(_ name: String) throws -> Data {
         let bundle = Bundle(for: _FixtureAnchor.self)
         if let url = bundle.url(forResource: name, withExtension: "xml") {
@@ -26,8 +26,9 @@ private let testBase = URL(string: "https://books.example.com/")!
 @Suite("OPDS Atom Parser")
 struct OPDSAtomParserTests {
 
+    // Mutations: lost navigation or search links break the captured response assertions.
     @Test func parsesRootNavigationFeed() throws {
-        let data = try Fixture.data("cwng-root")
+        let data = try OPDSCapturedFixture.data("cwng-root")
         let parser = OPDSAtomParser(baseURL: testBase)
         let feed = try parser.parse(data: data)
 
@@ -45,8 +46,9 @@ struct OPDSAtomParserTests {
         #expect(feed.searchDescriptionURL?.absoluteString == "https://books.example.com/opds/osd")
     }
 
+    // Mutations: lost acquisition, cover, or advertised next links break the captured response assertions.
     @Test func parsesAcquisitionFeedWithBooks() throws {
-        let data = try Fixture.data("cwng-new")
+        let data = try OPDSCapturedFixture.data("cwng-new")
         let parser = OPDSAtomParser(baseURL: testBase)
         let feed = try parser.parse(data: data)
 
@@ -76,8 +78,9 @@ struct OPDSAtomParserTests {
         #expect(feed.nextPageURL?.absoluteString.contains("offset=60") == true)
     }
 
+    // Mutations: dropped search acquisitions break the captured response assertions.
     @Test func parsesSearchResultsFeed() throws {
-        let data = try Fixture.data("cwng-search")
+        let data = try OPDSCapturedFixture.data("cwng-search")
         let parser = OPDSAtomParser(baseURL: testBase)
         let feed = try parser.parse(data: data)
 

@@ -24,6 +24,7 @@ struct RemoteBookDetailView: View {
     var body: some View {
         let availability = OPDSFormatAvailabilityLogic.classify(entry.acquisitions)
         let supportedAcquisitions = availability.readable
+        let acquisitionLabels = OPDSAcquisitionLabelLogic.labels(for: supportedAcquisitions)
         ZStack {
             themeManager.currentTheme.backgroundColor.ignoresSafeArea()
             ScrollView {
@@ -39,8 +40,8 @@ struct RemoteBookDetailView: View {
                                 .font(.system(size: 15, weight: .medium))
                                 .foregroundStyle(Color.walnutLight)
                         }
-                        if let language = entry.language, !language.isEmpty {
-                            Text("Language: \(language.uppercased())")
+                        ForEach(OPDSMetadataLogic.detailFields(for: entry)) { field in
+                            Text(field.text)
                                 .font(.caption)
                                 .foregroundStyle(Color.walnutLight)
                         }
@@ -52,8 +53,8 @@ struct RemoteBookDetailView: View {
                     }
                     if supportedAcquisitions.count > 1 {
                         Picker("Format", selection: $session.selectedAcquisitionIndex) {
-                            ForEach(Array(supportedAcquisitions.enumerated()), id: \.offset) { idx, acq in
-                                Text(acq.displayFormat).tag(idx)
+                            ForEach(Array(supportedAcquisitions.enumerated()), id: \.offset) { idx, _ in
+                                Text(acquisitionLabels[idx]).tag(idx)
                             }
                         }
                         .pickerStyle(.segmented)

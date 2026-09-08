@@ -194,7 +194,7 @@ private struct BrowseFeedView: View {
     private var feedList: some View {
         List {
             if !navigationLinks.isEmpty {
-                Section("Categories") {
+                Section("Browse") {
                     ForEach(navigationLinks, id: \.id) { entry in
                         if let target = entry.navigationLink {
                             NavigationLink {
