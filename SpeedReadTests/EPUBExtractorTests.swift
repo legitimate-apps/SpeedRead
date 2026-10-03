@@ -56,6 +56,35 @@ struct EPUBExtractorTests {
         #expect(EPUBExtractor.stripHTML(xhtml) == "Gregor woke.")
     }
 
+    @Test(arguments: [
+        // A longer name that starts with one is a different element.
+        ("<header>Title</header> <p>Gregor woke.</p>", "Title Gregor woke."),
+        // An element that never closes keeps its text.
+        ("<p>Gregor woke.</p><style>he was a bug", "Gregor woke.\nhe was a bug"),
+        // A self-closed script holds nothing, so the text after it survives the next script.
+        (#"<script src="a.js"/><p>Gregor woke.</p><script>var x;</script>"#, "Gregor woke."),
+        // A `<` that no `>` follows is text.
+        ("<p>a</p>x < y", "a\nx < y"),
+    ])
+    func markupEdgesKeepTheText(xhtml: String, expected: String) {
+        #expect(EPUBExtractor.stripHTML(xhtml) == expected)
+    }
+
+    /// An EPUB is a file anyone can hand us. Openings that never close cost the old regular
+    /// expressions time in the square of their number: 8,000 took 5 s and 12.5 s; 50,000 would take
+    /// minutes. A linear scan does it in milliseconds, so the bound here is generous.
+    @Test func openingsThatNeverCloseTakeLinearTime() {
+        let count = 50_000
+        let hostile = String(repeating: "<style>x", count: count) + String(repeating: "<a x", count: count)
+        let clock = ContinuousClock()
+        var text = ""
+        let elapsed = clock.measure { text = EPUBExtractor.stripHTML(hostile) }
+
+        #expect(elapsed < .seconds(2), "took \(elapsed)")
+        // Every `<style>` is a tag and stripped; every `<a` after them has no `>` and stays text.
+        #expect(text == String(repeating: "x", count: count) + String(repeating: "<a x", count: count))
+    }
+
     @Test func stripHTMLHandlesEmptyInput() {
         let text = EPUBExtractor.stripHTML("")
         #expect(text.isEmpty)

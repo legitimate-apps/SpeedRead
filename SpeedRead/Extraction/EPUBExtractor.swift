@@ -417,17 +417,14 @@ struct EPUBExtractor: TextExtractor {
     static func stripHTML(_ html: String) -> String {
         guard !html.isEmpty else { return "" }
 
-        // The head (title, style sheets) and any style or script element are not the book's text.
-        var text = html.replacingOccurrences(
-            of: "(?is)<(head|style|script)\\b[^>]*>.*?</\\1\\s*>", with: "", options: .regularExpression
-        )
+        var text = removingNonTextElements(html)
 
         let blockTags = ["</p>", "</div>", "</h1>", "</h2>", "</h3>", "</h4>", "</h5>", "</h6>", "<br>", "<br/>", "<br />"]
         for tag in blockTags {
             text = text.replacingOccurrences(of: tag, with: "\n", options: .caseInsensitive)
         }
 
-        text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        text = removingTags(text)
 
         let entities: [(String, String)] = [
             ("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"),
@@ -445,6 +442,114 @@ struct EPUBExtractor: TextExtractor {
         text = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
         return text
+    }
+
+    // These two are scans rather than regular expressions on purpose. A pattern that looks for the
+    // end of something restarts from every opening it finds, so a document full of openings that
+    // never close costs time in the square of its length: 8,000 of them took 5 s for elements and
+    // 12.5 s for tags (measured 2026-10-03), from a file anyone can hand us. Each scan below
+    // remembers where the next end is, or that there is none, and never looks for it again.
+
+    /// Drops `<head>`, `<style>` and `<script>` elements: the head's title and style sheets, and
+    /// any inline style or script, are not the book's text. An element that never closes is kept,
+    /// so its markup is stripped as tags and its text survives. A self-closed `<script … />`, which
+    /// XHTML allows, holds nothing: removing through the next `</script>` would take the text between.
+    static func removingNonTextElements(_ html: String) -> String {
+        let source = Array(html.utf8)
+        let names: [[UInt8]] = ["head", "style", "script"].map { Array($0.utf8) }
+        var unclosed = Set<Int>()
+        var output: [UInt8] = []
+        output.reserveCapacity(source.count)
+        var copied = 0
+        var index = 0
+        // The first `>` at or after where it was last looked for; source.count when there is none.
+        var nextClose = -1
+        while index < source.count {
+            guard source[index] == UInt8(ascii: "<"),
+                  let name = names.indices.first(where: { !unclosed.contains($0)
+                      && matchesName(names[$0], in: source, at: index + 1) })
+            else {
+                index += 1
+                continue
+            }
+            if nextClose < index {
+                nextClose = source[index...].firstIndex(of: UInt8(ascii: ">")) ?? source.count
+            }
+            // An opening tag that never ends cannot open an element, and neither can any after it.
+            if nextClose == source.count { break }
+            if source[nextClose - 1] == UInt8(ascii: "/") {
+                index = nextClose + 1
+                continue
+            }
+            guard let end = closingTagEnd(names[name], in: source, from: nextClose + 1) else {
+                unclosed.insert(name)
+                index += 1
+                continue
+            }
+            output.append(contentsOf: source[copied..<index])
+            copied = end
+            index = end
+        }
+        output.append(contentsOf: source[copied...])
+        return String(decoding: output, as: UTF8.self)
+    }
+
+    /// Removes every `<…>` tag. A `<` with no `>` after it is text, as are the rest of the
+    /// document's characters once one is found.
+    static func removingTags(_ text: String) -> String {
+        let source = Array(text.utf8)
+        var output: [UInt8] = []
+        output.reserveCapacity(source.count)
+        var index = 0
+        var closersRemain = true
+        while index < source.count {
+            if closersRemain, source[index] == UInt8(ascii: "<"), index + 1 < source.count,
+               source[index + 1] != UInt8(ascii: ">") {
+                if let close = source[(index + 1)...].firstIndex(of: UInt8(ascii: ">")) {
+                    index = close + 1
+                    continue
+                }
+                closersRemain = false
+            }
+            output.append(source[index])
+            index += 1
+        }
+        return String(decoding: output, as: UTF8.self)
+    }
+
+    /// `name` at `position`, case-insensitively, followed by something that cannot continue a tag
+    /// name — so `<header>` is not `<head>`.
+    private static func matchesName(_ name: [UInt8], in source: [UInt8], at position: Int) -> Bool {
+        guard position + name.count <= source.count else { return false }
+        for (offset, byte) in name.enumerated() where source[position + offset] | 0x20 != byte {
+            return false
+        }
+        let next = position + name.count
+        guard next < source.count else { return false }
+        let byte = source[next]
+        let isNameByte = (byte | 0x20 >= UInt8(ascii: "a") && byte | 0x20 <= UInt8(ascii: "z"))
+            || (byte >= UInt8(ascii: "0") && byte <= UInt8(ascii: "9"))
+            || byte == UInt8(ascii: "-") || byte == UInt8(ascii: ":") || byte == UInt8(ascii: "_")
+        return !isNameByte
+    }
+
+    /// The index just past `</name …>` at or after `start`, or nil when there is none.
+    private static func closingTagEnd(_ name: [UInt8], in source: [UInt8], from start: Int) -> Int? {
+        var index = start
+        while index + 1 < source.count {
+            if source[index] == UInt8(ascii: "<"), source[index + 1] == UInt8(ascii: "/"),
+               matchesName(name, in: source, at: index + 2) {
+                var close = index + 2 + name.count
+                while close < source.count, source[close] != UInt8(ascii: ">") {
+                    // Only whitespace may sit between a closing tag's name and its `>`.
+                    guard [0x20, 0x09, 0x0A, 0x0D].contains(source[close]) else { break }
+                    close += 1
+                }
+                if close < source.count, source[close] == UInt8(ascii: ">") { return close + 1 }
+            }
+            index += 1
+        }
+        return nil
     }
 
     // MARK: - EPUB XML Parsing
