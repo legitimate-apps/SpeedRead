@@ -65,6 +65,17 @@ struct ServerEditView: View {
             }
 
             Section {
+                Toggle(isOn: $session.syncsReadingPosition) {
+                    Label("Sync reading position", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .accessibilityIdentifier("server-sync-position-toggle")
+            } header: {
+                Text("Reading Position")
+            } footer: {
+                Text("For books downloaded from this server: your place is saved to it, and you are offered the place you reached in other readers that sync with it. Only servers that support text-anchored positions are used.")
+            }
+
+            Section {
                 Button {
                     Task { await session.testConnection(server: server, makeClient: makeClient) }
                 } label: {

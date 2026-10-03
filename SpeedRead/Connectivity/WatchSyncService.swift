@@ -758,6 +758,8 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         do {
             try modelContext.save()
             pendingWatchPositionOffer = nil
+            // Reading happened on the watch; the phone carries it to the library server.
+            ServerPositionSync.shared.noteCommitted(bookId: book.id)
             return true
         } catch {
             Self.logger.error("Failed to persist accepted watch reading position: \(error.localizedDescription)")

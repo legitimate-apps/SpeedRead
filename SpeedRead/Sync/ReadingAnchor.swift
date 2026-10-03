@@ -15,8 +15,60 @@ nonisolated struct ReadingAnchor: Codable, Hashable, Sendable {
 
     static let contextWords = 8
 
+    /// Builds the anchor for one position without preparing the whole book for matching:
+    /// one split and one token count per word, no folding.
     static func build(text: String, tokenIndex: Int) -> ReadingAnchor? {
-        AnchoredText(text).anchor(atToken: tokenIndex)
+        let words = text.split(whereSeparator: \.isWhitespace)
+        guard tokenIndex >= 0 else { return nil }
+        var firstToken = 0
+        for w in words.indices {
+            firstToken += BookTokenizer.splitHyphens(words[w]).count
+            if tokenIndex < firstToken { return ReadingAnchor(words: words, at: w) }
+        }
+        return nil
+    }
+
+    init(text: String, before: String, after: String) {
+        self.text = text
+        self.before = before
+        self.after = after
+    }
+
+    init(words: [Substring], at w: Int) {
+        text = String(words[w])
+        before = words[max(0, w - Self.contextWords)..<w].joined(separator: " ")
+        after = words[(w + 1)..<min(words.count, w + 1 + Self.contextWords)].joined(separator: " ")
+    }
+
+    /// The server sends `null` for empty context at the edges of a book.
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        text = try container.decode(String.self, forKey: .text)
+        before = try container.decodeIfPresent(String.self, forKey: .before) ?? ""
+        after = try container.decodeIfPresent(String.self, forKey: .after) ?? ""
+    }
+
+    /// The anchor as the server will accept it, or nil when it cannot be sent at all. The server
+    /// rejects the whole push (400) for a `text` over 200 scalars or that folds to nothing, and for
+    /// context over 600 — so context is trimmed by whole words from the far end instead.
+    func wireSafe() -> ReadingAnchor? {
+        guard text.unicodeScalars.count <= Self.maximumTextScalars, !Self.fold(text).isEmpty else { return nil }
+        return ReadingAnchor(
+            text: text,
+            before: Self.trimmed(before, keepingEnd: true),
+            after: Self.trimmed(after, keepingEnd: false)
+        )
+    }
+
+    static let maximumTextScalars = 200
+    static let maximumContextScalars = 600
+
+    private static func trimmed(_ context: String, keepingEnd: Bool) -> String {
+        var words = context.split(separator: " ")
+        while words.joined(separator: " ").unicodeScalars.count > maximumContextScalars {
+            if keepingEnd { words.removeFirst() } else { words.removeLast() }
+        }
+        return words.joined(separator: " ")
     }
 
     func resolve(in text: String, near fraction: Double) -> Int? {
@@ -111,13 +163,15 @@ nonisolated struct AnchoredText: Sendable {
     // MARK: Building
 
     func anchor(atToken tokenIndex: Int) -> ReadingAnchor? {
-        guard let w = word(containingToken: tokenIndex) else { return nil }
-        let context = ReadingAnchor.contextWords
-        return ReadingAnchor(
-            text: String(words[w]),
-            before: words[max(0, w - context)..<w].joined(separator: " "),
-            after: words[(w + 1)..<min(words.count, w + 1 + context)].joined(separator: " ")
-        )
+        word(containingToken: tokenIndex).map { ReadingAnchor(words: words, at: $0) }
+    }
+
+    /// The source words around a position, for an offer to show where it would take the reader.
+    func snippet(aroundToken tokenIndex: Int, radius: Int = 4) -> String {
+        guard let w = word(containingToken: tokenIndex) else { return "" }
+        let lower = max(0, w - radius), upper = min(words.count, w + radius + 1)
+        return (lower > 0 ? "…" : "") + words[lower..<upper].joined(separator: " ")
+            + (upper < words.count ? "…" : "")
     }
 
     /// The first token of the source word containing `tokenIndex`: where a resolved anchor lands.

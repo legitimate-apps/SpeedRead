@@ -8,6 +8,7 @@ struct ContentView: View {
     @AppStorage(ReviewPromptLogic.launchCountKey) private var reviewPromptLaunchCount = 0
     @Environment(\.modelContext) private var modelContext
     @Environment(\.requestReview) private var requestReview
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var syncService: WatchSyncService
 
     private let reviewPromptGate: ReviewPromptProcessGate
@@ -33,6 +34,13 @@ struct ContentView: View {
         .task {
             syncService.configure(modelContext: modelContext)
             syncService.activate()
+            ServerPositionSync.shared.configure(modelContainer: modelContext.container)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .background else { return }
+            // Leaving the app is the moment a place must reach the server: the next reader may
+            // be picked up within seconds.
+            ServerPositionSync.shared.flushInBackground()
         }
         .onAppear {
             handleReviewPrompt()

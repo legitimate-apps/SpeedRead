@@ -12,6 +12,9 @@ final class OPDSServer {
     var allowInsecureHTTP: Bool
     var lastUsedAt: Date?
     var sortIndex: Int
+    /// Push and pull reading positions when the server supports anchored positions. A server
+    /// that does not is never written to, whatever this says.
+    var syncsReadingPosition: Bool = true
 
     init(
         name: String,

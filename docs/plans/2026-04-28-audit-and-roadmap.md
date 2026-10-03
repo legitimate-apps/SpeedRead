@@ -139,6 +139,7 @@ Guarded by `crownMathUsesTheLoadedTokenStream`, `crownBindingIsPublishedOnlyWhen
 | F28 | CJK / multi-language tokenization | pending |
 | F29 | Subscription paywall (gates: cloud sync, training, export) | pending |
 | F30 | Interactive onboarding tutorial | pending |
+| F31 | Reading-position sync with the user's own library server (KOSync + text anchors; CWNG first) | client built and joint end-to-end passed 2026-10-03; awaiting the server merge and a release — [design notes](2026-10-03-reading-sync.md) |
 
 ---
 
@@ -290,3 +291,5 @@ Each round is its own session/PR. This doc gets the Changelog updated.
   this repo once shipped a live server password from a runtime flag that was not a compile
   guard.
 - **2026-10-03** — B32 fixed: watch RSVP no longer does O(book) work per word (tokenize per access, crown detents rebuilt per word). Measured 99.0% → 6.3% of a core at 1000 WPM on a 150k-word book. Reading sync with the user's own server started; see [reading-sync design notes](2026-10-03-reading-sync.md).
+- **2026-10-03** — F31 client: reading anchors (fold v2, pinned to the server's shared vectors), KOSync client, debounced push of committed positions, pull as an offer in the reader, per-server toggle. Mutation controls red for the device-id, finished-cap, retry, dash-fold and drift guards.
+- **2026-10-03** — F31 hardening after an independent review: offers are withdrawn by reading, by a later pull that finds nothing new, and when sync is turned off; a late or older answer cannot replace a newer offer; accepting drops the push queued before it; an unanswered probe keeps the push queued; saving a server re-probes it; a push is read back for the winner; background time ends exactly once. Ten mutation controls, all red. Joint end-to-end against CWNG passed. EPUB extraction stops reading `<head>`/`<style>`/`<script>` as text (calibre cover CSS leaked into the first words; every bundled book began `"Cover"`).

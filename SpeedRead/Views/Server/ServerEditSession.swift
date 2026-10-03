@@ -10,6 +10,7 @@ final class ServerEditSession {
     var username: String = ""
     var password: String = ""
     var allowInsecureHTTP: Bool = false
+    var syncsReadingPosition: Bool = true
 
     private(set) var testState: ServerEditLogic.ConnectionState = .idle
     private(set) var validationError: String?
@@ -25,9 +26,11 @@ final class ServerEditSession {
         username = values.username
         password = values.password
         allowInsecureHTTP = values.allowInsecureHTTP
+        syncsReadingPosition = server?.syncsReadingPosition ?? true
     }
 
-    func save(server: OPDSServer?, modelContext: ModelContext) -> Bool {
+    func save(server: OPDSServer?, modelContext: ModelContext,
+              positionSync: ServerPositionSync = .shared) -> Bool {
         let validated: ServerEditLogic.ValidatedServer
         switch ServerEditLogic.saveDecision(
             name: name,
@@ -49,7 +52,9 @@ final class ServerEditSession {
             server.baseURLString = validated.url.absoluteString
             server.username = validated.username
             server.allowInsecureHTTP = validated.allowInsecureHTTP
+            server.syncsReadingPosition = syncsReadingPosition
             persistPassword(validated.password, for: server.keychainTag)
+            positionSync.serverSettingsChanged(server)
         } else {
             let s = OPDSServer(
                 name: validated.name,
@@ -58,6 +63,7 @@ final class ServerEditSession {
                 allowInsecureHTTP: validated.allowInsecureHTTP,
                 sortIndex: ServerEditLogic.sortIndex()
             )
+            s.syncsReadingPosition = syncsReadingPosition
             modelContext.insert(s)
             persistPassword(validated.password, for: s.keychainTag)
         }

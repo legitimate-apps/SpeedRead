@@ -83,6 +83,7 @@ SpeedRead/
   Extraction/                  // TextExtractor protocol + PDF / EPUB / RTF / TXT impls
   Services/                    // DocumentImporter, SampleBookLoader
   Connectivity/                // WatchSyncService (WCSession, both iOS+watchOS conditionally)
+  Sync/                        // Library-server position sync: KOSync client, anchors, partialMD5
   Theme/                       // Color palette, fonts, ShelfTheme, ThemeManager
   Views/                       // LibraryView, ReaderView, RSVPView, BookSpine/Bookshelf,
                                // ReaderWordFlow (custom Layout), pickers, OnboardingView
@@ -152,6 +153,8 @@ the whole life of the watch app because Swift 5 does not run the check.
 | `readerLineSpacing` | Double | ReaderView |
 | `readerThemeMode` | String (parchment/sepia/night) | ReaderView |
 | `rsvpLastWPM` | Int | RSVPView, ReaderView |
+| `positionSyncDeviceID` | String (UUID) | ServerPositionSync — this device's KOSync `device_id`; renaming it makes the server see a new device |
+| `positionSyncDeclinedOffers` | [String: Double] | ServerPositionSync — book id → declined server timestamp |
 
 ## Build & test commands
 

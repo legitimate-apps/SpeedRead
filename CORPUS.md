@@ -15,7 +15,8 @@ Every RSVP app makes you leave your book to use it. SpeedRead makes the two ways
 book one continuous act: read normally, tap any word, and that word is where the RSVP stream starts.
 Close it, and the reader is already scrolled to where you stopped, with that word marked red. Your
 position is a single number, and it should follow you wherever you read: phone, iPad, watch, and the
-library server you already run. *(Today it reaches the watch only — see §6.2.)*
+library server you already run. *(Shipped today: the watch only. Server sync is built and verified
+end to end, not yet released — see §6.2.)*
 
 The bet: the reason people bounce off speed-reading is not the technique, it's the friction of
 switching into it. Remove the switch and the technique gets used.
@@ -148,8 +149,11 @@ These are the operator's named priorities. They outrank backlog items.
      that lands the reader somewhere else is a bug.
    - The three-marker model (§4.4) carries over: only reading commits a position, so browsing
      never pushes one to the server.
-   - *State 2026-10-03: only phone↔watch sync exists. iPhone↔iPad does not sync, and nothing
-     syncs with any server.*
+   - *State 2026-10-03: phone↔watch sync is shipped. Sync with the library server the book came from
+     (CWNG, over KOSync with text anchors) is built on `main` and passed a joint end-to-end run
+     against a CWNG build: a KOReader position became an offer that landed on the same word, and
+     SpeedRead's own place reached the server. It is not in a released version yet, and the server
+     half was still an unmerged pull request. iPhone↔iPad still does not sync.*
 3. **No identity mixing.** The app ships under Legitimate LLC; the operator's personal identity
    appears nowhere in the repo, the binary or any listing. CWNG references are to a separate
    project, not a sibling brand.

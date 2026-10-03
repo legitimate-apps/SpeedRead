@@ -10,6 +10,7 @@ struct ReaderView: View {
     @Bindable var book: Book
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var syncService: WatchSyncService
+    @Environment(\.scenePhase) private var scenePhase
 
     @AppStorage("readerFontSize") private var fontSize: Double = ReaderConfig.Classic.defaultFontSize
     @AppStorage("readerLineSpacing") private var lineSpacingPref: Double = ReaderConfig.Classic.defaultLineSpacing
@@ -69,6 +70,21 @@ struct ReaderView: View {
 
             bottomBar
         }
+        .overlay(alignment: .top) {
+            if let offer = serverSync.pendingOffer, offer.bookId == book.id {
+                ServerPositionOfferBanner(
+                    offer: offer,
+                    palette: currentTheme,
+                    onContinue: {
+                        if serverSync.accept(offer, sync: syncService) {
+                            session.requestInitialScroll(for: book)
+                        }
+                    },
+                    onDismiss: { serverSync.decline(offer) }
+                )
+            }
+        }
+        .animation(.easeInOut, value: serverSync.pendingOffer)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(currentTheme.barBackground, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
@@ -112,6 +128,17 @@ struct ReaderView: View {
         }
         .task {
             session.load(book: book)
+        }
+        .task(id: book.id) {
+            await serverSync.pull(bookId: book.id)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await serverSync.pull(bookId: book.id) }
+        }
+        .onDisappear {
+            serverSync.dismissOffer(for: book.id)
+            Task { await serverSync.flush() }
         }
         .task(id: session.wordFlash?.id) {
             guard let flash = session.wordFlash else { return }
@@ -166,6 +193,8 @@ struct ReaderView: View {
             )
         }
     }
+
+    private var serverSync: ServerPositionSync { .shared }
 
     // MARK: - Sections
 
@@ -364,5 +393,49 @@ struct ReaderView: View {
     private func cycleTheme() {
         themeMode = session.cycleTheme(from: themeMode)
         UISelectionFeedbackGenerator().selectionChanged()
+    }
+}
+
+struct ServerPositionOfferBanner: View {
+    let offer: ServerPositionSync.Offer
+    let palette: ReaderPalette
+    let onContinue: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(offer.displayText)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(palette.bodyText)
+            if !offer.snippet.isEmpty {
+                Text(offer.snippet)
+                    .font(.system(size: 13, design: .serif))
+                    .italic()
+                    .foregroundStyle(palette.bodyText.opacity(0.75))
+                    .lineLimit(2)
+            }
+            HStack(spacing: 12) {
+                Button("Continue", action: onContinue)
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.accent)
+                    .accessibilityIdentifier("server-position-offer-continue")
+                Button("Stay Here", action: onDismiss)
+                    .buttonStyle(.bordered)
+                    .tint(palette.accent)
+                    .accessibilityIdentifier("server-position-offer-dismiss")
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Opaque: the bar colour is translucent, and the page text showing through made the
+        // offer hard to read (observed on the CWNG end-to-end run, 2026-10-03).
+        .background(palette.background, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(palette.barText.opacity(0.12)))
+        .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("server-position-offer")
     }
 }

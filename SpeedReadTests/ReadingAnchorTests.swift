@@ -31,6 +31,29 @@ struct ReadingAnchorTests {
         #expect(ReadingAnchor.build(text: "", tokenIndex: 0) == nil)
     }
 
+    @Test func anAnchorIsTrimmedToWhatTheServerAccepts() throws {
+        let long = String(repeating: "x", count: 100)
+        let context = Array(repeating: long, count: 8).joined(separator: " ")
+        let anchor = try #require(ReadingAnchor(text: "word", before: context, after: context).wireSafe())
+        // 8 words of 100 scalars plus spaces is 807; whole words come off the far end.
+        #expect(anchor.before == Array(repeating: long, count: 5).joined(separator: " "))
+        #expect(anchor.after == anchor.before)
+        #expect(anchor.before.unicodeScalars.count <= ReadingAnchor.maximumContextScalars)
+        #expect(ReadingAnchor(text: "near", before: "a b", after: "c").wireSafe()
+            == ReadingAnchor(text: "near", before: "a b", after: "c"))
+    }
+
+    @Test func anAnchorTheServerWouldRejectIsNotSent() {
+        #expect(ReadingAnchor(text: String(repeating: "y", count: 201), before: "", after: "").wireSafe() == nil)
+        #expect(ReadingAnchor(text: String(repeating: "y", count: 200), before: "", after: "").wireSafe() != nil)
+        #expect(ReadingAnchor(text: "\u{AD}\u{200B}", before: "a", after: "b").wireSafe() == nil)
+    }
+
+    @Test func nullContextDecodesAsEmpty() throws {
+        let anchor = try JSONDecoder().decode(ReadingAnchor.self, from: Data(#"{"text":"Gregor","before":null}"#.utf8))
+        #expect(anchor == ReadingAnchor(text: "Gregor", before: "", after: ""))
+    }
+
     @Test func aTrailingHyphenWordStaysItsOwnWord() {
         // "pre-" is a whole source word; joining it to the next token would invent "pre-and".
         let anchor = ReadingAnchor.build(text: "pre- and post-war", tokenIndex: 0)
@@ -48,17 +71,26 @@ struct ReadingAnchorTests {
         #expect(anchor.resolve(in: text, near: 0.5) == 4)
     }
 
-    /// The server's own examples for its fold (CWNG, fold v2, 2026-10-03).
+    /// The server's FOLD_VECTORS, verbatim, escapes included (CWNG fold v2, 2026-10-03). Both
+    /// sides pin this same list; none of it was produced by the code under test.
     @Test("fold matches the server", arguments: [
-        ("Café", "cafe"),
+        ("Caf\u{E9}", "cafe"),
         ("Cafe\u{301}", "cafe"),
-        ("CAFE", "cafe"),
+        ("CAF\u{C9}", "cafe"),
         ("glow\u{AD}ering", "glowering"),
+        ("zero\u{200B}width", "zerowidth"),
+        ("\u{201C}Gregor!\u{201D}", "\"gregor!\""),
+        ("it\u{2019}s", "it's"),
+        ("self\u{2014}aware", "self-aware"),
+        ("a\u{A0}b c\n\td", "abcd"),
+        ("\u{FB01}ne", "fine"),
+        ("Stra\u{DF}e", "stra\u{DF}e"),
+        ("\u{C6}SIR", "\u{E6}sir"),
         ("zero\u{200B}width\u{FEFF}", "zerowidth"),
-        ("“Gregor—come here!”", "\"gregor-comehere!\""),
-        ("it’s ‘so’", "it's'so'"),
-        ("ﬁne\u{00A0}Ⅳ", "fineiv"),
-        ("ÆSIR Straße", "æsirstraße"),
+        ("\u{201C}Gregor\u{2014}come here!\u{201D}", "\"gregor-comehere!\""),
+        ("it\u{2019}s \u{2018}so\u{2019}", "it's'so'"),
+        ("\u{FB01}ne\u{A0}\u{2163}", "fineiv"),
+        ("\u{2032}", "\u{2032}"),
     ])
     func foldMatchesTheServer(input: String, expected: String) {
         #expect(ReadingAnchor.fold(input) == expected)
@@ -125,6 +157,8 @@ struct ReadingAnchorTests {
             let resolved = prepared.resolve(anchor, near: Double(index) / Double(count))
             // A hyphen-split word resolves to its first token: that is the whole word's start.
             if resolved != prepared.wordStartToken(index) { misses.append(index) }
+            // The cheap single-position builder must agree with the prepared one.
+            if index % (37 * 20) == 0 { #expect(ReadingAnchor.build(text: text, tokenIndex: index) == anchor) }
         }
         #expect(misses.isEmpty, "unresolved or misplaced positions: \(misses.prefix(10))")
     }

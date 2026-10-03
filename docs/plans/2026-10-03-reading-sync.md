@@ -133,12 +133,87 @@ happened.
 - [x] Capture the digest (every import), OPDS `<id>` and server book id on `Book` at download (2026-10-03).
 - [ ] `ChapterMark.spineIndex` (optional, 1-based).
 - [x] Anchor build and resolve, with fold v2 (2026-10-03).
-- [ ] Sync client: server-type detection, push of committed positions, pull as an offer. Key fallback:
-  the decimal book id when the digest misses. CWNG confirmed a GET for a book hidden from the
-  account returns `{}` and names nothing.
+- [x] Sync client (2026-10-03): server-type detection, push of committed positions, pull as an offer,
+  and a per-server toggle. See "Client behaviour" below.
+- [x] Joint end-to-end against a built CWNG container (2026-10-03). See "End-to-end run" below.
 - [ ] iPhone↔iPad: the same position model over Apple's own sync (it does not exist today).
+
+## Client behaviour (built 2026-10-03)
+
+Code: `SpeedRead/Sync/` (`KOSyncClient`, `ServerPositionLogic`, `ServerPositionSync`), with the hook
+in `ReadingPositionCoordinator.commit`.
+
+- **Which books sync.** Only a book downloaded from the server, and only with that server. It is
+  keyed by the digest, or by the decimal book id when it has no digest. CWNG confirmed that a GET
+  for a book hidden from the account returns `{}` and names nothing.
+- **Which servers.** The KOSync base is the OPDS base with its trailing `opds` replaced by `kosync`.
+  `GET users/auth` is probed once per server address per launch, and only a server advertising
+  `anchor` is used. A probe that gets no answer is not remembered, and the push waiting on it stays
+  queued. An answer is forgotten when the server's settings are saved, because a 401 may have been
+  a wrong password. Each server has its own "Sync reading position" toggle, on by default; it is
+  re-checked after every network wait, so turning it off also stops a push already under way.
+- **Push.** Every reading commit marks the book. The push goes out after 10 s without another commit
+  (playback commits every few seconds), and immediately when the app backgrounds or the reader
+  closes. Background time is ended exactly once: when the flush finishes or when iOS expires it.
+  A failed push is kept for the next flush. Flushes run one at a time, because the server lets a
+  device rewind its own place and an older push landing last would move it backwards.
+  - A push that loses (another reader is further on) still gets a 200, so every accepted push is
+    followed by a read of the winner, which can become an offer.
+  - The percentage is the index over the word count.
+  - An unfinished place is capped at 0.989, so reading the last page does not finish the book on
+    every other reader.
+  - A finished book is 1.0, with no anchor.
+  - The anchor is trimmed to the server's limits, or dropped rather than risk a 400.
+- **Pull.** On reader open and on returning to the foreground. The anchor is resolved in this copy;
+  the percentage is the fallback. The pull becomes an offer only when another device set the place,
+  after this device last read, it was not already declined at that server timestamp, and it differs
+  by ≥ max(5 words, 1%) or in finished state.
+- **Offer.** A banner in the reader shows where it goes ("Continue from Kobo Libra 2 — 69%", plus
+  the words there). Continue commits the place: the watch follows, it is not pushed back, and a
+  push queued before it is dropped. "Stay Here" remembers the declined server timestamp.
+  - An offer is withdrawn when the reader reads (a commit is an answer), when the reader closes,
+    when a later pull finds nothing new, and when the server's sync is turned off.
+  - A pull that was in flight when its offer was withdrawn is ignored, and an older server
+    position never replaces a newer offer.
+- **Watch.** A position accepted from the watch is pushed by the phone under the phone's device id.
+
+**Deliberately not done (yet):**
+- Books downloaded before 2026-10-03 have neither key, so they do not sync until downloaded again.
+  Matching them through an OPDS search by title and author is possible later.
+- A stock KOSync server is never used. It authenticates with its own account (x-auth headers), not
+  the OPDS credentials, so even pull-only support needs a separate sync-server entry. That is
+  worth doing only if someone without CWNG asks.
+- Sideloaded books (Files, AirDrop) never sync: no server is guaranteed to share their key.
+
+## End-to-end run (2026-10-03, CWNG c6234f66d in a local container)
+
+Every step was observed on a simulator against the real server. Screenshots:
+`/Volumes/Crucial X8/agent-artifacts/speedread-e2e-20261003/` (outside the repo).
+
+1. Downloading over OPDS recorded digest `d9e3a7d7…`, not the library file's `aedfc6c6…`: CWNG embeds
+   metadata on download. The book id (221) carries the sync, because the server keys rows by book.
+2. Tapping word 57 and closing the reader pushed it with its anchor. The server located the anchor
+   as an xpointer, and the row read back under both keys.
+3. A KOReader PUT at 0.7 on the library digest came back under our digest with the anchor "to".
+4. Reopening the book showed "Continue from KOReader — 70%" with the right sentence. Continue
+   landed on that exact token ("We have **to** try and get rid of it"), and nothing was pushed back.
+5. Tapping a later word and pressing Home pushed it from the background flush, and it won.
+
+What the run changed:
+- **The percentage is measured on the server's copy for anchored positions** (CWNG 2fae7146f, on
+  our proposal). The same sentence was 0.70 in KOReader and 0.772 in SpeedRead, which counts the
+  front matter of its own copy, so furthest-wins compared unlike numbers. The server now derives
+  the figure from the library EPUB whenever it locates the anchor; ours is only used for unanchored
+  pushes. The client decides "another device" by `device_id` alone, so it needs no change.
+- **The banner shows where the reader will land, in this copy's words**, which is the figure the
+  header shows after Continue. Before the change, the banner read 70% and the header read 77%.
+- **The banner is opaque.** The bar colour is translucent, and page text showed through it.
+- **EPUB extraction no longer reads `<head>`, `<style>` or `<script>` as text.** Calibre's cover
+  page put its CSS into the book's first words, and every bundled sample began with the word
+  `"Cover"`. Existing books keep their stored text, and the fix applies from the next import.
 
 ## Open for the operator
 
 - The furthest-wins policy on CWNG is product policy. The client never jumps silently, so it is
-  safe, but the operator may prefer most-recent-wins.
+  safe, but the operator may prefer most-recent-wins. Since 2fae7146f it at least compares like
+  with like.

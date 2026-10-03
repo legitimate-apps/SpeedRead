@@ -49,6 +49,7 @@ extension ReadingPositionCoordinator {
         book: Book,
         saver: any ReadingPositionSaving,
         sync: (any ReadingPositionSyncing)? = nil,
+        serverSync: (any ServerPositionPushing)? = nil,
         now: Date = Date(),
         didFinish: Bool = false
     ) -> ReadingPositionCommit {
@@ -81,6 +82,7 @@ extension ReadingPositionCoordinator {
             didFinish: book.finishedAt != nil,
             finishedAt: book.finishedAt
         )
+        (serverSync ?? ServerPositionSync.shared).noteCommitted(bookId: book.id)
         return ReadingPositionCommit(index: clamped, timestamp: now, didSave: didSave)
     }
 }
