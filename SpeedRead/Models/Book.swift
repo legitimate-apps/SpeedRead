@@ -13,7 +13,7 @@ nonisolated enum BookTokenizer {
     /// Splits a word on ASCII hyphens, keeping the hyphen attached to the left part.
     /// Only splits when both sides of a hyphen contain at least one letter, so pure
     /// hyphen runs ("--"), leading hyphens ("-prefix"), and em/en-dashes are preserved.
-    private static func splitHyphens(_ word: Substring) -> [String] {
+    static func splitHyphens(_ word: Substring) -> [String] {
         var tokens: [String] = []
         var segmentStart = word.startIndex
         var i = word.startIndex

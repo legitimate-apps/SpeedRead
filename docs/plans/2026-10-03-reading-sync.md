@@ -94,11 +94,24 @@ GET /kosync/syncs/progress/<document>?position_kinds=locator,percentage,anchor
   boundaries and are clipped at the start and end of the book.
 - Words are split on whitespace, and block boundaries count as whitespace.
 
-**Matching (do the same client-side):**
-- Insensitive to whitespace (strip it).
-- Case-insensitive: NFKC + casefold.
-- Soft hyphens and zero-width characters are dropped.
-- Dash variants and curly-quote variants are folded.
+**Matching — fold v2 (CWNG, 2026-10-03; replaces the first draft's NFKC + casefold, because Swift
+has no exact equivalent of either).** Apply it per Unicode scalar, on both sides:
+1. Drop whitespace, and U+00AD, U+200B, U+200C, U+200D, U+2060, U+FEFF.
+2. Map U+2010–U+2015 and U+2212 to `-`.
+3. Map U+2018–U+201B to `'`, and U+201C–U+201F to `"`.
+4. Otherwise: NFKD of the single scalar, drop nonspacing marks (Mn), then lowercase. Diacritics are
+   ignored on purpose, because precomposed and decomposed forms differ between EPUB sources.
+
+Client: `ReadingAnchor.fold` in `SpeedRead/Sync/ReadingAnchor.swift`. Its pinned pairs were derived
+from a Python transcription of the rule above, not from CWNG's code. They will be replaced by
+CWNG's shared vector list when it arrives.
+
+**Client resolution.** `AnchoredText` prepares a book once, in O(text). It searches the folded,
+whitespace-free text for the full needle, then before+text, then text+after; a one-sided needle
+under 16 folded bytes is skipped. It takes the occurrence nearest the reported percentage, and
+refuses it when it is further than max(15% of the book, 1000 folded bytes). The result is the
+first token of the matched source word. Measured 2026-10-03: CWNG's Metamorphosis anchor lands on
+the right token, and every 37th position of both bundled books round-trips with no misses.
 
 The server measured 114/116 Kindle page positions round-tripping on Metamorphosis. The two misses
 are a textless cover and repeated licence boilerplate, which it correctly refused.
@@ -119,8 +132,10 @@ happened.
   short reads.
 - [x] Capture the digest (every import), OPDS `<id>` and server book id on `Book` at download (2026-10-03).
 - [ ] `ChapterMark.spineIndex` (optional, 1-based).
-- [ ] Sync client: server-type detection, push of committed positions, pull as an offer, anchor
-  build and resolve.
+- [x] Anchor build and resolve, with fold v2 (2026-10-03).
+- [ ] Sync client: server-type detection, push of committed positions, pull as an offer. Key fallback:
+  the decimal book id when the digest misses. CWNG confirmed a GET for a book hidden from the
+  account returns `{}` and names nothing.
 - [ ] iPhone↔iPad: the same position model over Apple's own sync (it does not exist today).
 
 ## Open for the operator
