@@ -18,11 +18,11 @@ struct DocumentImporter {
 
     /// Import already-in-memory bytes (e.g. from an OPDS download). No
     /// security-scoped resource handling; caller has already obtained the bytes.
-    func importData(_ data: Data, filename: String) throws -> Book {
-        try importBytes(data, filename: filename)
+    func importData(_ data: Data, filename: String, origin: BookOrigin? = nil) throws -> Book {
+        try importBytes(data, filename: filename, origin: origin)
     }
 
-    private func importBytes(_ data: Data, filename: String) throws -> Book {
+    private func importBytes(_ data: Data, filename: String, origin: BookOrigin? = nil) throws -> Book {
         let fileExtension = (filename as NSString).pathExtension
         guard let format = SupportedFormat(fileExtension: fileExtension) else {
             throw ExtractionError.unsupportedFormat
@@ -52,6 +52,10 @@ struct DocumentImporter {
             sourceFileName: filename,
             chapters: result.chapters
         )
+        // Over the bytes exactly as received: this is what a sync server registered when it
+        // served them.
+        book.sourceDigest = KOReaderPartialMD5.digest(of: data)
+        book.origin = origin
 
         modelContext.insert(book)
         try modelContext.save()

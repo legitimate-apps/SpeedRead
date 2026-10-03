@@ -50,7 +50,12 @@ final class RemoteBookDetailSession {
                 fallbackTitle: entry.title
             )
             let importer = DocumentImporter(modelContext: modelContext)
-            let book = try importer.importData(payload.data, filename: filename)
+            let origin = BookOrigin(
+                serverID: server.id,
+                entryID: entry.id,
+                serverBookID: BookOrigin.serverBookID(fromAcquisition: acquisition.url)
+            )
+            let book = try importer.importData(payload.data, filename: filename, origin: origin)
             onAdded(book.title)
             dismiss()
         } catch let err as OPDSError {

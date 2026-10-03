@@ -282,6 +282,9 @@ struct OPDSServerSurfaceTests {
         #expect(books.count == 1)
         #expect(books.first?.extractedText == "The downloaded text has real words.")
         #expect(books.first?.sourceFileName == "Selected.txt")
+        #expect(books.first?.origin == BookOrigin(serverID: server.id, entryID: book.id, serverBookID: nil))
+        #expect(books.first?.sourceDigest
+            == KOReaderPartialMD5.digest(of: Data("The downloaded text has real words.".utf8)))
         #expect(try await hosted.signature() != downloading)
         #expect(f.script.observed.map(\.url) == [cover, downloadURL])
         #expect(f.script.remaining == 0)

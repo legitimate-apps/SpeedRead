@@ -83,6 +83,13 @@ final class Book {
     var furthestReadWordIndex: Int = -1
     var wordCount: Int
 
+    /// KOReader partial MD5 of the bytes this book was imported from — the key sync servers
+    /// match reading progress on. Nil for books imported before it was recorded.
+    var sourceDigest: String? = nil
+    private var originServerID: UUID? = nil
+    private var originEntryID: String? = nil
+    private var originServerBookID: String? = nil
+
     /// Tokens persisted at import so RSVP and reader don't re-tokenize the entire
     /// book on every access. Empty for books imported before this field existed —
     /// `words` falls back to live tokenization in that case.
@@ -119,6 +126,19 @@ final class Book {
         let tokens = Book.tokenize(extractedText)
         self.tokenizedWords = tokens
         self.wordCount = tokens.count
+    }
+
+    var origin: BookOrigin? {
+        get {
+            guard let originServerID, let originEntryID else { return nil }
+            return BookOrigin(serverID: originServerID, entryID: originEntryID,
+                              serverBookID: originServerBookID)
+        }
+        set {
+            originServerID = newValue?.serverID
+            originEntryID = newValue?.entryID
+            originServerBookID = newValue?.serverBookID
+        }
     }
 
     /// Splits text into RSVP-friendly tokens, breaking hyphenated words

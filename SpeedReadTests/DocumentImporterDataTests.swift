@@ -82,6 +82,31 @@ struct DocumentImporterDataTests {
         #expect(book.title == "Untitled Manuscript")
     }
 
+    @Test func importRecordsTheKOReaderDigestOfTheImportedBytes() throws {
+        let context = try inMemoryContext()
+        let importer = DocumentImporter(modelContext: context)
+        let url = try #require(Bundle.main.url(forResource: "TheMetamorphosis", withExtension: "epub"))
+
+        let book = try importer.importData(try Data(contentsOf: url), filename: "TheMetamorphosis.epub")
+
+        // Oracle from a sync server's own implementation, run over this exact file.
+        #expect(book.sourceDigest == "cd4aad201fc3bba1606d427e4bd9a8e8")
+        #expect(book.origin == nil)
+    }
+
+    @Test func aDownloadRecordsWhereTheBookCameFrom() throws {
+        let context = try inMemoryContext()
+        let importer = DocumentImporter(modelContext: context)
+        let origin = BookOrigin(serverID: UUID(), entryID: "urn:uuid:2853dacf-ed79-42f5-8e8a-a7bb3d1ae6a2",
+                                serverBookID: "100")
+
+        let book = try importer.importData(Data("Some downloaded words.".utf8), filename: "d.txt",
+                                           origin: origin)
+
+        #expect(book.origin == origin)
+        #expect(book.sourceDigest != nil)
+    }
+
     @Test func wordCountMatchesTokenization() throws {
         let context = try inMemoryContext()
         let importer = DocumentImporter(modelContext: context)
