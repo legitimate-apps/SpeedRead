@@ -156,9 +156,9 @@ These are the operator's named priorities. They outrank backlog items.
 
 ## 7. Release posture
 
-1. Live: **1.2 (build 4)**, released 2026-09-06. **1.3 (build 5)** was submitted 2026-09-07 with
-   `releaseType` MANUAL, so App Review approval does not publish it; the operator decides when
-   to release. The current state lives in `CLAUDE.md` and the release-state memory, not here.
+1. **An approved build goes live.** Versions are created `AFTER_APPROVAL`; a build parked in
+   `PENDING_DEVELOPER_RELEASE` is a mistake to fix, not a decision to wait on (1.3 sat approved
+   for weeks that way). Current release state lives in `CLAUDE.md`, not here.
 2. **A release must contain real user-facing change.** Before submitting, diff the candidate's
    *source* against the live build's source, not the version number.
 

@@ -50,8 +50,10 @@ with open("/Users/<operator>/.appstoreconnect/private_keys/AuthKey_<ASC_KEY_ID>.
 now = int(time.time())
 t = jwt.encode({"iss": ISS, "iat": now, "exp": now+1200, "aud": "appstoreconnect-v1"},
                pk, algorithm="ES256", headers={"kid": KEY, "typ": "JWT"})
+# AFTER_APPROVAL: the operator wants approved builds live, not parked in
+# PENDING_DEVELOPER_RELEASE waiting on a manual release (operator, 2026-10-03).
 payload = {"data": {"type": "appStoreVersions",
-    "attributes": {"platform": "IOS", "versionString": NEW_VERSION, "releaseType": "MANUAL"},
+    "attributes": {"platform": "IOS", "versionString": NEW_VERSION, "releaseType": "AFTER_APPROVAL"},
     "relationships": {"app": {"data": {"type": "apps", "id": APP}}}}}
 req = urllib.request.Request("https://api.appstoreconnect.apple.com/v1/appStoreVersions",
     data=json.dumps(payload).encode(),
