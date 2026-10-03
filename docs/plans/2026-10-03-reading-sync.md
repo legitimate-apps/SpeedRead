@@ -58,7 +58,7 @@ CWNG's code was read there, not here. Everything below is their report, with the
 7. **Client UX:** only reading commits a position (CORPUS §4.4). A pulled position that differs from
    the local one is an **offer**, the same pattern as watch→phone, and is never a silent jump.
 
-## Wire draft (CWNG, 2026-10-03, branch `feat/reading-position-sync`, unmerged, 22 tests)
+## Wire draft (CWNG, 2026-10-03, branch `feat/reading-position-sync`, merged to CWNG main 2026-10-03 22:13 UTC as PR #2458, squash 199482e7d; not yet in a CWNG release tag)
 
 Auth is HTTP Basic with the OPDS credentials. The server is **CWNG-capable only if `"anchor"` ∈
 `capabilities`**.
