@@ -58,9 +58,57 @@ CWNG's code was read there, not here. Everything below is their report, with the
 7. **Client UX:** only reading commits a position (CORPUS §4.4). A pulled position that differs from
    the local one is an **offer**, the same pattern as watch→phone, and is never a silent jump.
 
+## Wire draft (CWNG, 2026-10-03, branch `feat/reading-position-sync`, unmerged, 22 tests)
+
+Auth is HTTP Basic with the OPDS credentials. The server is **CWNG-capable only if `"anchor"` ∈
+`capabilities`**.
+
+```
+GET /kosync/users/auth
+  → 200 {"authorized":"OK","capabilities":["position_kinds","percentage_push","anchor","book_id_document"]}
+  (A stock server: no capabilities, and Basic gets a 401 because it wants x-auth headers.)
+
+PUT /kosync/syncs/progress   application/json
+  {"document": "<partialMD5 lowercase hex>" | "<decimal calibre id>",
+   "percentage": 0.5143,                      // 0–1 only; never 0–100; not a bool
+   "device": "SpeedRead (iPhone)", "device_id": "<stable UUID>",
+   "position_kind": "percentage",
+   "anchor": {"text": "…", "before": "…", "after": "…"}}   // optional
+  - No `progress` (or null/""). `anchor` requires position_kind "percentage".
+  - text: non-empty after folding, ≤200 chars. before/after: ≤600 chars or null.
+  - Any violation → 400, nothing stored.
+  → 200 {"document", "timestamp", "calibre_book_id"?, "calibre_book_title"?, …}
+  A push that loses (furthest wins; the same device_id may rewind) still returns 200, so read the
+  winner back with GET.
+
+GET /kosync/syncs/progress/<document>?position_kinds=locator,percentage,anchor
+  → 200 {"percentage", "position_kind": "locator"|"percentage", "progress": "<xpointer>"|null (ignore),
+         "device", "device_id", "timestamp" (server receipt time), "calibre_book_id"?,
+         "anchor"? (only when the server can prove the place in the library EPUB)}
+  A miss → {}. A non-EPUB book never has an anchor.
+```
+
+**Anchor format (both directions):**
+- `text` is the whole source word, punctuation attached.
+- `before`/`after` are ≤8 words each side, joined with single spaces. They cross chapter
+  boundaries and are clipped at the start and end of the book.
+- Words are split on whitespace, and block boundaries count as whitespace.
+
+**Matching (do the same client-side):**
+- Insensitive to whitespace (strip it).
+- Case-insensitive: NFKC + casefold.
+- Soft hyphens and zero-width characters are dropped.
+- Dash variants and curly-quote variants are folded.
+
+The server measured 114/116 Kindle page positions round-tripping on Metamorphosis. The two misses
+are a textless cover and repeated licence boilerplate, which it correctly refused.
+
+Finished is ≥ 0.99. `timestamp` is when the server received the push, not when the reading
+happened.
+
 ## SpeedRead work list
 
-- [ ] partialMD5 port, pinned to CWNG's vectors:
+- [x] partialMD5 port (`SpeedRead/Sync/KOReaderPartialMD5.swift`, 2026-10-03), pinned to CWNG's vectors:
   - empty → `d41d8cd98f00b204e9800998ecf8427e`
   - 1000 B of `i % 256` → `cbecbdb0fdd5cec1e242493b6008cc79`
   - 5000 B of `i % 7` → `9243bab1092e42b23119c31de4f016eb`
@@ -69,7 +117,7 @@ CWNG's code was read there, not here. Everything below is their report, with the
 
   The rule: read ≤1024 B at offsets 0, 1K, 4K, 16K, … 1G, stop at the first empty read, and hash
   short reads.
-- [ ] Capture the digest, OPDS `<id>` and server book id on `Book` at download.
+- [x] Capture the digest (every import), OPDS `<id>` and server book id on `Book` at download (2026-10-03).
 - [ ] `ChapterMark.spineIndex` (optional, 1-based).
 - [ ] Sync client: server-type detection, push of committed positions, pull as an offer, anchor
   build and resolve.
