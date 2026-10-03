@@ -417,7 +417,10 @@ struct EPUBExtractor: TextExtractor {
     static func stripHTML(_ html: String) -> String {
         guard !html.isEmpty else { return "" }
 
-        var text = html
+        // The head (title, style sheets) and any style or script element are not the book's text.
+        var text = html.replacingOccurrences(
+            of: "(?is)<(head|style|script)\\b[^>]*>.*?</\\1\\s*>", with: "", options: .regularExpression
+        )
 
         let blockTags = ["</p>", "</div>", "</h1>", "</h2>", "</h3>", "</h4>", "</h5>", "</h6>", "<br>", "<br/>", "<br />"]
         for tag in blockTags {

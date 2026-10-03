@@ -6,19 +6,23 @@ import Testing
 @Suite("Chapter token-stream identity")
 @MainActor
 struct ChapterTokenIdentityTests {
+    /// A changed fingerprint moves every position stored against a fresh import, so it changes only
+    /// on purpose. The EPUB values last changed on 2026-10-03, when head titles and style sheets
+    /// stopped being read as text (13, 46 and 34 words, counted independently in
+    /// BundledSampleBookTests). Books already imported keep their stored text and are unaffected.
     @Test func bundledBooksRetainTheirExactExtractedTextAndTokenStreams() throws {
         let expected: [String: (text: String, tokens: String)] = [
             "TheYellowWallpaper.epub": (
-                "e4cef268cec644eebf88f0d6861e9b52ddc474763143abef0b58ff26d0265129",
-                "f3089ba3defc469d11587bc3312f9fc06cba9afe0af432df13906a183330c6f8"
+                "65afb4a56676ffa59aa60efa5a28e90591594713792a524bd9ac1590c4cdc59a",
+                "6a6f17561d3008304b4e08b1f8069ee39539af7dc547ee9837324e50370d92eb"
             ),
             "TheMetamorphosis.epub": (
-                "b153e5f9e423890eb8c51bf62c4e23bffd1705bbb625b8cf59723fcce095953d",
-                "e83b7c7f7b325da85c766a10bfd7142304887ad61af3eb192528006002aa3ae2"
+                "5d45d886570cdddd72195146d8d701ebbe52396e80286b32f5d628284351de92",
+                "603ae6c1a2812f2fab99269400fe6f38d0be9e5829a443a8b99faf99caee0835"
             ),
             "AChristmasCarol.epub": (
-                "f8bb6b62b8fd4ba2fb68dc33fdf19cdacde0a9804187c4a2366ca3552cd89a3c",
-                "113d29f547428cc04fbdf07d6a10bee417d06602e7ed8d477761773bfac16423"
+                "0dc3693dd41795fc70c3d0e3ca3af821be2f94328db6a9e30078a201812ed368",
+                "c0a00492930ff83b79acfd21b9acb3cae2e0c711d30e37a8ba62c9abfe512f54"
             ),
             "AChristmasCarol.pdf": (
                 "6933321011b85584696482fa42f33b064bc6292f9e7b48622b34cf6a3ad38136",

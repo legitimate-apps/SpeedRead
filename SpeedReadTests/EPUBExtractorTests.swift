@@ -30,6 +30,32 @@ struct EPUBExtractorTests {
         #expect(text.contains("&") || text.contains("think"))
     }
 
+    /// Calibre's cover page, as a calibre server serves it. Observed 2026-10-03: before the fix the
+    /// extracted book began "Cover @page {padding: 0pt; margin:0pt} body { text-align: …", so the
+    /// head's title and the style sheet were read as words.
+    @Test func headStyleAndScriptAreNotText() {
+        let xhtml = """
+        <?xml version='1.0' encoding='utf-8'?>
+        <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+            <head>
+                <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+                <meta name="calibre:cover" content="true"/>
+                <title>Cover</title>
+                <style type="text/css" title="override_css">
+                    @page {padding: 0pt; margin:0pt}
+                    body { text-align: center; padding:0pt; margin: 0pt; }
+                </style>
+            </head>
+            <body>
+                <STYLE>p { color: red }</STYLE>
+                <script type="text/javascript">var x = 1;</script>
+                <p>Gregor woke.</p>
+            </body>
+        </html>
+        """
+        #expect(EPUBExtractor.stripHTML(xhtml) == "Gregor woke.")
+    }
+
     @Test func stripHTMLHandlesEmptyInput() {
         let text = EPUBExtractor.stripHTML("")
         #expect(text.isEmpty)
@@ -562,7 +588,9 @@ struct EPUBExtractorTests {
         let result = try EPUBExtractor().extractText(from: buildStoredZIP(
             files: entries.sorted { $0.key < $1.key }.map { ($0.key, $0.value) }))
         #expect(result.text == original.text)
-        #expect(result.text.count == 50_913)
+        // 50,913 until 2026-10-03, when each chapter's head title ("The Yellow Wallpaper | Project
+        // Gutenberg") stopped being read as text.
+        #expect(result.text.count == 50_822)
         switch mode {
         case "ncx", "duplicate":
             #expect(result.chapters == original.chapters)
@@ -574,7 +602,7 @@ struct EPUBExtractorTests {
         case "missingTarget", "missingFragment":
             #expect(result.chapters == Array(original.chapters.suffix(1)))
         default:
-            #expect(result.chapters.first?.startWordIndex == 1)
+            #expect(result.chapters.first?.startWordIndex == 0)
             #expect(result.chapters.first?.title == "The Yellow Wallpaper")
             #expect(result.chapters.last == original.chapters.last)
         }

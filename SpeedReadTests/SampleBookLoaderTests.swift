@@ -69,7 +69,7 @@ struct SampleBookLoaderTests {
             "AChristmasCarol.pdf"
         ])
         #expect(books.map(\.sourceFileName) == ["TheYellowWallpaper.epub"])
-        #expect(books[0].wordCount == 9_173)
+        #expect(books[0].wordCount == 9_160)
     }
 
     private func makeContext() throws -> ModelContext {

@@ -2,6 +2,9 @@ import Foundation
 import Testing
 @testable import SpeedRead
 
+/// Until 2026-10-03 every count here included each spine document's head title, and every book's
+/// first word was `"Cover"`, the cover page's <title>. The removed words (13, 46 and 34) were
+/// counted independently from the EPUBs with a separate script, not taken from the extractor.
 @Suite("Bundled Sample Book Tests")
 @MainActor
 struct BundledSampleBookTests {
@@ -10,9 +13,9 @@ struct BundledSampleBookTests {
 
         #expect(result.title == "The Yellow Wallpaper")
         #expect(result.author == "Charlotte Perkins Gilman")
-        #expect(result.text.count == 50_913)
-        #expect(words.count == 9_173)
-        #expect(words.first == "\"Cover\"")
+        #expect(result.text.count == 50_822)
+        #expect(words.count == 9_160)
+        #expect(words.first == "The")
         #expect(words.last == "eBooks.")
     }
 
@@ -21,9 +24,9 @@ struct BundledSampleBookTests {
 
         #expect(result.title == "Metamorphosis")
         #expect(result.author == "Franz Kafka")
-        #expect(result.text.count == 138_589)
-        #expect(words.count == 25_153)
-        #expect(words.first == "\"Cover\"")
+        #expect(result.text.count == 138_272)
+        #expect(words.count == 25_107)
+        #expect(words.first == "The")
         #expect(words.last == "eBooks.")
     }
 
@@ -32,9 +35,9 @@ struct BundledSampleBookTests {
 
         #expect(result.title == "A Christmas Carol in Prose; Being a Ghost Story of Christmas")
         #expect(result.author == "Charles Dickens")
-        #expect(result.text.count == 206_206)
-        #expect(words.count == 32_036)
-        #expect(words.first == "\"Cover\"")
+        #expect(result.text.count == 205_989)
+        #expect(words.count == 32_002)
+        #expect(words.first == "The")
         #expect(words.last == "eBooks.")
     }
 
