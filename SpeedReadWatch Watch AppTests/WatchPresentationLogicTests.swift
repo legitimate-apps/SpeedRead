@@ -17,12 +17,46 @@ struct WatchRSVPSessionTests {
         #expect(crownValue == CrownSeek.crownValue(forWordIndex: 2, wordCount: 3))
     }
 
+    @Test("crown math runs on the loaded token stream, not the stored word count")
+    func crownMathUsesTheLoadedTokenStream() {
+        // Whitespace sees 3 words, the canonical tokenizer 4. Legacy migrated books persisted
+        // the whitespace count, so a stored wordCount is not a safe crown range.
+        let session = WatchRSVPSession()
+
+        let crownValue = session.load(book: makeBook(text: "self-aware zero one"), wpm: 300)
+
+        #expect(session.wordCount == 4)
+        #expect(crownValue == CrownSeek.crownValue(forWordIndex: 0, wordCount: 4))
+        #expect(session.seek(toCrownValue: crownValue - 3) == CrownSeek.crownValue(forWordIndex: 3, wordCount: 4))
+        #expect(session.engine.currentWord == "one")
+    }
+
+    @Test("the crown binding is left alone while playing and caught up on pause")
+    func crownBindingIsPublishedOnlyWhenTheCrownIsLive() {
+        // Publishing per word made watchOS rebuild the crown's detents across the whole book
+        // on every word: MEASURED ~20% of a core at 1000 WPM on a 150k-word book.
+        let session = WatchRSVPSession()
+        _ = session.load(book: makeBook(text: "zero one two three four five"), wpm: 300)
+        session.togglePlayback()
+        session.engine.seek(to: 4)
+
+        #expect(session.crownValueToPublish() == nil)
+
+        session.togglePlayback()
+        #expect(session.crownValueToPublish() == CrownSeek.crownValue(forWordIndex: 4, wordCount: 6))
+        // The first detent after the pause moves one word from the visible one, not from where
+        // the binding last stood before playback.
+        session.seek(toCrownValue: CrownSeek.crownValue(forWordIndex: 4, wordCount: 6) + 1)
+        #expect(session.engine.currentIndex == 3)
+    }
+
     @Test func missingCurrentBookLeavesAnUnloadedEngine() {
         let session = WatchRSVPSession()
 
         let crownValue = session.load(book: nil, wpm: 300)
 
         #expect(crownValue == 0)
+        #expect(session.wordCount == 0)
         #expect(!session.engine.isLoaded)
         #expect(session.engine.state == .idle)
     }
@@ -87,10 +121,10 @@ struct WatchRSVPSessionTests {
         let session = WatchRSVPSession()
         _ = session.load(book: makeBook(text: "zero one two three"), wpm: 300)
 
-        session.seek(toCrownValue: 0, wordCount: 4)
+        session.seek(toCrownValue: 0)
         #expect(session.engine.currentIndex == 3)
         session.togglePlayback()
-        session.seek(toCrownValue: 3, wordCount: 4)
+        session.seek(toCrownValue: 3)
         #expect(session.engine.currentIndex == 3)
         session.togglePlayback()
     }
@@ -101,7 +135,7 @@ struct WatchRSVPSessionTests {
         let staleCrownValue = session.load(book: makeBook(text: "zero one two three four five six eight", index: 2), wpm: 300)
         session.engine.seek(to: 6)
 
-        session.seek(toCrownValue: staleCrownValue - 1, wordCount: 8)
+        session.seek(toCrownValue: staleCrownValue - 1)
 
         #expect(session.engine.currentIndex == 7)
     }

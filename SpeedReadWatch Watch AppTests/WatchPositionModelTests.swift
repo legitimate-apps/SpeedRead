@@ -96,8 +96,27 @@ struct WatchPositionModelTests {
             chapters: [ChapterMark(title: "Part", startWordIndex: 3)]
         )
 
-        #expect(book.words == ["self-", "awareness", "starts", "part-", "two"])
-        #expect(book.words[book.chapters[0].startWordIndex] == "part-")
+        let words = book.tokenizeWords()
+        #expect(words == ["self-", "awareness", "starts", "part-", "two"])
+        #expect(words[book.chapters[0].startWordIndex] == "part-")
+    }
+
+    @Test("legacy single-book migration stores the canonical token count")
+    func legacySingleBookMigrationCountsCanonicalTokens() throws {
+        let legacyURL = storage.directory.appendingPathComponent("watchbook.json")
+        try JSONSerialization.data(withJSONObject: [
+            "title": "Old", "author": "Author", "text": "self-aware zero one", "position": 3,
+        ]).write(to: legacyURL)
+        let service = WatchSyncService(session: BrowseRecordingWatchSession(), store: storage.store)
+
+        service.loadLibrary()
+
+        let book = try #require(service.library.currentBook)
+        // A whitespace count (3) would clamp every later commit off the last token.
+        #expect(book.wordCount == 4)
+        #expect(book.wordCount == book.tokenizeWords().count)
+        #expect(storage.store.load().currentBook?.wordCount == 4)
+        #expect(!FileManager.default.fileExists(atPath: legacyURL.path))
     }
 }
 

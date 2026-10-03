@@ -91,7 +91,10 @@ struct WatchBook: Codable, Identifiable, Hashable {
         try container.encode(chapters, forKey: .chapters)
     }
 
-    var words: [String] {
+    /// Tokenizes the whole book: O(text). Call once per reading session and keep the result —
+    /// never from a view body or a per-word callback. The watch holds every book's text but
+    /// only the open book's tokens; the session owns them through its engine.
+    func tokenizeWords() -> [String] {
         BookTokenizer.tokenize(text)
     }
 

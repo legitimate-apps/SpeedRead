@@ -32,6 +32,44 @@ final class CrownDirectionUITests: XCTestCase {
         )
     }
 
+    /// The crown binding is not written during playback (it made watchOS rebuild detents across
+    /// the whole book per word), so pausing must catch it up. If it does not, the first turn
+    /// measures its delta from the stale pre-playback value and snaps back to where reading began.
+    func testCrownAfterPlaybackMovesFromThePausedWord() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-crown-direction", "-rsvpLastWPM", "1000"]
+        app.launch()
+
+        let position = app.descendants(matching: .any)["watch-rsvp-position"]
+        let toggle = app.buttons["rsvp-playback-toggle"]
+        XCTAssertTrue(position.waitForExistence(timeout: 5), "RSVP position must be visible")
+        let start = wordIndex(of: position)
+
+        toggle.tap()
+        let advanced = XCTNSPredicateExpectation(
+            predicate: NSPredicate { object, _ in
+                guard let value = (object as? XCUIElement)?.value as? String,
+                      let index = Int(value) else { return false }
+                return index >= start + 40
+            },
+            object: position
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 10), .completed)
+        toggle.tap()
+        let paused = wordIndex(of: position)
+        XCTAssertGreaterThanOrEqual(paused, start + 40)
+
+        XCUIDevice.shared.rotateDigitalCrown(delta: 0.25)
+        let afterTurn = waitForChangedIndex(of: position, from: paused)
+
+        XCTAssertLessThan(afterTurn, paused, "A positive delta still moves backward")
+        XCTAssertGreaterThan(
+            afterTurn,
+            start + (paused - start) / 2,
+            "The first turn after playback must move from the paused word, not snap back toward \(start)"
+        )
+    }
+
     private func waitForChangedIndex(
         of element: XCUIElement,
         from original: Int

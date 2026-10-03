@@ -16,6 +16,10 @@ final class WatchRSVPSession {
     private var positionCommitPolicy = PlaybackPositionCommitPolicy()
     private var lastCrownValue: Double = 0
 
+    /// The loaded token stream's length. Crown math must use this, not `WatchBook.wordCount`:
+    /// it is what the engine actually displays, and it costs nothing to read per word.
+    var wordCount: Int { engine.totalWords }
+
     init() {
         engine = RSVPEngine()
     }
@@ -31,14 +35,9 @@ final class WatchRSVPSession {
             engine.stop()
             return 0
         }
-        engine.load(words: book.words, startingAt: book.browseWordIndex)
+        engine.load(words: book.tokenizeWords(), startingAt: book.browseWordIndex)
         engine.wpm = wpm
-        let crownValue = CrownSeek.crownValue(
-            forWordIndex: book.browseWordIndex,
-            wordCount: book.words.count
-        )
-        lastCrownValue = crownValue
-        return crownValue
+        return synchronizeCrownValue()
     }
 
     func togglePlayback() {
@@ -79,15 +78,15 @@ final class WatchRSVPSession {
     }
 
     @discardableResult
-    func seek(toCrownValue crownValue: Double, wordCount: Int) -> Double {
+    func seek(toCrownValue crownValue: Double) -> Double {
         guard engine.state != .playing else { return lastCrownValue }
         let crownDelta = crownValue - lastCrownValue
         let target = engine.currentIndex - Int(crownDelta.rounded())
         engine.seek(to: target)
-        return synchronizeCrownValue(wordCount: wordCount)
+        return synchronizeCrownValue()
     }
 
-    func synchronizeCrownValue(wordCount: Int) -> Double {
+    func synchronizeCrownValue() -> Double {
         let crownValue = CrownSeek.crownValue(
             forWordIndex: engine.currentIndex,
             wordCount: wordCount
@@ -96,16 +95,26 @@ final class WatchRSVPSession {
         return crownValue
     }
 
+    /// The value the crown binding should take for the visible word, or nil while playing.
+    /// Writing the binding makes watchOS rebuild the crown's detent notches across the whole
+    /// range, so a per-word write costs O(book) per word; the crown is inert during playback
+    /// anyway (`seek` ignores it). `lastCrownValue` still tracks every word, so the first detent
+    /// after a pause moves from the visible word.
+    func crownValueToPublish() -> Double? {
+        let crownValue = synchronizeCrownValue()
+        return engine.state == .playing ? nil : crownValue
+    }
+
     func restoreReadingPosition(book: WatchBook) -> Double {
         engine.pause()
         engine.seek(to: book.lastReadIndex)
-        return synchronizeCrownValue(wordCount: book.words.count)
+        return synchronizeCrownValue()
     }
 
     func browse(to chapter: ChapterMark, in book: WatchBook) -> Double {
         engine.pause()
         engine.seek(to: chapter.startWordIndex)
-        return synchronizeCrownValue(wordCount: book.words.count)
+        return synchronizeCrownValue()
     }
 
     func close(book: WatchBook?) -> WatchRSVPPositionCommit? {

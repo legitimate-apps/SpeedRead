@@ -121,7 +121,7 @@ struct WatchReadingCompositionTests {
         #expect(!SpeedReadWatch_Watch_AppApp.prepareLaunch(destination: .seededLibrary, syncService: service))
         let fixture = try #require(service.currentBook)
         #expect(fixture.title == "Crown Direction Fixture")
-        #expect(fixture.words.count == 200)
+        #expect(fixture.tokenizeWords().count == 200)
         #expect(fixture.browseWordIndex == 100)
         #expect(service.library.books.count == 1)
         #expect(SpeedReadWatch_Watch_AppApp.prepareLaunch(destination: .crownDirectionFixture, syncService: service))

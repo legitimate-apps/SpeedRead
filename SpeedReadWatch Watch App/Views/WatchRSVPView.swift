@@ -24,10 +24,6 @@ struct WatchRSVPContent: View {
     private var currentBook: WatchBook? { syncService.currentBook }
     private var engine: RSVPEngine { session.engine }
 
-    private var words: [String] {
-        currentBook?.words ?? []
-    }
-
     var surface: some View {
         WatchRSVPSurface(
             engine: engine,
@@ -42,7 +38,7 @@ struct WatchRSVPContent: View {
         .digitalCrownRotation(
             $crownValue,
             from: 0,
-            through: CrownSeek.crownUpperBound(wordCount: words.count),
+            through: CrownSeek.crownUpperBound(wordCount: session.wordCount),
             by: 1,
             sensitivity: .medium,
             isContinuous: false,
@@ -50,6 +46,7 @@ struct WatchRSVPContent: View {
         )
         .onChange(of: crownValue) { _, newValue in seek(newValue) }
         .onChange(of: engine.currentIndex) { _, _ in synchronizePosition() }
+        .onChange(of: engine.state) { _, _ in publishCrownValue() }
         .onChange(of: engine.didFinish) { _, finished in
             if finished { synchronizePosition() }
         }
@@ -77,16 +74,21 @@ struct WatchRSVPContent: View {
     func disappear() { sync(session.handleDisappear(book: currentBook)) }
 
     func seek(_ newValue: Double) {
-        let normalized = session.seek(toCrownValue: newValue, wordCount: words.count)
+        let normalized = session.seek(toCrownValue: newValue)
         if normalized != newValue { crownValue = normalized }
         persistBrowsePosition()
     }
 
     func synchronizePosition() {
-        let normalized = session.synchronizeCrownValue(wordCount: words.count)
-        if crownValue != normalized { crownValue = normalized }
+        publishCrownValue()
         if engine.state == .playing || engine.didFinish {
             sync(session.commitPlaybackAdvanceIfNeeded(book: currentBook))
+        }
+    }
+
+    func publishCrownValue() {
+        if let normalized = session.crownValueToPublish(), crownValue != normalized {
+            crownValue = normalized
         }
     }
 

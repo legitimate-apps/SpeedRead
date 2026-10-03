@@ -560,7 +560,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             let book = WatchBook(
                 id: UUID(), title: legacy.title, author: legacy.author, text: legacy.text,
                 lastReadIndex: legacy.position, lastReadDate: nil,
-                wordCount: legacy.text.split(whereSeparator: \.isWhitespace).count,
+                wordCount: BookTokenizer.tokenize(legacy.text).count,
                 dateAdded: Date()
             )
             library = WatchLibrary(books: [book], currentBookId: book.id)
