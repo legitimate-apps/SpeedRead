@@ -37,8 +37,9 @@ syncs phone ↔ watch over WatchConnectivity.
 
 ## Release state
 
-**1.3 (build 5) was submitted 2026-09-07 and is `WAITING_FOR_REVIEW`.** `releaseType` is
-`MANUAL`, so approval is NOT publication — someone still has to request the release. **1.2 (build
+**1.3 (build 5) was submitted 2026-09-07 and App Review approved it: `PENDING_DEVELOPER_RELEASE`,
+read from the ASC API on 2026-10-03.** `releaseType` is `MANUAL`, so it is not live until someone
+requests the release. That is the operator's call. **1.2 (build
 4)** remains the live version until then, released 2026-09-06 under Legitimate LLC (team
 `3LTL47SJ8C`, ASC app `6771221242`, listed as "SpeedRead RSVP: books in a day", seller
 "Legitimate Apps LLC"). Build 3 was never submitted: it was user-facing-identical to the live 1.1,

@@ -14,7 +14,8 @@ the memory dir.
 Every RSVP app makes you leave your book to use it. SpeedRead makes the two ways of reading the same
 book one continuous act: read normally, tap any word, and that word is where the RSVP stream starts.
 Close it, and the reader is already scrolled to where you stopped, with that word marked red. Your
-position is a single number that follows you across phone, iPad and watch.
+position is a single number, and it should follow you wherever you read: phone, iPad, watch, and the
+library server you already run. *(Today it reaches the watch only — see §6.2.)*
 
 The bet: the reason people bounce off speed-reading is not the technique, it's the friction of
 switching into it. Remove the switch and the technique gets used.
@@ -134,26 +135,32 @@ These are the operator's named priorities. They outrank backlog items.
 
 1. **Not a library manager.** SpeedRead reads; Calibre and CWNG curate. Don't rebuild metadata
    editing, conversion or shelf management here.
-2. **Not a sync service.** Position sync is peer-to-peer over WatchConnectivity, and remote catalogs
-   are read through the user's own server. No SpeedRead account, no SpeedRead backend.
+2. **Sync, yes; a SpeedRead backend, no.** *(Revised 2026-10-03 by the operator: this point used to
+   read "Not a sync service", which ruled out the feature itself when the real constraint was only
+   about who holds the data.)* Your place should follow you across your devices and to and from
+   your own library server, including readers that are not SpeedRead (KOReader, a Kobo) that
+   sync with that server. The constraint is where the data lives: it travels only over
+   infrastructure the user already owns or Apple already provides. That means WatchConnectivity for
+   the watch, Apple's own sync for the user's other Apple devices, and their own server (e.g. CWNG)
+   for everything else. No SpeedRead account, no SpeedRead servers, no user data in our hands.
+   - Converting a foreign position (an EPUB location, a percentage) into the word index (§4.1) is
+     the hard part. It is a fidelity problem to solve, not a reason to avoid sync: by §3.2, a sync
+     that lands the reader somewhere else is a bug.
+   - The three-marker model (§4.4) carries over: only reading commits a position, so browsing
+     never pushes one to the server.
+   - *State 2026-10-03: only phone↔watch sync exists. iPhone↔iPad does not sync, and nothing
+     syncs with any server.*
 3. **No identity mixing.** The app ships under Legitimate LLC; the operator's personal identity
    appears nowhere in the repo, the binary or any listing. CWNG references are to a separate
    project, not a sibling brand.
 
 ## 7. Release posture
 
-1. Live: **1.1 (build 2)**, since 2026-05-21. **1.2 (build 3) is staged but stale** — it was held
-   because it was user-facing-identical to 1.1, and that reasoning has now been overtaken: real
-   change has landed on `main` since build 3 was uploaded, so **a new build must be archived and
-   attached** rather than submitting build 3 as-is.
+1. Live: **1.2 (build 4)**, released 2026-09-06. **1.3 (build 5)** was submitted 2026-09-07 with
+   `releaseType` MANUAL, so App Review approval does not publish it; the operator decides when
+   to release. The current state lives in `CLAUDE.md` and the release-state memory, not here.
 2. **A release must contain real user-facing change.** Before submitting, diff the candidate's
    *source* against the live build's source, not the version number.
-3. **The hold is over — 1.2 now has substance** (all landed 2026-08-13): the iPad library renders
-   as a real adaptive bookcase instead of occupying the top-left eighth of the screen; phone↔watch
-   position sync works in both directions, where it previously worked in neither; and server
-   credentials no longer ship inside the binary. The remaining release work is mechanical: archive
-   a new build, attach it to version 1.2, write a truthful `whatsNew`, recapture iPad screenshots
-   against the fixed layout, and submit via the open review submission.
 
 ## 8. Open TODOs
 
