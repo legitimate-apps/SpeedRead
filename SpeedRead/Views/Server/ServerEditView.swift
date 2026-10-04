@@ -29,7 +29,9 @@ struct ServerEditView: View {
             Section("Server") {
                 TextField("Friendly name", text: $session.name)
                     .autocorrectionDisabled()
-                TextField("https://books.example.com/opds", text: $session.urlString)
+                // Verbatim: a localized placeholder parses as Markdown, and its URL draws as a system-blue link.
+                TextField("Server address", text: $session.urlString,
+                          prompt: Text(verbatim: "https://books.example.com/opds"))
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
