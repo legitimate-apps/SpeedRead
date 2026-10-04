@@ -30,8 +30,19 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("Your Library")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(themeManager.currentTheme.backgroundColor, for: .navigationBar)
-            .toolbarColorScheme(themeManager.currentTheme.toolbarColorScheme, for: .navigationBar)
+            .toolbar {
+                // iOS 26's large title follows the SYSTEM appearance, not the bar's color
+                // scheme, so it was invisible on parchment in dark mode (and on Midnight
+                // in light mode). An inline principal label takes the theme's own color.
+                ToolbarItem(placement: .principal) {
+                    Text("Your Library")
+                        .font(.displayFont(size: 22, weight: .bold))
+                        .foregroundStyle(themeManager.currentTheme.chromeText)
+                        .accessibilityAddTraits(.isHeader)
+                }
+            }
             .task {
                 guard !didLoadSamples else { return }
                 didLoadSamples = true
