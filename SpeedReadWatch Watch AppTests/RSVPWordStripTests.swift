@@ -1,0 +1,1 @@
+../SpeedReadTests/RSVPWordStripTests.swift

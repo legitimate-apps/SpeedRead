@@ -17,6 +17,8 @@ struct RSVPView: View {
     @State private var engine: RSVPEngine
     @State private var presentation: RSVPPresentationSession
     @AppStorage("rsvpLastWPM") private var persistedWPM: Int = ReaderConfig.RSVP.defaultWPM
+    /// The swipe hint shows until the reader has dragged through words once.
+    @AppStorage("rsvpHasScrubbed") private var hasScrubbed = false
     @State private var showBookmarks = false
     @State private var showHighlights = false
     /// Opened from the reader's "Read here": start playing at once, which takes the book over.
@@ -54,12 +56,32 @@ struct RSVPView: View {
                     // ─── ZONE 2: Word Display (fixed center, tappable + scrubable) ───
                     VStack {
                         Spacer(minLength: 0)
-                        RSVPWordView(segments: engine.currentSegments, fontSize: 36, enclosures: engine.currentEnclosures)
+                        RSVPWordView(
+                            segments: engine.currentSegments,
+                            fontSize: 36,
+                            enclosures: engine.currentEnclosures,
+                            strip: wordStrip
+                        )
+                        .overlay(alignment: .bottom) {
+                            scrubCaption
+                                .offset(y: 40)
+                        }
+                        .accessibilityHint(engine.state == .playing
+                            ? "Double-tap to pause."
+                            : "Swipe up or down to move a word. Double-tap to play.")
+                        .accessibilityAction { togglePlayback() }
+                        .accessibilityAdjustableAction { direction in
+                            guard engine.state != .playing, readingElsewhere == nil else { return }
+                            let step = direction == .increment ? 1 : direction == .decrement ? -1 : 0
+                            engine.seek(to: ReadingPositionCoordinator.clampedIndex(
+                                engine.currentIndex + step, wordCount: engine.totalWords))
+                        }
                         Spacer(minLength: 0)
                     }
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
                     .gesture(scrubGesture, isEnabled: readingElsewhere == nil)
+                    .animation(.easeOut(duration: 0.22), value: presentation.scrub == nil)
 
                     // ─── ZONE 3: Control Panel (fixed height) ───
                     ZStack {
@@ -366,6 +388,41 @@ struct RSVPView: View {
 
     // MARK: - Scrub Gesture
 
+    /// The line of words around the current one while dragging, so the drag reads as moving text.
+    private var wordStrip: RSVPWordStrip {
+        guard engine.state != .playing else { return .hidden }
+        return RSVPWordStrip(
+            words: presentation.cachedWords,
+            index: engine.currentIndex,
+            offset: presentation.scrub?.offset ?? 0,
+            opacity: presentation.scrub == nil ? 0 : 1
+        )
+    }
+
+    /// While dragging: how far, and which way. Before the first drag: how to.
+    @ViewBuilder
+    private var scrubCaption: some View {
+        if let scrub = presentation.scrub {
+            if let text = RSVPScrubCaption.text(from: scrub.startIndex, to: engine.currentIndex) {
+                let direction = RSVPScrubCaption.direction(from: scrub.startIndex, to: engine.currentIndex)
+                HStack(spacing: 4) {
+                    if direction == .back { Image(systemName: "chevron.backward") }
+                    Text(text)
+                    if direction == .ahead { Image(systemName: "chevron.forward") }
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(Color.agedGold)
+                .accessibilityHidden(true)
+            }
+        } else if !hasScrubbed, engine.state != .playing, readingElsewhere == nil {
+            Text("Swipe to move word by word · Tap to play")
+                .font(.system(size: 12))
+                .foregroundStyle(Color.rsvpText.opacity(0.5))
+                .accessibilityHidden(true)
+        }
+    }
+
     private var scrubGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
@@ -376,6 +433,7 @@ struct RSVPView: View {
                     wordCount: engine.totalWords
                 ) {
                     engine.seek(to: update.targetIndex)
+                    if !hasScrubbed { hasScrubbed = true }
                     if update.shouldProduceHaptic {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     }

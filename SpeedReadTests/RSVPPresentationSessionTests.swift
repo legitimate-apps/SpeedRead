@@ -261,7 +261,7 @@ struct RSVPPresentationSessionTests {
         let firstTime = Date(timeIntervalSince1970: 1_000)
 
         let first = try #require(session.updateGesture(
-            translationX: -16,
+            translationX: -2 * ReaderConfig.RSVP.basePointsPerWord,
             at: firstTime,
             isPlaying: false,
             currentIndex: 50,
@@ -272,7 +272,7 @@ struct RSVPPresentationSessionTests {
         _ = session.endGesture()
 
         let second = try #require(session.updateGesture(
-            translationX: -16,
+            translationX: -2 * ReaderConfig.RSVP.basePointsPerWord,
             at: firstTime.addingTimeInterval(0.01),
             isPlaying: false,
             currentIndex: first.targetIndex,
@@ -350,7 +350,7 @@ struct RSVPPresentationSessionTests {
         let session = RSVPPresentationSession()
         let now = Date(timeIntervalSince1970: 5_000)
         _ = try #require(session.updateGesture(
-            translationX: -8,
+            translationX: -ReaderConfig.RSVP.basePointsPerWord,
             at: now,
             isPlaying: false,
             currentIndex: 10,
@@ -358,7 +358,7 @@ struct RSVPPresentationSessionTests {
         ))
 
         let update = try #require(session.updateGesture(
-            translationX: -16,
+            translationX: -2 * ReaderConfig.RSVP.basePointsPerWord,
             at: now,
             isPlaying: false,
             currentIndex: 11,
@@ -402,6 +402,59 @@ struct RSVPPresentationSessionTests {
             / (ReaderConfig.RSVP.maximumVelocityMultiplier / ReaderConfig.RSVP.basePointsPerWord)
         #expect(abs(capped.effectivePointsPerWord - minimumPointsPerWord) < 0.0001)
         #expect(capped.wordDelta > accelerated.wordDelta)
+    }
+
+    @Test func theScrubTracksWhereTheLineOfWordsIsBetweenWords() throws {
+        // Mutations: truncate instead of rounding (the strip would drag a full word before the
+        // next one is shown), or reset the start each update (the caption would count from 0).
+        let session = RSVPPresentationSession()
+        let base = ReaderConfig.RSVP.basePointsPerWord
+        let start = Date(timeIntervalSince1970: 7_000)
+        #expect(session.scrub == nil)
+
+        // Under half a word: still on word 10, the line dragged most of the way to word 11.
+        #expect(session.updateGesture(
+            translationX: -0.43 * base, at: start, isPlaying: false, currentIndex: 10, wordCount: 100
+        ) == nil)
+        let partial = try #require(session.scrub)
+        #expect(partial.startIndex == 10)
+        #expect(abs(partial.offset - 0.43) < 0.001)
+
+        // Past half a word: word 11 is shown, and the line is still short of it.
+        let update = try #require(session.updateGesture(
+            translationX: -0.71 * base, at: start, isPlaying: false, currentIndex: 10, wordCount: 100))
+        #expect(update.targetIndex == 11)
+        let past = try #require(session.scrub)
+        #expect(past.startIndex == 10)
+        #expect(abs(past.offset - (-0.29)) < 0.001)
+
+        #expect(session.endGesture() == .scrubbed)
+        #expect(session.scrub == nil)
+    }
+
+    @Test func theLineCannotBeDraggedPastEitherEndOfTheBook() throws {
+        let base = ReaderConfig.RSVP.basePointsPerWord
+        let atEnd = RSVPPresentationSession()
+        _ = atEnd.updateGesture(translationX: -0.4 * base, isPlaying: false, currentIndex: 9, wordCount: 10)
+        #expect(try #require(atEnd.scrub).offset == 0)
+
+        let atStart = RSVPPresentationSession()
+        _ = atStart.updateGesture(translationX: 0.4 * base, isPlaying: false, currentIndex: 0, wordCount: 10)
+        #expect(try #require(atStart.scrub).offset == 0)
+
+        let inside = RSVPPresentationSession()
+        _ = inside.updateGesture(translationX: 0.4 * base, isPlaying: false, currentIndex: 5, wordCount: 10)
+        #expect(try #require(inside.scrub).offset < 0)
+    }
+
+    @Test func aTapOrADragWhilePlayingIsNotAScrub() {
+        let tap = RSVPPresentationSession()
+        _ = tap.updateGesture(translationX: -2, isPlaying: false, currentIndex: 5, wordCount: 10)
+        #expect(tap.scrub == nil)
+
+        let playing = RSVPPresentationSession()
+        _ = playing.updateGesture(translationX: -80, isPlaying: true, currentIndex: 5, wordCount: 10)
+        #expect(playing.scrub == nil)
     }
 
     @Test func playingAndEmptyStreamsCannotSeek() {

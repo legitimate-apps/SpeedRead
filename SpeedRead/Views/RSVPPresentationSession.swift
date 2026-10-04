@@ -8,6 +8,15 @@ enum RSVPDisplayInteraction: Equatable {
     case scrubbed
 }
 
+/// A drag through the book, from the moment it moves far enough to be one.
+struct RSVPScrubState: Equatable {
+    /// The word the drag started on.
+    let startIndex: Int
+    /// How far the line of words is dragged past the current word, in words: positive is
+    /// toward the next word. The current word is always the nearest, so this stays within a half.
+    var offset: CGFloat
+}
+
 struct RSVPScrubUpdate: Equatable {
     let targetIndex: Int
     let wordDelta: Int
@@ -43,6 +52,7 @@ final class RSVPPresentationSession {
     private(set) var cachedWords: [String] = []
     private(set) var highlightStartIndex: Int?
     private(set) var feedbackFlash: RSVPFeedbackFlash?
+    private(set) var scrub: RSVPScrubState?
 
     private var lastDragX: CGFloat = 0
     private var dragAccumulator: CGFloat = 0
@@ -315,13 +325,22 @@ final class RSVPPresentationSession {
         let effectivePointsPerWord = ReaderConfig.RSVP.basePointsPerWord / max(1, velocityFactor)
 
         dragAccumulator += deltaX
-        let wordDelta = Int(dragAccumulator / effectivePointsPerWord)
+        // Nearest, not truncated: the word shown is the one closest to the guides, so the line
+        // of words can follow the finger and hand over at the halfway point.
+        let wordDelta = Int((dragAccumulator / effectivePointsPerWord).rounded())
         lastDragX = translationX
         lastDragTime = now
+        let startIndex = scrub?.startIndex ?? currentIndex
+        dragAccumulator -= CGFloat(wordDelta) * effectivePointsPerWord
+        let target = ReadingPositionCoordinator.clampedIndex(currentIndex + wordDelta, wordCount: wordCount)
+        var offset = dragAccumulator / effectivePointsPerWord
+        // There is nothing to drag toward past either end of the book.
+        if (offset > 0 && target == wordCount - 1) || (offset < 0 && target == 0) {
+            offset = 0
+        }
+        scrub = RSVPScrubState(startIndex: startIndex, offset: offset)
 
         guard wordDelta != 0 else { return nil }
-        let target = ReadingPositionCoordinator.clampedIndex(currentIndex + wordDelta, wordCount: wordCount)
-        dragAccumulator -= CGFloat(wordDelta) * effectivePointsPerWord
         return RSVPScrubUpdate(
             targetIndex: target,
             wordDelta: wordDelta,
@@ -341,6 +360,7 @@ final class RSVPPresentationSession {
         lastDragTime = nil
         dragVelocity = 0
         maximumTranslation = 0
+        scrub = nil
         return interaction
     }
 }

@@ -72,6 +72,37 @@ struct RSVPWordFitTests {
         #expect(ink.left <= 24 && ink.right >= Int(width) - 24)
     }
 
+    @Test("While dragging, the neighbors show either side and the line follows the finger")
+    @MainActor
+    func theStripShowsNeighborsOnlyWhileDragging() throws {
+        // Mutations: draw the neighbors whatever the strip's opacity (they would flash during
+        // playback), or shift the line the wrong way (it would move against the finger).
+        let width: CGFloat = 393
+        func render(_ strip: RSVPWordStrip) throws -> CGImage {
+            let renderer = ImageRenderer(content: RSVPWordView(
+                segments: ORPCalculator.segments(for: "course,"), fontSize: 36, strip: strip
+            ))
+            renderer.proposedSize = ProposedViewSize(width: width, height: 100)
+            renderer.scale = 1
+            return try #require(renderer.cgImage)
+        }
+        let previous = ["Of", "laughs", "John"]
+        let next = ["but", "one", "expects"]
+        let plain = try RSVPRenderProbe.inkMass(in: try render(.hidden))
+        let resting = try RSVPRenderProbe.inkMass(in: try render(.init(previous: previous, next: next, opacity: 0)))
+        #expect(resting.total == plain.total)
+
+        let dragging = try RSVPRenderProbe.inkMass(in: try render(.init(previous: previous, next: next, opacity: 1)))
+        #expect(dragging.total > plain.total * 1.15)
+
+        let forward = try RSVPRenderProbe.inkMass(in: try render(
+            .init(previous: previous, next: next, offset: 0.3, opacity: 1)))
+        let backward = try RSVPRenderProbe.inkMass(in: try render(
+            .init(previous: previous, next: next, offset: -0.3, opacity: 1)))
+        #expect(forward.centroid < dragging.centroid - 10)
+        #expect(backward.centroid > dragging.centroid + 10)
+    }
+
     @Test("Passage marks are drawn above the word and nowhere else")
     @MainActor
     func passageMarksSitAboveTheWord() throws {

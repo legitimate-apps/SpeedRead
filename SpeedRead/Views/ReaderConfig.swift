@@ -21,9 +21,12 @@ enum ReaderConfig {
         static let defaultWPM = 300
         static let minimumEstimateWPM = 60
         static let wpmStep = 25
-        static let basePointsPerWord: CGFloat = 8
-        static let velocityPointsPerSecond: CGFloat = 500
-        static let maximumVelocityMultiplier: CGFloat = 50
+        /// A slow drag moves a word per this many points, so a word at a time can be picked out;
+        /// faster drags accelerate down to `basePointsPerWord² / maximumVelocityMultiplier`
+        /// (about 1.3 points a word), the speed scrubbing had before the strip was drawn.
+        static let basePointsPerWord: CGFloat = 14
+        static let velocityPointsPerSecond: CGFloat = 300
+        static let maximumVelocityMultiplier: CGFloat = 150
         static let hapticWordInterval = 10
         static let scrubActivationDistance: CGFloat = 5
         static let controlPanelHeight: CGFloat = 160

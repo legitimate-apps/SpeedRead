@@ -28,3 +28,4 @@ docs/testing/*.jsonl
 # .store alone (its WAL is checkpointed to 0 bytes), and a stale -shm can confuse SQLite.
 SpeedReadTests/Fixtures/*.store-shm
 SpeedReadTests/Fixtures/*.store-wal
+marketing/icon/candidates/

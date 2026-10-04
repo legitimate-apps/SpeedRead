@@ -157,6 +157,7 @@ the whole life of the watch app because Swift 5 does not run the check.
 | `readerLineSpacing` | Double | ReaderView |
 | `readerThemeMode` | String (parchment/sepia/night) | ReaderView |
 | `rsvpLastWPM` | Int | RSVPView, ReaderView |
+| `rsvpHasScrubbed` | Bool | RSVPView — hides the "Swipe to move word by word" hint after the first drag |
 | `positionSyncDeviceID` | String (UUID) | ServerPositionSync — this device's KOSync `device_id`; renaming it makes the server see a new device |
 | `positionSyncDeclinedOffers` | [String: Double] | ServerPositionSync — book id → declined server timestamp |
 | `annotationSyncPendingDeletes` | [String: [String]] | ServerAnnotationSync — book id → this app's annotation ids deleted here, not yet deleted on the server |
