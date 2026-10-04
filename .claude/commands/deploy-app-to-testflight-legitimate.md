@@ -112,7 +112,9 @@ cat > "$PROJECT_DIR/build/ExportOptions-local.plist" <<'PLIST'
     <key>uploadSymbols</key><true/>
 </dict></plist>
 PLIST
-cd "$PROJECT_DIR" && xcodebuild -exportArchive \
+# System-only PATH: /usr/bin/rsync (openrsync) spawns its server half as the first `rsync` on
+# PATH; Homebrew's rsync 3.x rejects -E and export dies with an opaque "Copy failed" (2026-10-03).
+cd "$PROJECT_DIR" && env PATH=/usr/bin:/bin:/usr/sbin:/sbin xcodebuild -exportArchive \
   -archivePath build/SpeedRead.xcarchive \
   -exportOptionsPlist build/ExportOptions-local.plist \
   -exportPath build/export-local \
@@ -134,6 +136,8 @@ xcrun altool --upload-app \
 Look for `UPLOAD SUCCEEDED with no errors`. The build appears in App Store Connect's TestFlight tab within 5–15 minutes.
 
 ## Known gotchas (in order of likelihood)
+
+- **Export: `Copy failed`** (IDEDistributionCreateIPAStep; the distribution log shows `rsync: on remote machine: --extended-attributes: unknown option ... server=3.5.1`) — Homebrew rsync shadows the system one on PATH. Run the export with the system-only PATH shown in step 6.
 
 - **Validation failed (409) "n/a"** — opaque from Apple. Almost always one of:
   1. Top-level duplicate watch-app in the .ipa (step 5)
