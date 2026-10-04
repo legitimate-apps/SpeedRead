@@ -113,7 +113,10 @@ struct LaunchSurfaceTests {
         #expect(previousPicker == classicPicker, "Reselecting Classic must restore its appearance")
     }
 
-    @Test func settingsDisplaysEachSelectedTheme() async throws {
+    @Test func settingsFollowsOSAppearanceNotShelfTheme() async throws {
+        // Policy since the warm-palette restyle: sheets are app chrome keyed to the OS
+        // appearance, not to the shelf theme. Shelf-theme-keyed sheets were the audit's
+        // dark-mode blocker: black system rows on a fixed parchment sheet.
         let storage = IsolatedDefaults()
         let manager = ThemeManager(defaults: storage.defaults)
         let host = UIHostingController(rootView: SettingsView().environment(manager)
@@ -121,15 +124,12 @@ struct LaunchSurfaceTests {
         let window = try hostWindow(host)
         defer { window.isHidden = true; window.rootViewController = nil }
         let classic = try await signature(host.view)
-        var previous = classic
         for theme in [ShelfTheme.midnight, .modern, .vintage, .classic] {
             manager.selectedThemeId = theme.id
             let selected = try await signature(host.view)
             #expect(manager.currentTheme.id == theme.id)
-            #expect(selected != previous, "Settings must display the selected theme")
-            previous = selected
+            #expect(selected == classic, "Settings chrome must not restyle with the shelf theme")
         }
-        #expect(previous == classic, "Reselecting Classic must restore the Settings background")
     }
 
     @Test func appSchemaContainsEveryPersistedModel() throws {

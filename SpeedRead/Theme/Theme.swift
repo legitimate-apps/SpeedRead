@@ -21,7 +21,10 @@ extension Color {
     // MARK: - Semantic app-chrome tokens (light/dark adaptive)
 
     /// Resolves per appearance. watchOS is always dark, so it takes the dark value.
-    static func adaptive(light: Color, dark: Color) -> Color {
+    /// `nonisolated` is load-bearing: UIDynamicProviderColor invokes the closure on
+    /// whatever thread SwiftUI's AttributeGraph is updating, and a MainActor-isolated
+    /// closure SIGTRAPs there under Swift 6 executor checks.
+    nonisolated static func adaptive(light: Color, dark: Color) -> Color {
         #if os(iOS)
         Color(uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
