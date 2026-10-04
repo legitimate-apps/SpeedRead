@@ -11,7 +11,10 @@ struct WatchBook: Codable, Identifiable, Hashable {
     var finishedAt: Date?
     // Keep the existing presentation name; completion may now arrive from either device.
     var hasFinishedLocally: Bool { finishedAt != nil }
+    /// The place: the word on screen, shared live with the phone.
     var browseWordIndex: Int
+    /// When the place last moved, on either device. Nil until it first moves.
+    var browseDate: Date?
     var furthestReadWordIndex: Int
     let wordCount: Int
     let dateAdded: Date
@@ -29,7 +32,8 @@ struct WatchBook: Codable, Identifiable, Hashable {
         wordCount: Int,
         dateAdded: Date,
         chapters: [ChapterMark] = [],
-        finishedAt: Date? = nil
+        finishedAt: Date? = nil,
+        browseDate: Date? = nil
     ) {
         self.id = id
         self.title = title
@@ -43,11 +47,12 @@ struct WatchBook: Codable, Identifiable, Hashable {
         self.dateAdded = dateAdded
         self.chapters = chapters
         self.finishedAt = finishedAt
+        self.browseDate = browseDate
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, title, author, text, lastReadIndex, lastReadDate, hasFinishedLocally
-        case browseWordIndex, furthestReadWordIndex, wordCount, dateAdded, chapters, finishedAt
+        case browseWordIndex, browseDate, furthestReadWordIndex, wordCount, dateAdded, chapters, finishedAt
     }
 
     init(from decoder: any Decoder) throws {
@@ -60,6 +65,7 @@ struct WatchBook: Codable, Identifiable, Hashable {
         lastReadDate = try container.decodeIfPresent(Date.self, forKey: .lastReadDate)
         browseWordIndex = try container.decodeIfPresent(Int.self, forKey: .browseWordIndex)
             ?? lastReadIndex
+        browseDate = try container.decodeIfPresent(Date.self, forKey: .browseDate)
         furthestReadWordIndex = try container.decodeIfPresent(Int.self, forKey: .furthestReadWordIndex)
             ?? lastReadIndex
         wordCount = try container.decode(Int.self, forKey: .wordCount)
@@ -85,6 +91,7 @@ struct WatchBook: Codable, Identifiable, Hashable {
         try container.encode(hasFinishedLocally, forKey: .hasFinishedLocally)
         try container.encodeIfPresent(finishedAt, forKey: .finishedAt)
         try container.encode(browseWordIndex, forKey: .browseWordIndex)
+        try container.encodeIfPresent(browseDate, forKey: .browseDate)
         try container.encode(furthestReadWordIndex, forKey: .furthestReadWordIndex)
         try container.encode(wordCount, forKey: .wordCount)
         try container.encode(dateAdded, forKey: .dateAdded)
@@ -96,6 +103,21 @@ struct WatchBook: Codable, Identifiable, Hashable {
     /// only the open book's tokens; the session owns them through its engine.
     func tokenizeWords() -> [String] {
         BookTokenizer.tokenize(text)
+    }
+
+    /// Everything this watch knows about its place in the book, for the phone.
+    func positionPayload() -> WatchSyncLogic.PositionPayload {
+        WatchSyncLogic.PositionPayload(
+            bookId: id,
+            bookTitle: title,
+            wordIndex: ReadingPositionCoordinator.clampedIndex(lastReadIndex, wordCount: wordCount),
+            timestamp: lastReadDate ?? .distantPast,
+            furthestReadWordIndex: furthestReadWordIndex,
+            didFinish: hasFinishedLocally,
+            finishedAt: finishedAt,
+            browseWordIndex: ReadingPositionCoordinator.clampedIndex(browseWordIndex, wordCount: wordCount),
+            browseTimestamp: browseDate ?? lastReadDate ?? .distantPast
+        )
     }
 
     var progress: Double {
@@ -140,7 +162,8 @@ struct WatchLibrary: Codable, Equatable {
         timestamp: Date = Date(),
         furthestReadWordIndex: Int? = nil,
         didFinish: Bool = false,
-        finishedAt: Date? = nil
+        finishedAt: Date? = nil,
+        movesPlace: Bool = true
     ) -> Bool {
         guard let i = books.firstIndex(where: { $0.id == bookId }) else { return false }
         let clamped = ReadingPositionCoordinator.clampedIndex(index, wordCount: books[i].wordCount)
@@ -151,15 +174,32 @@ struct WatchLibrary: Codable, Equatable {
         )
         books[i].lastReadIndex = clamped
         books[i].lastReadDate = timestamp
-        books[i].browseWordIndex = clamped
+        if movesPlace {
+            books[i].browseWordIndex = clamped
+            books[i].browseDate = timestamp
+        }
         books[i].furthestReadWordIndex = max(books[i].furthestReadWordIndex, incomingFurthest)
         return true
     }
 
+    /// A local browse move. Returns whether the place changed, so an unchanged place (including
+    /// the engine following the phone to a word it already stored) sends nothing back.
     @discardableResult
-    mutating func updateBrowsePosition(bookId: UUID, index: Int) -> Bool {
+    mutating func updateBrowsePosition(bookId: UUID, index: Int, date: Date = Date()) -> Bool {
+        guard let i = books.firstIndex(where: { $0.id == bookId }) else { return false }
+        let clamped = ReadingPositionCoordinator.clampedIndex(index, wordCount: books[i].wordCount)
+        guard books[i].browseWordIndex != clamped else { return false }
+        books[i].browseWordIndex = clamped
+        books[i].browseDate = date
+        return true
+    }
+
+    /// The phone's place, already judged newer.
+    @discardableResult
+    mutating func applyPlace(bookId: UUID, index: Int, date: Date) -> Bool {
         guard let i = books.firstIndex(where: { $0.id == bookId }) else { return false }
         books[i].browseWordIndex = ReadingPositionCoordinator.clampedIndex(index, wordCount: books[i].wordCount)
+        books[i].browseDate = date
         return true
     }
 

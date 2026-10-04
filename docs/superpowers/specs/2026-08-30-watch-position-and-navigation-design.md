@@ -2,6 +2,8 @@
 
 **Status:** approved by the operator 2026-08-30 (design and the one rename).
 **Supersedes:** nothing. **Depends on:** `CORPUS.md` §4 invariants.
+**Partly superseded 2026-10-04** by [live handoff](2026-10-04-live-handoff-design.md): browsing now
+syncs phone↔watch, and the watch→phone offer is gone. The rest stands.
 
 ## 1. Problem
 

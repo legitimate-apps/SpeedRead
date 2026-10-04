@@ -107,16 +107,6 @@ struct WatchRSVPSessionTests {
         #expect(due.wordIndex == 1)
     }
 
-    @Test func openingSettingsPausesPlayback() {
-        let session = WatchRSVPSession()
-        _ = session.load(book: makeBook(text: "zero one"), wpm: 300)
-        session.togglePlayback()
-
-        session.prepareForSettings()
-
-        #expect(session.engine.state == .paused)
-    }
-
     @Test func crownSeekUsesTheNamedDirectionMappingOnlyWhilePaused() {
         let session = WatchRSVPSession()
         _ = session.load(book: makeBook(text: "zero one two three"), wpm: 300)

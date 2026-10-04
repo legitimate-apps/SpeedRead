@@ -149,16 +149,13 @@ struct LibraryView: View {
                 }
             }
             .overlay(alignment: .top) {
-                if let offer = syncService.pendingWatchPositionOffer {
-                    WatchPositionOfferBanner(
-                        offer: offer,
-                        onContinue: { syncService.continueFromWatch(offer) },
-                        onDismiss: { syncService.dismissWatchPositionOffer() }
-                    )
+                if let presence = syncService.remotePresence,
+                   let book = books.first(where: { $0.id == presence.bookId }) {
+                    ReadingElsewhereLabel(title: book.title)
                 }
             }
             .animation(.easeInOut, value: syncService.sendState != .idle)
-            .animation(.easeInOut, value: syncService.pendingWatchPositionOffer)
+            .animation(.easeInOut, value: syncService.remotePresence)
             .sheet(isPresented: $showThemePicker) {
                 ThemePickerView()
             }
@@ -318,39 +315,29 @@ final class LibraryImportSession {
     }
 }
 
-struct WatchPositionOfferBanner: View {
-    let offer: WatchSyncService.PositionOffer
-    let onContinue: () -> Void
-    let onDismiss: () -> Void
+/// The library's note that the watch is reading a book right now.
+private struct ReadingElsewhereLabel: View {
+    let title: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(offer.displayText)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.appInk)
-
-            HStack(spacing: 12) {
-                Button("Continue", action: onContinue)
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.appAccent)
-                    .accessibilityIdentifier("watch-position-offer-continue")
-
-                Button("Dismiss", action: onDismiss)
-                    .buttonStyle(.bordered)
-                    .tint(Color.appAccent)
-                    .accessibilityIdentifier("watch-position-offer-dismiss")
-            }
+        Label {
+            Text("Reading \u{201C}\(title)\u{201D} on Apple Watch")
+                .lineLimit(1)
+        } icon: {
+            Image(systemName: "applewatch.radiowaves.left.and.right")
+                .symbolEffect(.pulse, options: .repeating)
         }
-        .padding(14)
-        // Opaque card: the old translucent material let the parchment shelf show through,
-        // leaving cream text on a cream card.
-        .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.appInk.opacity(0.12)))
-        .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(Color.appInk)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.appSurface, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.appInk.opacity(0.12)))
+        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
         .padding(.horizontal, 16)
         .padding(.top, 8)
         .transition(.move(edge: .top).combined(with: .opacity))
-        .accessibilityIdentifier("watch-position-offer")
+        .accessibilityIdentifier("reading-elsewhere-label")
     }
 }
 

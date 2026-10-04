@@ -11,6 +11,7 @@ struct RSVPView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var syncService: WatchSyncService
+    @Environment(\.scenePhase) private var scenePhase
 
     private let chapters: ChapterNavigation
     @State private var engine: RSVPEngine
@@ -18,13 +19,17 @@ struct RSVPView: View {
     @AppStorage("rsvpLastWPM") private var persistedWPM: Int = ReaderConfig.RSVP.defaultWPM
     @State private var showBookmarks = false
     @State private var showHighlights = false
+    /// Opened from the reader's "Read here": start playing at once, which takes the book over.
+    private let autoplay: Bool
 
     init(
         book: Book,
+        autoplay: Bool = false,
         engine: RSVPEngine? = nil,
         presentation: RSVPPresentationSession? = nil
     ) {
         self.book = book
+        self.autoplay = autoplay
         chapters = ChapterNavigation(chapters: book.chapters)
         _engine = State(initialValue: engine ?? RSVPEngine())
         _presentation = State(initialValue: presentation ?? RSVPPresentationSession())
@@ -54,12 +59,30 @@ struct RSVPView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
-                    .gesture(scrubGesture)
+                    .gesture(scrubGesture, isEnabled: readingElsewhere == nil)
 
                     // ─── ZONE 3: Control Panel (fixed height) ───
-                    controlPanel
-                        .frame(height: ReaderConfig.RSVP.controlPanelHeight)
-                        .padding(.bottom, ReaderConfig.RSVP.controlPanelBottomPadding)
+                    ZStack {
+                        controlPanel
+                            .opacity(readingElsewhere == nil ? 1 : 0)
+                            .allowsHitTesting(readingElsewhere == nil)
+                            .accessibilityHidden(readingElsewhere != nil)
+                        if let presence = readingElsewhere {
+                            ReadingElsewhereCard(
+                                presence: presence,
+                                wordCount: book.wordCount,
+                                chapters: book.chapters,
+                                background: Color.rsvpBackground,
+                                foreground: Color.rsvpText,
+                                accent: Color.agedGold,
+                                onAccent: Color.rsvpBackground,
+                                onReadHere: togglePlayback
+                            )
+                        }
+                    }
+                    .frame(height: ReaderConfig.RSVP.controlPanelHeight)
+                    .padding(.bottom, ReaderConfig.RSVP.controlPanelBottomPadding)
+                    .animation(.easeInOut, value: readingElsewhere)
                 }
 
                 // Bookmark flash overlay
@@ -143,6 +166,16 @@ struct RSVPView: View {
         .preferredColorScheme(.dark)
         .onAppear {
             presentation.load(book: book, engine: engine, wpm: persistedWPM)
+            if autoplay { togglePlayback() }
+        }
+        // The watch moved the place (crown, chapter, or its live reading): show its word.
+        .onChange(of: book.browseWordIndex) { _, index in
+            guard engine.state != .playing, index >= 0, index != engine.currentIndex else { return }
+            engine.seek(to: index)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // Leaving the phone pauses, and the pause hands the book back to the watch.
+            if phase == .background, engine.state == .playing { togglePlayback() }
         }
         .onDisappear {
             let result = presentation.handleDisappear(
@@ -181,7 +214,8 @@ struct RSVPView: View {
             } else if !presentation.recordBrowsePosition(
                 newIndex,
                 book: book,
-                saver: modelContext
+                saver: modelContext,
+                sync: syncService
             ) {
                 Self.logger.error("Failed to persist local RSVP browse position")
             }
@@ -353,6 +387,10 @@ struct RSVPView: View {
     }
 
     // MARK: - Actions
+
+    private var readingElsewhere: RemotePresence? {
+        syncService.remotePresence(for: book.id)
+    }
 
     private func togglePlayback() {
         let result = presentation.togglePlayback(

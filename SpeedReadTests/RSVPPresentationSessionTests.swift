@@ -424,8 +424,9 @@ struct RSVPPresentationSessionTests {
         #expect(empty.endGesture() == .scrubbed)
     }
 
-    @Test func pauseKeepsVisibleIndexWithoutAnotherCommit() throws {
-        // Mutations: remove engine.pause(), replace it with stop(), or fall through to commit.
+    @Test func pauseCommitsTheVisibleIndexWhichReleasesTheOtherDevice() throws {
+        // Mutations: remove engine.pause(), replace it with stop(), or skip the pause commit
+        // (that commit is the paused payload that takes the other device's card down).
         let book = makeBook(text: "zero one two")
         let engine = RSVPEngine()
         let session = RSVPPresentationSession()
@@ -434,12 +435,12 @@ struct RSVPPresentationSessionTests {
         session.load(book: book, engine: engine, wpm: 300)
         engine.seek(to: 2)
         _ = try #require(session.togglePlayback(engine: engine, book: book, saver: saver, sync: sync))
-        let result = session.togglePlayback(engine: engine, book: book, saver: saver, sync: sync)
-        #expect(result == nil)
+        let result = try #require(session.togglePlayback(engine: engine, book: book, saver: saver, sync: sync))
+        #expect(result.index == 2)
         #expect(engine.state == .paused)
         #expect(engine.currentIndex == 2)
-        #expect(saver.saveCount == 1)
-        #expect(sync.indices == [2])
+        #expect(saver.saveCount == 2)
+        #expect(sync.indices == [2, 2])
     }
 
     @Test func unloadedPlaybackDoesNotCommit() {

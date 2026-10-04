@@ -46,8 +46,10 @@ final class WatchRSVPSession {
 
     func togglePlayback(book: WatchBook?, now: Date = Date()) -> WatchRSVPPositionCommit? {
         if engine.state == .playing {
-            engine.pause()
-            return nil
+            // Pausing is the handoff moment: the word you stopped on becomes the place everywhere.
+            let index = engine.snapshotIndexAndPause()
+            guard let book else { return nil }
+            return makePositionCommit(book: book, index: index)
         }
         guard let book, engine.isLoaded else { return nil }
         let index = engine.currentIndex
@@ -69,12 +71,6 @@ final class WatchRSVPSession {
             return nil
         }
         return makePositionCommit(book: book, index: engine.currentIndex)
-    }
-
-    func prepareForSettings() {
-        if engine.state == .playing {
-            engine.pause()
-        }
     }
 
     @discardableResult
@@ -108,6 +104,20 @@ final class WatchRSVPSession {
     func restoreReadingPosition(book: WatchBook) -> Double {
         engine.pause()
         engine.seek(to: book.lastReadIndex)
+        return synchronizeCrownValue()
+    }
+
+    /// The phone moved the place: show its word, unless this watch is the one reading.
+    func follow(placeAt index: Int) -> Double? {
+        guard engine.state != .playing, engine.isLoaded, index != engine.currentIndex else { return nil }
+        engine.seek(to: index)
+        return synchronizeCrownValue()
+    }
+
+    /// The phone took the book over: stop without committing, at the phone's word.
+    func yield(to presence: RemotePresence) -> Double {
+        engine.pause()
+        engine.seek(to: presence.wordIndex)
         return synchronizeCrownValue()
     }
 

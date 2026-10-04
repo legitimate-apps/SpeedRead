@@ -41,15 +41,4 @@ struct ReadingPositionClampTests {
     }
 
     #endif
-
-    @Test(arguments: [-100, 1000])
-    func offerMaterialityUsesTheClampedIndex(index: Int) {
-        // Mutation: compare distance using an unclamped incoming index on either side.
-        let payload = WatchSyncLogic.PositionPayload(bookId: UUID(), bookTitle: "Boundary",
-            wordIndex: index, timestamp: Date(timeIntervalSince1970: 200))
-        #expect(!WatchSyncLogic.shouldOfferWatchPosition(incoming: payload,
-            localIndex: index < 0 ? 0 : 99, localDate: nil, wordCount: 100))
-        #expect(WatchSyncLogic.shouldOfferWatchPosition(incoming: payload,
-            localIndex: 50, localDate: nil, wordCount: 100))
-    }
 }

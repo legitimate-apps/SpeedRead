@@ -58,7 +58,8 @@ struct WatchSyncLogicTests {
 
         let decoded = try #require(WatchSyncLogic.PositionPayload.decode(from: original.dictionary))
         #expect(decoded == original)
-        #expect(original.dictionary["browseWordIndex"] == nil)
+        // The place travels with every position now; it is the word both devices show.
+        #expect(original.dictionary["browseWordIndex"] as? Int == 42)
     }
 
     @Test("Characterization: reading position is timestamp LWW, not max")
@@ -88,32 +89,6 @@ struct WatchSyncLogicTests {
         #expect(WatchSyncLogic.mergedFurthestRead(local: 80, incoming: 20) == 80)
         #expect(WatchSyncLogic.mergedFurthestRead(local: 20, incoming: 80) == 80)
         #expect(WatchSyncLogic.mergedFurthestRead(local: 80, incoming: 80) == 80)
-    }
-
-    @Test func watchOfferRequiresNewerMateriallyDifferentReadingPosition() {
-        let localDate = Date(timeIntervalSince1970: 200)
-        let material = WatchSyncLogic.PositionPayload(
-            bookId: UUID(), bookTitle: "Book", wordIndex: 30,
-            timestamp: Date(timeIntervalSince1970: 300)
-        )
-        let trivial = WatchSyncLogic.PositionPayload(
-            bookId: material.bookId, bookTitle: "Book", wordIndex: 12,
-            timestamp: Date(timeIntervalSince1970: 300)
-        )
-        let stale = WatchSyncLogic.PositionPayload(
-            bookId: material.bookId, bookTitle: "Book", wordIndex: 90,
-            timestamp: Date(timeIntervalSince1970: 100)
-        )
-
-        #expect(WatchSyncLogic.shouldOfferWatchPosition(
-            incoming: material, localIndex: 10, localDate: localDate, wordCount: 1_000
-        ))
-        #expect(!WatchSyncLogic.shouldOfferWatchPosition(
-            incoming: trivial, localIndex: 10, localDate: localDate, wordCount: 1_000
-        ))
-        #expect(!WatchSyncLogic.shouldOfferWatchPosition(
-            incoming: stale, localIndex: 10, localDate: localDate, wordCount: 1_000
-        ))
     }
 
     @Test func newerPositionWins() {
@@ -214,17 +189,6 @@ struct WatchSyncLogicTests {
         var valid = original.dictionary
         valid["chapters"] = [["title": "Last word", "startWordIndex": 2]]
         #expect(WatchSyncLogic.BookPayload.decode(from: valid)?.chapters == [ChapterMark(title: "Last word", startWordIndex: 2)])
-    }
-
-    @Test(arguments: [200.0, 300.0, 400.0])
-    func pendingOfferTimestampAddsToStoredPositionReconciliation(timestamp: Double) {
-        let incoming = position(at: timestamp)
-        #expect(WatchSyncLogic.shouldOfferWatchPosition(incoming: incoming, localIndex: 0,
-            localDate: Date(timeIntervalSince1970: 100), wordCount: 100,
-            pendingOfferDate: Date(timeIntervalSince1970: 300)) == (timestamp > 300))
-        #expect(!WatchSyncLogic.shouldOfferWatchPosition(incoming: incoming, localIndex: 0,
-            localDate: Date(timeIntervalSince1970: 500), wordCount: 100,
-            pendingOfferDate: Date(timeIntervalSince1970: 100)))
     }
 
     @Test func legacyPayloadFallbacksDeriveCountAndHighWater() throws {

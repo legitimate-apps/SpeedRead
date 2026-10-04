@@ -55,14 +55,22 @@ These are testable statements. Breaking one is a defect regardless of what it en
 2. **Tokens are persisted, never recomputed per access** (`Book.tokenizedWords`).
 3. **RSVP close is atomic**: `snapshotIndexAndPause()` → save → dismiss. `stop()` zeros
    `currentIndex` and must never precede a read-for-persistence.
-4. **Position is three markers in one coordinate space, not one number.** `lastReadWordIndex`
-   (reading; syncs; last-write-wins on timestamp), `browseWordIndex` (crown/chapter/scrub;
-   **device-local, never syncs**) and `furthestReadWordIndex` (syncs; **merges by `max`**, so
-   clock skew and out-of-order delivery cannot corrupt a high-water mark). **Reading commits;
-   browsing does not.** A single number doing all three jobs is why browsing on the watch used to
-   destroy the phone's reading position. Book payloads go `sendMessage` with a `transferFile`
-   fallback; watch→phone position arrives as an *offer* the reader accepts, phone→watch applies
-   silently.
+4. **Position is three markers in one coordinate space, not one number.** `browseWordIndex` +
+   `browseDate` is **the place**: the word on screen and the reader's red highlight, moved by
+   everything (reading, taps, crown, chapter jumps, scrubbing), synced phone↔watch
+   **last-write-wins on the move's time** (a place never moved dates from its last read).
+   `lastReadWordIndex` is where you last *read* (reading only; syncs LWW on timestamp; the only
+   marker the library server sees; the target of the watch's "Back to where I was reading").
+   `furthestReadWordIndex` syncs and **merges by `max`**, so clock skew and out-of-order delivery
+   cannot corrupt a high-water mark. A single number doing all three jobs is why browsing on the
+   watch used to destroy the phone's reading position. The phone and watch behave as **one
+   reader** (operator, 2026-10-04): each adopts the other's place silently, and while one is
+   playing a book the other shows "Reading on …" on that book, cannot progress it, and takes it
+   over on "Read here"; the later run wins and the other pauses without committing. Every pause
+   commits, and that commit is what releases the other device. Presence is live-only
+   (`sendMessage` heartbeats each second; liveness read from the sender's `sentAt`, 6 s); places
+   and commits also go by application context. Book payloads go `sendMessage` with a
+   `transferFile` fallback. Design: `docs/superpowers/specs/2026-10-04-live-handoff-design.md`.
 5. **Tappable words are `Button`s**, never `onTapGesture` — Voice Control, focus and keyboard
    navigation depend on it.
 6. **Layout timing is expressed with `.task(id:)`**, never `DispatchQueue.main.asyncAfter`.
@@ -147,8 +155,8 @@ These are the operator's named priorities. They outrank backlog items.
    - Converting a foreign position (an EPUB location, a percentage) into the word index (§4.1) is
      the hard part. It is a fidelity problem to solve, not a reason to avoid sync: by §3.2, a sync
      that lands the reader somewhere else is a bug.
-   - The three-marker model (§4.4) carries over: only reading commits a position, so browsing
-     never pushes one to the server.
+   - The three-marker model (§4.4) carries over: only reading moves `lastReadWordIndex`, so
+     browsing never pushes a position to the server, and a server position stays an offer.
    - *State 2026-10-03: phone↔watch sync is shipped. Sync with the library server the book came from
      (CWNG, over KOSync with text anchors) is built on `main` and passed a joint end-to-end run
      against a CWNG build: a KOReader position became an offer that landed on the same word, and

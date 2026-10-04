@@ -92,7 +92,7 @@ struct BookCompletionTests {
         #expect(ReaderView.readingEstimate(book: book, lastWPM: 250) == "100% · finished")
     }
 
-    @Test func acceptingWatchPositionStartsReread() async throws {
+    @Test func adoptingWatchPositionStartsReread() async throws {
         let container = try ModelContainer(for: Book.self, Bookmark.self, Highlight.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let book = Book(title: "Watch reread", author: "Author",
@@ -108,10 +108,7 @@ struct BookCompletionTests {
         let payload = WatchSyncLogic.PositionPayload(bookId: book.id, bookTitle: book.title,
             wordIndex: 10, timestamp: Date().addingTimeInterval(10))
         service.session(.default, didReceiveApplicationContext: payload.dictionary)
-        for _ in 0..<100 where service.pendingWatchPositionOffer == nil { await Task.yield() }
-        let offer = try #require(service.pendingWatchPositionOffer)
-        #expect(book.progress == 1)
-        #expect(service.continueFromWatch(offer))
+        for _ in 0..<100 where book.lastReadWordIndex != 10 { await Task.yield() }
         #expect(book.progress == 0.25)
     }
 

@@ -28,7 +28,8 @@ struct ChapterNavigationTests {
     }
 
     @Test func chapterBrowseAndRSVPScrubPreserveReadingMarkersUntilPlay() throws {
-        // Mutations: commit a chapter jump, omit pending scroll/save, load RSVP at last-read, cache chapter at load instead of current engine index.
+        // Mutations: commit a chapter jump, omit pending scroll/save, load RSVP at last-read, cache chapter at load instead of current engine index,
+        // or return the reader to the reading marker instead of the place the scrub left.
         let book = Book(title: "Chapters", author: "", extractedText: "zero one two three four five", sourceFileName: "test.txt")
         book.lastReadWordIndex = 1
         book.ensurePositionMarkersInitialized()
@@ -51,13 +52,16 @@ struct ChapterNavigationTests {
         let update = try #require(presentation.updateGesture(translationX: 24, isPlaying: false, currentIndex: engine.currentIndex, wordCount: engine.totalWords))
         engine.seek(to: update.targetIndex)
         #expect(navigation.current(at: engine.currentIndex)?.title == "Opening")
+        let scrubbedTo = engine.currentIndex
+        #expect(scrubbedTo < 4)
+        #expect(presentation.recordBrowsePosition(scrubbedTo, book: book, saver: saver))
         #expect(presentation.close(engine: engine, book: book, saver: saver) == nil)
         #expect(book.lastReadWordIndex == 1)
         #expect(book.furthestReadWordIndex == 3)
         #expect(book.lastReadDate == date)
         session.reconcileRSVPDismiss(for: book)
-        #expect(session.consumePendingScroll() == 1)
-        #expect(book.browseWordIndex == 1)
+        #expect(session.consumePendingScroll() == scrubbedTo)
+        #expect(book.browseWordIndex == scrubbedTo)
     }
 
     @Test func distantBrowseResolvesContainingParagraphBeforeItsWordIsMounted() {
@@ -77,6 +81,7 @@ struct ChapterNavigationTests {
         // Mutations: skip clamping either bound, suppress save error, change the reading commit on failure.
         let book = Book(title: "Test", author: "", extractedText: "one two three", sourceFileName: "test.txt")
         book.lastReadWordIndex = 1
+        book.browseWordIndex = 1
         book.furthestReadWordIndex = 1
         let session = ReaderSession()
         session.load(book: book)
@@ -89,6 +94,11 @@ struct ChapterNavigationTests {
             #expect(book.lastReadWordIndex == 1)
             #expect(book.furthestReadWordIndex == 1)
         }
+        // A jump to the word already shown changes nothing, so there is nothing to save or send.
+        let saves = saver.count
+        #expect(session.browse(to: 2, book: book, saver: saver))
+        #expect(saver.count == saves)
+        #expect(session.consumePendingScroll() == 2)
     }
 }
 

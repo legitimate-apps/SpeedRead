@@ -162,16 +162,18 @@ struct ReaderSessionTests {
     }
 
     @Test func initialAndRSVPDismissScrollsUseTheCurrentClampedPosition() {
+        // The reader opens at the place (the word both devices show), not the reading marker.
         let book = makeBook(text: "zero one two")
         let session = ReaderSession()
-        book.lastReadWordIndex = 99
+        book.lastReadWordIndex = 1
+        book.browseWordIndex = 99
         session.load(book: book)
 
         session.requestInitialScroll(for: book)
         #expect(session.consumePendingScroll() == 2)
         #expect(session.consumePendingScroll() == nil)
 
-        book.lastReadWordIndex = -5
+        book.browseWordIndex = -5
         session.reconcileRSVPDismiss(for: book)
         #expect(session.consumePendingScroll() == 0)
     }

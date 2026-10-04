@@ -169,11 +169,8 @@ private final class CompletionPeer {
         for _ in 0..<100 where service.currentBook?.lastReadDate != payload.timestamp { await Task.yield() }
         #expect(service.currentBook?.lastReadDate == payload.timestamp)
         #else
-        for _ in 0..<100 where service.pendingWatchPositionOffer == nil { await Task.yield() }
-        let offer = try #require(service.pendingWatchPositionOffer)
-        #expect(offer.timestamp == payload.timestamp)
-        if payload.didFinish { #expect(offer.displayText.contains("100%")) }
-        #expect(service.continueFromWatch(offer))
+        // The phone adopts the watch's place without asking.
+        for _ in 0..<100 where book.lastReadDate != payload.timestamp { await Task.yield() }
         #expect(book.lastReadDate == payload.timestamp)
         #endif
     }

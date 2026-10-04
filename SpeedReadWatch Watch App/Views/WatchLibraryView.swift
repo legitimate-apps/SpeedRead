@@ -72,6 +72,7 @@ struct WatchLibraryContent: View {
                                         .font(.caption2)
                                         .foregroundStyle(Color.agedGold)
                                 }
+                                readingElsewhereLabel(for: book)
                             }
 
                             Spacer(minLength: 0)
@@ -108,6 +109,17 @@ struct WatchLibraryContent: View {
         }
     }
 
+    @ViewBuilder
+    private func readingElsewhereLabel(for book: WatchBook) -> some View {
+        if syncService.remotePresence?.bookId == book.id {
+            Label(LiveHandoffLogic.cardTitle(readingOn: HandoffDevice.current.counterpart),
+                  systemImage: "iphone.radiowaves.left.and.right")
+                .font(.caption2)
+                .foregroundStyle(Color.agedGold)
+                .accessibilityIdentifier("watch-reading-elsewhere-label")
+        }
+    }
+
     // MARK: - Book Row
 
     private func bookRow(_ book: WatchBook) -> some View {
@@ -126,6 +138,7 @@ struct WatchLibraryContent: View {
                     .font(.caption)
                     .foregroundStyle(Color.parchment.opacity(0.6))
                     .lineLimit(1)
+                readingElsewhereLabel(for: book)
             }
 
             Spacer(minLength: 0)

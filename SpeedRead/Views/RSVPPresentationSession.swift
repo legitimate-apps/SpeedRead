@@ -70,14 +70,37 @@ final class RSVPPresentationSession {
         sync: (any ReadingPositionSyncing)? = nil,
         now: Date = Date()
     ) -> ReadingPositionCommit? {
+        let positionSync = sync ?? WatchSyncService.shared
         if engine.state == .playing {
-            engine.pause()
-            return nil
+            // Pausing is the handoff moment: the word you stopped on becomes the place everywhere.
+            let index = engine.snapshotIndexAndPause()
+            positionSync.endLocalRun(bookId: book.id)
+            return ReadingPositionCoordinator.commit(
+                index,
+                wordCount: cachedWords.count,
+                book: book,
+                saver: saver,
+                sync: positionSync,
+                now: now,
+                didFinish: engine.didFinish
+            )
         }
         guard engine.isLoaded else { return nil }
         let index = engine.currentIndex
         engine.play()
         positionCommitPolicy.pressedPlay(at: index, now: now)
+        positionSync.beginLocalRun(
+            bookId: book.id,
+            snapshot: { [weak engine] in
+                guard let engine else { return nil }
+                return book.positionPayload().movingPlace(to: engine.currentIndex, at: Date())
+            },
+            onYield: { [weak engine] presence in
+                // The other device took the book: stop without committing, and show its word.
+                engine?.pause()
+                engine?.seek(to: presence.wordIndex)
+            }
+        )
         return ReadingPositionCoordinator.commit(
             index,
             wordCount: cachedWords.count,
@@ -102,6 +125,7 @@ final class RSVPPresentationSession {
                 && positionCommitPolicy.shouldCommitAdvance(at: index, now: now)) else {
             return nil
         }
+        if engine.didFinish { (sync ?? WatchSyncService.shared).endLocalRun(bookId: book.id) }
         return ReadingPositionCoordinator.commit(
             index,
             wordCount: cachedWords.count,
@@ -113,17 +137,22 @@ final class RSVPPresentationSession {
         )
     }
 
+    /// A scrub, chapter or bookmark move. Following the watch to a word already stored as the
+    /// place is not a move, so it sends nothing back.
     @discardableResult
     func recordBrowsePosition(
         _ index: Int,
         book: Book,
-        saver: any ReadingPositionSaving
+        saver: any ReadingPositionSaving,
+        sync: (any ReadingPositionSyncing)? = nil,
+        now: Date = Date()
     ) -> Bool {
         book.ensurePositionMarkersInitialized()
-        book.browseWordIndex = ReadingPositionCoordinator.clampedIndex(
-            index,
-            wordCount: cachedWords.count
-        )
+        let target = ReadingPositionCoordinator.clampedIndex(index, wordCount: cachedWords.count)
+        guard target != book.browseWordIndex else { return true }
+        book.browseWordIndex = target
+        book.browseDate = now
+        (sync ?? WatchSyncService.shared).publishPlace(book.positionPayload())
         do {
             try saver.save()
             return true
@@ -140,6 +169,7 @@ final class RSVPPresentationSession {
         now: Date = Date()
     ) -> ReadingPositionCommit? {
         let index = engine.snapshotIndexAndPause()
+        (sync ?? WatchSyncService.shared).endLocalRun(bookId: book.id)
         guard positionCommitPolicy.hasPlayed else {
             didCommitClose = true
             return nil
@@ -173,6 +203,7 @@ final class RSVPPresentationSession {
             return nil
         }
         let index = engine.snapshotIndexAndPause()
+        (sync ?? WatchSyncService.shared).endLocalRun(bookId: book.id)
         guard positionCommitPolicy.hasPlayed else {
             engine.stop()
             return nil

@@ -20,6 +20,25 @@ protocol ReadingPositionSyncing {
         didFinish: Bool,
         finishedAt: Date?
     )
+    /// A browse move: the place changed without reading.
+    func publishPlace(_ payload: WatchSyncLogic.PositionPayload)
+    func beginLocalRun(
+        bookId: UUID,
+        snapshot: @escaping () -> WatchSyncLogic.PositionPayload?,
+        onYield: @escaping (RemotePresence) -> Void
+    )
+    func endLocalRun(bookId: UUID)
+}
+
+/// Doubles that only care about reading commits need not model the live handoff.
+extension ReadingPositionSyncing {
+    func publishPlace(_ payload: WatchSyncLogic.PositionPayload) {}
+    func beginLocalRun(
+        bookId: UUID,
+        snapshot: @escaping () -> WatchSyncLogic.PositionPayload?,
+        onYield: @escaping (RemotePresence) -> Void
+    ) {}
+    func endLocalRun(bookId: UUID) {}
 }
 
 extension WatchSyncService: ReadingPositionSyncing {}
@@ -62,6 +81,7 @@ extension ReadingPositionCoordinator {
             existingDate: book.finishedAt, now: now
         )
         book.browseWordIndex = clamped
+        book.browseDate = now
         book.furthestReadWordIndex = max(book.furthestReadWordIndex, clamped)
 
         let didSave: Bool
@@ -165,12 +185,22 @@ final class ReaderSession {
         wordFlash = nil
     }
 
+    /// A chapter, bookmark or highlight jump moves the place, and the watch with it.
     @discardableResult
-    func browse(to index: Int, book: Book, saver: any ReadingPositionSaving) -> Bool {
+    func browse(
+        to index: Int,
+        book: Book,
+        saver: any ReadingPositionSaving,
+        sync: (any ReadingPositionSyncing)? = nil,
+        now: Date = Date()
+    ) -> Bool {
         book.ensurePositionMarkersInitialized()
         let target = clampedIndex(index)
-        book.browseWordIndex = target
         pendingScrollIndex = target
+        guard target != book.browseWordIndex else { return true }
+        book.browseWordIndex = target
+        book.browseDate = now
+        (sync ?? WatchSyncService.shared).publishPlace(book.positionPayload())
         do {
             try saver.save()
             return true
@@ -179,14 +209,14 @@ final class ReaderSession {
         }
     }
 
+    /// The reader opens on the place, which may have moved on the watch.
     func requestInitialScroll(for book: Book) {
-        book.browseWordIndex = clampedIndex(book.lastReadWordIndex)
-        pendingScrollIndex = book.browseWordIndex
+        book.ensurePositionMarkersInitialized()
+        pendingScrollIndex = clampedIndex(book.browseWordIndex)
     }
 
     func reconcileRSVPDismiss(for book: Book) {
-        book.browseWordIndex = clampedIndex(book.lastReadWordIndex)
-        pendingScrollIndex = book.browseWordIndex
+        pendingScrollIndex = clampedIndex(book.browseWordIndex)
     }
 
     func consumePendingScroll() -> Int? {

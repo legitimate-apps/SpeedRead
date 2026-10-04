@@ -75,9 +75,12 @@ final class Book {
     /// Completion of the current read, independent of the last visible word.
     /// Optional so existing libraries migrate with no inferred completion.
     var finishedAt: Date? = nil
-    /// Local RSVP/navigation cursor. A negative value is the migration sentinel for
-    /// stores created before the three-marker position model.
+    /// The place: the word on screen and highlighted in the reader, moved by any interaction and
+    /// shared live with the watch. A negative value is the migration sentinel for stores created
+    /// before the three-marker position model.
     var browseWordIndex: Int = -1
+    /// When the place last moved, on either device. Nil until it first moves.
+    var browseDate: Date? = nil
 
     /// Synced high-water reading mark. A negative value is the migration sentinel.
     var furthestReadWordIndex: Int = -1
@@ -176,6 +179,21 @@ final class Book {
         guard wordCount > 0 else { return 0.0 }
         if finishedAt != nil { return 1.0 }
         return Double(lastReadWordIndex) / Double(wordCount)
+    }
+
+    /// Everything this phone knows about its place in the book, for the watch.
+    func positionPayload() -> WatchSyncLogic.PositionPayload {
+        WatchSyncLogic.PositionPayload(
+            bookId: id,
+            bookTitle: title,
+            wordIndex: ReadingPositionCoordinator.clampedIndex(lastReadWordIndex, wordCount: wordCount),
+            timestamp: lastReadDate ?? .distantPast,
+            furthestReadWordIndex: max(0, furthestReadWordIndex),
+            didFinish: finishedAt != nil,
+            finishedAt: finishedAt,
+            browseWordIndex: ReadingPositionCoordinator.clampedIndex(browseWordIndex, wordCount: wordCount),
+            browseTimestamp: browseDate ?? lastReadDate ?? .distantPast
+        )
     }
 }
 #endif

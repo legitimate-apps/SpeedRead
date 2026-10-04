@@ -9,7 +9,7 @@ struct WatchReadingCompositionTests {
     private let storage: WatchTestStorage
     init() throws { storage = try WatchTestStorage() }
 
-    @Test func chapterAndCrownBrowsingPersistLocallyAndRestoreUsesLatestPhonePosition() throws {
+    @Test func chapterAndCrownBrowsingMoveThePlaceEverywhereButNeverTheReadingPosition() throws {
         let wire = CompositionWatchSession()
         let service = WatchSyncService(session: wire, store: storage.store)
         let book = makeBook()
@@ -31,27 +31,41 @@ struct WatchReadingCompositionTests {
         #expect(session.engine.currentIndex == 10)
         #expect(storage.store.load().currentBook?.browseWordIndex == 10)
         #expect(storage.store.load().currentBook?.lastReadIndex == 2)
+        // Places are coalesced; flushing stands in for the 250 ms timer.
         #expect(wire.contexts.isEmpty)
+        service.flushPendingPlace()
+        #expect(wire.contexts.last?["browseWordIndex"] as? Int == 10)
+        #expect(wire.contexts.last?["wordIndex"] as? Int == 2)
         let chapter = try PresentationRaster(content.surface, width: 198, height: 242)
         #expect(initial != chapter, "The selected chapter must change the visible word")
         crown += 2
         content.seek(crown)
         #expect(session.engine.currentIndex == 8)
         #expect(storage.store.load().currentBook?.browseWordIndex == 8)
-        #expect(wire.contexts.isEmpty)
-        service.library.updatePosition(bookId: book.id, index: 6, timestamp: Date(), furthestReadWordIndex: 12)
+        service.flushPendingPlace()
+        #expect(wire.contexts.last?["browseWordIndex"] as? Int == 8)
+        #expect(wire.contexts.last?["wordIndex"] as? Int == 2)
+        // Reading from the phone whose place is older than the crown move: the place stays at 8
+        // until "Back to where I was reading".
+        service.library.updatePosition(bookId: book.id, index: 6, timestamp: Date(),
+                                       furthestReadWordIndex: 12, movesPlace: false)
+        #expect(service.currentBook?.browseWordIndex == 8)
         content.settings.restoreReadingPosition()
         #expect(session.engine.currentIndex == 6)
         #expect(storage.store.load().currentBook?.browseWordIndex == 6)
-        #expect(wire.contexts.isEmpty)
+        service.flushPendingPlace()
+        #expect(wire.contexts.last?["browseWordIndex"] as? Int == 6)
         crown = -500
         content.synchronizePosition()
         #expect(crown >= 0)
+        let sent = wire.contexts.count
         content.disappear()
-        #expect(wire.contexts.isEmpty, "Merely browsing then closing must never sync a reading position")
+        service.flushPendingPlace()
+        #expect(wire.contexts.count == sent, "Merely browsing then closing must never commit a reading position")
+        #expect(wire.contexts.allSatisfy { $0["isPlaying"] as? Bool == false })
     }
 
-    @Test func playbackCommitsButSettingsPauseAndPausedBrowsingDoNot() throws {
+    @Test func everyPauseCommitsAndHandsTheBookBackButPausedBrowsingDoesNot() throws {
         let wire = CompositionWatchSession()
         let service = WatchSyncService(session: wire, store: storage.store)
         let book = makeBook()
@@ -75,17 +89,23 @@ struct WatchReadingCompositionTests {
         #expect(session.engine.currentIndex == 3)
         content.synchronizePosition()
         #expect(wire.contexts.count == 1)
+        #expect(service.localRunBookId == book.id)
         content.togglePlayback()
         #expect(session.engine.state == .paused)
-        #expect(wire.contexts.count == 1)
-        content.togglePlayback()
         #expect(wire.contexts.count == 2)
+        #expect(service.localRunBookId == nil)
+        content.togglePlayback()
+        #expect(wire.contexts.count == 3)
+        #expect(service.localRunBookId == book.id)
+        // Settings pauses too, and must release the phone the same way.
         content.openSettings()
         #expect(showing)
         #expect(session.engine.state == .paused)
-        #expect(wire.contexts.count == 2)
+        #expect(wire.contexts.count == 4)
+        #expect(service.localRunBookId == nil)
+        #expect(wire.contexts.last?["isPlaying"] as? Bool == false)
         content.disappear()
-        #expect(wire.contexts.count == 3)
+        #expect(wire.contexts.count == 5)
         #expect(wire.contexts.last?["wordIndex"] as? Int == 3)
     }
 
@@ -153,9 +173,11 @@ struct WatchReadingCompositionTests {
         #expect(wire.activations == 1, "RSVP appearance must not activate or reload the library")
         #expect(service.currentBook?.id == fixtureID)
         #expect(wire.contexts.isEmpty)
-        // RSVP's normal onAppear -> crown change records a local browse position. This also
-        // proves the app root passed our injected service through the environment to RSVP.
-        #expect(storage.store.load().currentBook?.id == fixtureID)
+        // WatchRSVPView reads the service as an @EnvironmentObject, and a missing one is a fatal
+        // error, so rendering at all proves the root passed our injected service through. RSVP
+        // appearing leaves the fixture's place where it was, so nothing is written over the
+        // reader's library either.
+        #expect(storage.store.load().currentBook?.id == saved.id)
 
     }
 

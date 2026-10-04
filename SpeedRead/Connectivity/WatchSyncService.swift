@@ -133,6 +133,14 @@ struct WatchSyncLogic {
         let furthestReadWordIndex: Int
         let didFinish: Bool
         let finishedAt: Date?
+        /// The place: the word on screen, moved by any interaction. Last-write-wins on
+        /// `browseTimestamp`, separately from the reading position above.
+        let browseWordIndex: Int
+        let browseTimestamp: Date
+        /// The sender is reading this book right now, in a run that began at `playStartedAt`.
+        let isPlaying: Bool
+        let playStartedAt: Date?
+        let sentAt: Date
 
         init(
             bookId: UUID,
@@ -141,7 +149,12 @@ struct WatchSyncLogic {
             timestamp: Date,
             furthestReadWordIndex: Int = 0,
             didFinish: Bool = false,
-            finishedAt: Date? = nil
+            finishedAt: Date? = nil,
+            browseWordIndex: Int? = nil,
+            browseTimestamp: Date? = nil,
+            isPlaying: Bool = false,
+            playStartedAt: Date? = nil,
+            sentAt: Date? = nil
         ) {
             self.bookId = bookId
             self.bookTitle = bookTitle
@@ -150,6 +163,32 @@ struct WatchSyncLogic {
             self.furthestReadWordIndex = furthestReadWordIndex
             self.didFinish = didFinish
             self.finishedAt = finishedAt
+            self.browseWordIndex = browseWordIndex ?? wordIndex
+            self.browseTimestamp = browseTimestamp ?? timestamp
+            self.isPlaying = isPlaying
+            self.playStartedAt = playStartedAt
+            self.sentAt = sentAt ?? timestamp
+        }
+
+        /// The same book state with the place moved: a heartbeat's live word.
+        func movingPlace(to index: Int, at date: Date) -> PositionPayload {
+            PositionPayload(
+                bookId: bookId, bookTitle: bookTitle, wordIndex: wordIndex, timestamp: timestamp,
+                furthestReadWordIndex: furthestReadWordIndex, didFinish: didFinish,
+                finishedAt: finishedAt, browseWordIndex: index, browseTimestamp: date,
+                isPlaying: isPlaying, playStartedAt: playStartedAt, sentAt: sentAt
+            )
+        }
+
+        /// The same place, stamped with this device's live state at the moment of sending.
+        func stamped(isPlaying: Bool, playStartedAt: Date?, sentAt: Date) -> PositionPayload {
+            PositionPayload(
+                bookId: bookId, bookTitle: bookTitle, wordIndex: wordIndex, timestamp: timestamp,
+                furthestReadWordIndex: furthestReadWordIndex, didFinish: didFinish,
+                finishedAt: finishedAt, browseWordIndex: browseWordIndex,
+                browseTimestamp: browseTimestamp, isPlaying: isPlaying,
+                playStartedAt: isPlaying ? playStartedAt : nil, sentAt: sentAt
+            )
         }
 
         var dictionary: [String: Any] {
@@ -159,10 +198,17 @@ struct WatchSyncLogic {
                 "wordIndex": wordIndex,
                 "timestamp": timestamp.timeIntervalSince1970,
                 "furthestReadWordIndex": furthestReadWordIndex,
-                "didFinish": didFinish
+                "didFinish": didFinish,
+                "browseWordIndex": browseWordIndex,
+                "browseTimestamp": browseTimestamp.timeIntervalSince1970,
+                "isPlaying": isPlaying,
+                "sentAt": sentAt.timeIntervalSince1970
             ]
             if didFinish, let finishedAt {
                 dictionary["finishedAt"] = finishedAt.timeIntervalSince1970
+            }
+            if isPlaying, let playStartedAt {
+                dictionary["playStartedAt"] = playStartedAt.timeIntervalSince1970
             }
             return dictionary
         }
@@ -182,6 +228,14 @@ struct WatchSyncLogic {
             let finishedAt = completionInterval.flatMap {
                 didFinish && $0.isFinite ? Date(timeIntervalSince1970: $0) : nil
             }
+            let browseWordIndex = (dictionary["browseWordIndex"] as? Int) ?? wordIndex
+            guard browseWordIndex >= 0 else { return nil }
+            func date(_ key: String) -> Date? {
+                (dictionary[key] as? TimeInterval).flatMap {
+                    $0.isFinite ? Date(timeIntervalSince1970: $0) : nil
+                }
+            }
+            let isPlaying = (dictionary["isPlaying"] as? Bool) ?? false
             return PositionPayload(
                 bookId: bookId,
                 bookTitle: bookTitle,
@@ -192,7 +246,12 @@ struct WatchSyncLogic {
                     (dictionary["furthestReadWordIndex"] as? Int) ?? wordIndex
                 ),
                 didFinish: didFinish,
-                finishedAt: finishedAt
+                finishedAt: finishedAt,
+                browseWordIndex: browseWordIndex,
+                browseTimestamp: date("browseTimestamp"),
+                isPlaying: isPlaying,
+                playStartedAt: isPlaying ? date("playStartedAt") : nil,
+                sentAt: date("sentAt")
             )
         }
     }
@@ -217,37 +276,6 @@ struct WatchSyncLogic {
         max(local, incoming)
     }
 
-    static func shouldOfferWatchPosition(
-        incoming: PositionPayload,
-        localIndex: Int,
-        localDate: Date?,
-        wordCount: Int,
-        pendingOfferDate: Date? = nil,
-        localHasFinished: Bool = false,
-        pendingOfferDidFinish: Bool? = nil
-    ) -> Bool {
-        if let pendingOfferDate, incoming.timestamp <= pendingOfferDate { return false }
-        guard wordCount > 0,
-              reconcile(
-                incoming: incoming,
-                bookExists: true,
-                lastReadDate: localDate
-              ) == .apply else {
-            return false
-        }
-        let clampedIncoming = ReadingPositionCoordinator.clampedIndex(incoming.wordIndex, wordCount: wordCount)
-        let materialDifference = max(5, Int(ceil(Double(wordCount) * 0.01)))
-        let incomingFinishes = ReadingPositionCoordinator.completionDate(
-            didFinish: incoming.didFinish, index: clampedIncoming, wordCount: wordCount,
-            existingDate: nil, incomingDate: incoming.finishedAt, now: incoming.timestamp
-        ) != nil
-        // A completion change is material even at the same final word. A newer commit
-        // must also replace an opposite-completion offer that has not been accepted yet.
-        return abs(clampedIncoming - localIndex) >= materialDifference
-            || incomingFinishes != localHasFinished
-            || pendingOfferDidFinish.map { $0 != incomingFinishes } == true
-    }
-
     enum BookDeliveryRoute: Equatable {
         case message
         case file
@@ -268,6 +296,18 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     nonisolated private static let logger = Logger(subsystem: "com.legitimateapps.SpeedRead", category: "WatchSync")
     private let connectivitySession: any WatchConnectivitySession
 
+    /// The other device is reading a book right now. Drives the "Reading on …" card.
+    @Published private(set) var remotePresence: RemotePresence?
+    private var localRun: LocalRun?
+    private var heartbeatTask: Task<Void, Never>?
+    private var presenceExpiryTask: Task<Void, Never>?
+    private var pendingPlace: WatchSyncLogic.PositionPayload?
+    private var placeFlushTask: Task<Void, Never>?
+    private var lastLivePersist: Date = .distantPast
+    var clock: () -> Date = { Date() }
+    var heartbeatInterval = LiveHandoffLogic.heartbeatInterval
+    var placeCoalescing = LiveHandoffLogic.placeCoalescing
+
     #if os(watchOS)
     @Published var library: WatchLibrary = .empty
     var currentBook: WatchBook? { library.currentBook }
@@ -280,28 +320,6 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     #endif
 
     #if os(iOS)
-    struct PositionOffer: Equatable, Identifiable {
-        var id: UUID { bookId }
-        let bookId: UUID
-        let bookTitle: String
-        let wordIndex: Int
-        let wordCount: Int
-        let timestamp: Date
-        var didFinish: Bool = false
-        var finishedAt: Date? = nil
-
-        var displayText: String {
-            let isFinished = ReadingPositionCoordinator.completionDate(
-                didFinish: didFinish, index: wordIndex, wordCount: wordCount,
-                existingDate: nil, incomingDate: finishedAt, now: timestamp
-            ) != nil
-            let percentage = isFinished ? 100 : wordCount > 0
-                ? Int((Double(wordIndex) / Double(wordCount) * 100).rounded())
-                : 0
-            return "Continue from Apple Watch — \(percentage)%, word \((wordIndex + 1).formatted())"
-        }
-    }
-
     enum SendState: Equatable {
         case idle
         case sending(String)
@@ -310,7 +328,6 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     @Published var sendState: SendState = .idle
-    @Published private(set) var pendingWatchPositionOffer: PositionOffer?
     private var sendStateClearTask: Task<Void, Never>?
     private var modelContext: ModelContext?
     #endif
@@ -336,14 +353,6 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     init(session: any WatchConnectivitySession = WCSession.default) {
         connectivitySession = session
         super.init()
-    }
-    #endif
-
-    #if os(iOS) && DEBUG
-    // Lets unit tests exercise acceptance independently of the ingress clamp.
-    convenience init(session: any WatchConnectivitySession, pendingOffer: PositionOffer) {
-        self.init(session: session)
-        pendingWatchPositionOffer = pendingOffer
     }
     #endif
 
@@ -399,11 +408,6 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     // MARK: - iPhone → Watch
 
     #if os(iOS)
-    @MainActor
-    func configure(modelContext: ModelContext) {
-        self.modelContext = modelContext
-    }
-
     func sendBook(
         id: UUID,
         title: String,
@@ -527,7 +531,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         persistLibrary()
         #endif
         guard connectivitySession.activationState == .activated else { return }
-        let payload = WatchSyncLogic.PositionPayload(
+        send(WatchSyncLogic.PositionPayload(
             bookId: bookId,
             bookTitle: bookTitle,
             wordIndex: wordIndex,
@@ -535,8 +539,174 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             furthestReadWordIndex: outgoingFurthest,
             didFinish: outgoingDidFinish,
             finishedAt: outgoingFinishedAt
+        ))
+    }
+
+    // MARK: - Live handoff
+
+    /// This device is reading `bookId`. `snapshot` supplies the live place for heartbeats;
+    /// `onYield` runs when the other device takes the book over.
+    struct LocalRun {
+        let bookId: UUID
+        let startedAt: Date
+        let snapshot: () -> WatchSyncLogic.PositionPayload?
+        let onYield: (RemotePresence) -> Void
+    }
+
+    var localRunBookId: UUID? { localRun?.bookId }
+
+    /// The other device's presence on `bookId`, when this device is not reading it itself.
+    func remotePresence(for bookId: UUID?) -> RemotePresence? {
+        guard let bookId,
+              let remotePresence,
+              remotePresence.bookId == bookId,
+              localRun?.bookId != bookId else { return nil }
+        return remotePresence
+    }
+
+    func beginLocalRun(
+        bookId: UUID,
+        snapshot: @escaping () -> WatchSyncLogic.PositionPayload?,
+        onYield: @escaping (RemotePresence) -> Void
+    ) {
+        localRun = LocalRun(bookId: bookId, startedAt: clock(), snapshot: snapshot, onYield: onYield)
+        Self.logger.debug("handoff: run began \(bookId, privacy: .public)")
+        // Reading here is the takeover: the other device yields when it hears the heartbeat.
+        if remotePresence?.bookId == bookId { clearPresence() }
+        heartbeatTask?.cancel()
+        heartbeatTask = Task { [weak self] in
+            while !Task.isCancelled {
+                self?.sendHeartbeat()
+                guard let interval = self?.heartbeatInterval else { return }
+                try? await Task.sleep(for: interval)
+            }
+        }
+    }
+
+    /// Ends this device's run. Sends nothing: every path that ends a run by choice commits,
+    /// and that commit carries the release; a yield must not answer the device that took over.
+    func endLocalRun(bookId: UUID) {
+        guard localRun?.bookId == bookId else { return }
+        localRun = nil
+        Self.logger.debug("handoff: run ended \(bookId, privacy: .public)")
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
+    }
+
+    /// Heartbeats are live-only: a context saying "playing" would outlive the run.
+    func sendHeartbeat() {
+        guard let run = localRun,
+              let payload = run.snapshot(),
+              connectivitySession.activationState == .activated,
+              connectivitySession.isReachable else { return }
+        connectivitySession.sendMessage(stamp(payload).dictionary, replyHandler: nil, errorHandler: nil)
+    }
+
+    /// A browse move (crown, scrub, chapter jump). Coalesced to the latest move.
+    func publishPlace(_ payload: WatchSyncLogic.PositionPayload) {
+        pendingPlace = payload
+        guard placeFlushTask == nil else { return }
+        placeFlushTask = Task { [weak self] in
+            try? await Task.sleep(for: self?.placeCoalescing ?? .zero)
+            self?.flushPendingPlace()
+        }
+    }
+
+    func flushPendingPlace() {
+        placeFlushTask?.cancel()
+        placeFlushTask = nil
+        guard let pendingPlace else { return }
+        self.pendingPlace = nil
+        send(pendingPlace)
+    }
+
+    private func send(_ payload: WatchSyncLogic.PositionPayload) {
+        // A commit carries the newest place, so a coalesced move queued before it is moot.
+        if pendingPlace?.bookId == payload.bookId, pendingPlace != payload {
+            pendingPlace = nil
+        }
+        guard connectivitySession.activationState == .activated else { return }
+        let dictionary = stamp(payload).dictionary
+        try? connectivitySession.updateApplicationContext(dictionary)
+        if connectivitySession.isReachable {
+            connectivitySession.sendMessage(dictionary, replyHandler: nil, errorHandler: nil)
+        }
+    }
+
+    private func stamp(_ payload: WatchSyncLogic.PositionPayload) -> WatchSyncLogic.PositionPayload {
+        let isPlaying = localRun?.bookId == payload.bookId
+        return payload.stamped(
+            isPlaying: isPlaying,
+            playStartedAt: isPlaying ? localRun?.startedAt : nil,
+            sentAt: clock()
         )
-        try? connectivitySession.updateApplicationContext(payload.dictionary)
+    }
+
+    /// Every incoming place, live or durable, from either delegate path.
+    func receivePosition(_ payload: WatchSyncLogic.PositionPayload) {
+        let now = clock()
+        let keepsReading = updatePresence(from: payload, now: now)
+        applyIncoming(payload, ownedHere: keepsReading, now: now)
+    }
+
+    /// Returns whether this device keeps reading the book, in which case the incoming place is
+    /// an older run's and must not move it.
+    private func updatePresence(from payload: WatchSyncLogic.PositionPayload, now: Date) -> Bool {
+        guard let presence = LiveHandoffLogic.presence(from: payload, now: now) else {
+            if let current = remotePresence,
+               current.bookId == payload.bookId,
+               !payload.isPlaying,
+               payload.sentAt >= current.sentAt {
+                clearPresence()
+            }
+            return false
+        }
+        if let run = localRun, run.bookId == presence.bookId {
+            guard LiveHandoffLogic.shouldYield(
+                localRunStartedAt: run.startedAt,
+                incoming: presence,
+                localDevice: .current
+            ) else { return true }
+            Self.logger.debug("handoff: yielding to the counterpart at word \(presence.wordIndex)")
+            endLocalRun(bookId: run.bookId)
+            run.onYield(presence)
+        }
+        if remotePresence?.playStartedAt != presence.playStartedAt {
+            Self.logger.debug("handoff: counterpart is reading \(presence.bookId, privacy: .public)")
+        }
+        remotePresence = presence
+        presenceExpiryTask?.cancel()
+        let delay = max(0, LiveHandoffLogic.expiry(of: presence).timeIntervalSince(now))
+        presenceExpiryTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled, let self else { return }
+            self.expirePresence(now: self.clock())
+        }
+        return false
+    }
+
+    /// The reading device went quiet (locked, out of range, killed): unlock at the last place.
+    func expirePresence(now: Date) {
+        guard let remotePresence,
+              !LiveHandoffLogic.isLive(sentAt: remotePresence.sentAt, now: now) else { return }
+        clearPresence()
+    }
+
+    private func clearPresence() {
+        presenceExpiryTask?.cancel()
+        presenceExpiryTask = nil
+        guard remotePresence != nil else { return }
+        remotePresence = nil
+        persistLivePlace()
+    }
+
+    private func shouldPersistLive(_ payload: WatchSyncLogic.PositionPayload, now: Date) -> Bool {
+        guard payload.isPlaying,
+              now.timeIntervalSince(lastLivePersist) < LiveHandoffLogic.livePersistInterval else {
+            lastLivePersist = now
+            return true
+        }
+        return false
     }
 
     // MARK: - watchOS Persistence
@@ -575,6 +745,41 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         } catch {
             Self.logger.error("Failed to persist library: \(error.localizedDescription)")
         }
+    }
+
+    private func persistLivePlace() { persistLibrary() }
+
+    private func applyIncoming(_ payload: WatchSyncLogic.PositionPayload, ownedHere: Bool, now: Date) {
+        guard let book = library.books.first(where: { $0.id == payload.bookId }) else { return }
+        let mergedFurthest = WatchSyncLogic.mergedFurthestRead(
+            local: book.furthestReadWordIndex,
+            incoming: payload.furthestReadWordIndex
+        )
+        var changed = library.mergeFurthestReadPosition(bookId: payload.bookId, index: mergedFurthest)
+        if !ownedHere {
+            if WatchSyncLogic.reconcile(incoming: payload, bookExists: true,
+                                        lastReadDate: book.lastReadDate) == .apply {
+                changed = library.updatePosition(
+                    bookId: payload.bookId,
+                    index: payload.wordIndex,
+                    timestamp: payload.timestamp,
+                    furthestReadWordIndex: mergedFurthest,
+                    didFinish: payload.didFinish,
+                    finishedAt: payload.finishedAt,
+                    movesPlace: false
+                ) || changed
+            }
+            // A place never moved dates from the last read.
+            if LiveHandoffLogic.shouldApplyPlace(localDate: book.browseDate ?? book.lastReadDate,
+                                                 incomingDate: payload.browseTimestamp) {
+                changed = library.applyPlace(
+                    bookId: payload.bookId,
+                    index: payload.browseWordIndex,
+                    date: payload.browseTimestamp
+                ) || changed
+            }
+        }
+        if changed, shouldPersistLive(payload, now: now) { persistLibrary() }
     }
 
     private func ingest(_ payload: BookPayload) {
@@ -628,49 +833,35 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
 
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         guard let payload = WatchSyncLogic.PositionPayload.decode(from: applicationContext) else { return }
-        Task { @MainActor [weak self] in
-            #if os(watchOS)
-            guard let self else { return }
-            guard let book = self.library.books.first(where: { $0.id == payload.bookId }) else { return }
-            let readingDecision = WatchSyncLogic.reconcile(
-                incoming: payload,
-                bookExists: true,
-                lastReadDate: book.lastReadDate
-            )
-            let mergedFurthest = WatchSyncLogic.mergedFurthestRead(
-                local: book.furthestReadWordIndex,
-                incoming: payload.furthestReadWordIndex
-            )
-            var changed = self.library.mergeFurthestReadPosition(
-                bookId: payload.bookId,
-                index: mergedFurthest
-            )
-            if readingDecision == .apply {
-                changed = self.library.updatePosition(
-                    bookId: payload.bookId,
-                    index: payload.wordIndex,
-                    timestamp: payload.timestamp,
-                    furthestReadWordIndex: mergedFurthest,
-                    didFinish: payload.didFinish,
-                    finishedAt: payload.finishedAt
-                ) || changed
-            }
-            if changed { self.persistLibrary() }
-            #elseif os(iOS)
-            self?.applyIncomingPosition(payload)
-            #endif
-        }
+        Task { @MainActor [weak self] in self?.receivePosition(payload) }
+    }
+
+    /// Live places arrive here: they are sent without a reply handler.
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        guard let payload = WatchSyncLogic.PositionPayload.decode(from: message) else { return }
+        Task { @MainActor [weak self] in self?.receivePosition(payload) }
     }
 
     #if os(iOS)
     @MainActor
-    func applyIncomingPosition(_ payload: WatchSyncLogic.PositionPayload) {
+    func configure(modelContext: ModelContext) {
+        self.modelContext = modelContext
+    }
+
+    private func persistLivePlace() {
+        do {
+            try modelContext?.save()
+        } catch {
+            Self.logger.error("Failed to persist watch place: \(error.localizedDescription)")
+        }
+    }
+
+    private func applyIncoming(_ payload: WatchSyncLogic.PositionPayload, ownedHere: Bool, now: Date) {
         guard let modelContext else { return }
         let bookId = payload.bookId
         let descriptor = FetchDescriptor<Book>(predicate: #Predicate { $0.id == bookId })
         guard let book = try? modelContext.fetch(descriptor).first else { return }
         book.ensurePositionMarkersInitialized()
-        let clampedIndex = ReadingPositionCoordinator.clampedIndex(payload.wordIndex, wordCount: book.wordCount)
         book.furthestReadWordIndex = ReadingPositionCoordinator.clampedIndex(
             WatchSyncLogic.mergedFurthestRead(
                 local: book.furthestReadWordIndex,
@@ -678,93 +869,32 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             ),
             wordCount: book.wordCount
         )
-        if WatchSyncLogic.shouldOfferWatchPosition(
-            incoming: payload,
-            localIndex: book.lastReadWordIndex,
-            localDate: book.lastReadDate,
-            wordCount: book.wordCount,
-            pendingOfferDate: pendingWatchPositionOffer?.bookId == book.id
-                ? pendingWatchPositionOffer?.timestamp : nil,
-            localHasFinished: book.finishedAt != nil,
-            pendingOfferDidFinish: pendingWatchPositionOffer?.bookId == book.id
-                ? pendingWatchPositionOffer?.didFinish : nil
-        ) {
-            pendingWatchPositionOffer = PositionOffer(
-                bookId: book.id,
-                bookTitle: book.title,
-                wordIndex: clampedIndex,
-                wordCount: book.wordCount,
-                timestamp: payload.timestamp,
-                didFinish: ReadingPositionCoordinator.completionDate(
-                    didFinish: payload.didFinish, index: clampedIndex, wordCount: book.wordCount,
-                    existingDate: nil, incomingDate: payload.finishedAt, now: payload.timestamp
-                ) != nil,
-                finishedAt: payload.finishedAt
-            )
+        // A place never moved dates from the last read. Read before the reading marker moves.
+        let localPlaceDate = book.browseDate ?? book.lastReadDate
+        var readingMoved = false
+        if !ownedHere {
+            if WatchSyncLogic.reconcile(incoming: payload, bookExists: true,
+                                        lastReadDate: book.lastReadDate) == .apply {
+                let index = ReadingPositionCoordinator.clampedIndex(payload.wordIndex, wordCount: book.wordCount)
+                book.lastReadWordIndex = index
+                book.finishedAt = ReadingPositionCoordinator.completionDate(
+                    didFinish: payload.didFinish, index: index, wordCount: book.wordCount,
+                    existingDate: book.finishedAt, incomingDate: payload.finishedAt, now: payload.timestamp
+                )
+                book.lastReadDate = payload.timestamp
+                readingMoved = true
+            }
+            if LiveHandoffLogic.shouldApplyPlace(localDate: localPlaceDate,
+                                                 incomingDate: payload.browseTimestamp) {
+                book.browseWordIndex = ReadingPositionCoordinator.clampedIndex(
+                    payload.browseWordIndex, wordCount: book.wordCount
+                )
+                book.browseDate = payload.browseTimestamp
+            }
         }
-        do {
-            try modelContext.save()
-        } catch {
-            Self.logger.error("Failed to persist watch reading position: \(error.localizedDescription)")
-        }
-    }
-
-    @MainActor
-    func dismissWatchPositionOffer() {
-        pendingWatchPositionOffer = nil
-    }
-
-    @MainActor
-    @discardableResult
-    func continueFromWatch(_ offer: PositionOffer) -> Bool {
-        guard pendingWatchPositionOffer == offer,
-              let modelContext else { return false }
-        let bookId = offer.bookId
-        let descriptor = FetchDescriptor<Book>(predicate: #Predicate { $0.id == bookId })
-        guard let book = try? modelContext.fetch(descriptor).first else {
-            pendingWatchPositionOffer = nil
-            return false
-        }
-        let acceptedIndex = ReadingPositionCoordinator.clampedIndex(offer.wordIndex, wordCount: book.wordCount)
-        let payload = WatchSyncLogic.PositionPayload(
-            bookId: offer.bookId,
-            bookTitle: offer.bookTitle,
-            wordIndex: acceptedIndex,
-            timestamp: offer.timestamp
-        )
-        guard WatchSyncLogic.reconcile(
-            incoming: payload,
-            bookExists: true,
-            lastReadDate: book.lastReadDate
-        ) == .apply else {
-            pendingWatchPositionOffer = nil
-            return false
-        }
-        book.ensurePositionMarkersInitialized()
-        book.lastReadWordIndex = acceptedIndex
-        book.finishedAt = ReadingPositionCoordinator.completionDate(
-            didFinish: offer.didFinish, index: acceptedIndex, wordCount: book.wordCount,
-            existingDate: book.finishedAt, incomingDate: offer.finishedAt, now: offer.timestamp
-        )
-        book.lastReadDate = offer.timestamp
-        book.browseWordIndex = acceptedIndex
-        book.furthestReadWordIndex = ReadingPositionCoordinator.clampedIndex(
-            WatchSyncLogic.mergedFurthestRead(
-                local: book.furthestReadWordIndex,
-                incoming: acceptedIndex
-            ),
-            wordCount: book.wordCount
-        )
-        do {
-            try modelContext.save()
-            pendingWatchPositionOffer = nil
-            // Reading happened on the watch; the phone carries it to the library server.
-            ServerPositionSync.shared.noteCommitted(bookId: book.id)
-            return true
-        } catch {
-            Self.logger.error("Failed to persist accepted watch reading position: \(error.localizedDescription)")
-            return false
-        }
+        if shouldPersistLive(payload, now: now) { persistLivePlace() }
+        // Reading happened on the watch; the phone carries it to the library server.
+        if readingMoved { ServerPositionSync.shared.noteCommitted(bookId: book.id) }
     }
     #endif
 

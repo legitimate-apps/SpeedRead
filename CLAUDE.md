@@ -139,9 +139,13 @@ the whole life of the watch app because Swift 5 does not run the check.
   layout. Do not reintroduce `DispatchQueue.main.asyncAfter` for layout timing.
 - **WordFlowLayout**: custom SwiftUI `Layout` for tappable wrapping word grid. Each word
   is a `Button` with `.buttonStyle(.plain)` (NOT `onTapGesture` — breaks Voice Control).
-- **Watch sync**: tries `sendMessage` → falls back to `transferFile`. Position deltas use
-  `updateApplicationContext`. Library persists on watch as `watchlibrary.json` in the
-  documents directory.
+- **Watch sync**: books try `sendMessage` → fall back to `transferFile`. Positions go by
+  `updateApplicationContext` always, plus `sendMessage` (no reply) when reachable; while a device
+  plays it sends a message-only heartbeat each second. There is **no offer** between phone and
+  watch: places apply silently, last-write-wins on `browseDate` (CORPUS §4.4). Pure rules live in
+  `Connectivity/LiveHandoffLogic.swift`; presence, yield and coalescing in `WatchSyncService`.
+  Every pause must commit (the commit is the release); a yield must never commit. Library
+  persists on watch as `watchlibrary.json` in the documents directory.
 
 ## @AppStorage keys (don't rename without migration)
 

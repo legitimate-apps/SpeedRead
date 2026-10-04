@@ -23,6 +23,7 @@ struct WatchSyncServiceTests {
         let service = WatchSyncService(session: connection)
         let id = UUID()
         let timestamp = Date(timeIntervalSince1970: 4_000)
+        service.clock = { timestamp }
 
         service.syncReadingPosition(
             bookId: id,
@@ -132,138 +133,6 @@ struct WatchSyncServiceTests {
         #expect(replies[1]["status"] as? String == "ok")
     }
 
-    @Test func delegateApplicationContextOffersNewerPositionWithoutApplyingIt() async throws {
-        let connection = FakeWatchConnectivitySession()
-        let service = WatchSyncService(session: connection)
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(
-            for: Book.self, Bookmark.self, Highlight.self,
-            configurations: configuration
-        )
-        let book = Book(
-            title: "Stored",
-            author: "Author",
-            extractedText: (0..<1_000).map { "word\($0)" }.joined(separator: " "),
-            sourceFileName: "stored.txt"
-        )
-        book.lastReadDate = Date(timeIntervalSince1970: 100)
-        book.furthestReadWordIndex = 1
-        container.mainContext.insert(book)
-        try container.mainContext.save()
-        service.configure(modelContext: container.mainContext)
-        let payload = WatchSyncLogic.PositionPayload(
-            bookId: book.id,
-            bookTitle: book.title,
-            wordIndex: 99,
-            timestamp: Date(timeIntervalSince1970: 200),
-            furthestReadWordIndex: 80
-        )
-
-        service.session(.default, didReceiveApplicationContext: payload.dictionary)
-        for _ in 0..<20 where service.pendingWatchPositionOffer == nil {
-            await Task.yield()
-        }
-
-        #expect(book.lastReadWordIndex == 0)
-        #expect(book.lastReadDate == Date(timeIntervalSince1970: 100))
-        #expect(book.furthestReadWordIndex == 80)
-        #expect(service.pendingWatchPositionOffer?.wordIndex == 99)
-        let offer = try #require(service.pendingWatchPositionOffer)
-        #expect(service.continueFromWatch(offer))
-        #expect(book.lastReadWordIndex == 99)
-        #expect(book.browseWordIndex == 99)
-        #expect(book.lastReadDate == payload.timestamp)
-        #expect(service.pendingWatchPositionOffer == nil)
-    }
-
-    @Test func staleReadingStillMaxMergesFurthestWithoutCreatingAnOffer() async throws {
-        let service = WatchSyncService(session: FakeWatchConnectivitySession())
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(
-            for: Book.self, Bookmark.self, Highlight.self,
-            configurations: configuration
-        )
-        let book = Book(
-            title: "Stored",
-            author: "Author",
-            extractedText: (0..<100).map { "word\($0)" }.joined(separator: " "),
-            sourceFileName: "stored.txt"
-        )
-        book.lastReadWordIndex = 20
-        book.lastReadDate = Date(timeIntervalSince1970: 300)
-        book.furthestReadWordIndex = 40
-        container.mainContext.insert(book)
-        try container.mainContext.save()
-        service.configure(modelContext: container.mainContext)
-        let stale = WatchSyncLogic.PositionPayload(
-            bookId: book.id,
-            bookTitle: book.title,
-            wordIndex: 5,
-            timestamp: Date(timeIntervalSince1970: 200),
-            furthestReadWordIndex: 80
-        )
-
-        service.session(.default, didReceiveApplicationContext: stale.dictionary)
-        for _ in 0..<20 where book.furthestReadWordIndex != 80 {
-            await Task.yield()
-        }
-
-        #expect(book.lastReadWordIndex == 20)
-        #expect(book.lastReadDate == Date(timeIntervalSince1970: 300))
-        #expect(book.furthestReadWordIndex == 80)
-        #expect(service.pendingWatchPositionOffer == nil)
-    }
-
-    @Test func independentlyConstructedOfferIsClampedAndRepairsLegacyMarkersWhenAccepted() async throws {
-        let service = WatchSyncService(session: FakeWatchConnectivitySession())
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(
-            for: Book.self, Bookmark.self, Highlight.self,
-            configurations: configuration
-        )
-        let book = Book(
-            title: "Stored",
-            author: "Author",
-            extractedText: (0..<100).map { "word\($0)" }.joined(separator: " "),
-            sourceFileName: "stored.txt"
-        )
-        book.lastReadDate = Date(timeIntervalSince1970: 100)
-        container.mainContext.insert(book)
-        try container.mainContext.save()
-        service.configure(modelContext: container.mainContext)
-        let timestamp = Date(timeIntervalSince1970: 200)
-        let incoming = WatchSyncLogic.PositionPayload(
-            bookId: book.id,
-            bookTitle: book.title,
-            wordIndex: 99,
-            timestamp: timestamp,
-            furthestReadWordIndex: 99
-        )
-
-        service.session(.default, didReceiveApplicationContext: incoming.dictionary)
-        for _ in 0..<20 where service.pendingWatchPositionOffer == nil {
-            await Task.yield()
-        }
-        let pending = try #require(service.pendingWatchPositionOffer)
-        let independentlyConstructed = WatchSyncService.PositionOffer(
-            bookId: pending.bookId,
-            bookTitle: pending.bookTitle,
-            wordIndex: pending.wordIndex,
-            wordCount: pending.wordCount,
-            timestamp: pending.timestamp
-        )
-
-        // Acceptance must not rely on applyIncomingPosition having kept these valid.
-        book.wordCount = 10
-        book.browseWordIndex = -1
-        book.furthestReadWordIndex = -1
-
-        #expect(service.continueFromWatch(independentlyConstructed))
-        #expect(book.lastReadWordIndex == 9)
-        #expect(book.browseWordIndex == 9)
-        #expect(book.furthestReadWordIndex == 9)
-    }
-
     @Test func inactiveBookSendFailsWithoutEnqueuingDelivery() {
         let connection = FakeWatchConnectivitySession()
         let service = WatchSyncService(session: connection)
@@ -271,85 +140,6 @@ struct WatchSyncServiceTests {
         #expect(service.sendState == .failed("Watch not connected"))
         #expect(connection.messages.isEmpty)
         #expect(connection.files.isEmpty)
-    }
-
-    @Test func dismissedOfferCannotMoveOrReopenBook() throws {
-        let (service, container, book) = try positionFixture()
-        service.applyIncomingPosition(position(book, index: 70, time: 200))
-        let offer = try #require(service.pendingWatchPositionOffer)
-        book.finishedAt = Date(timeIntervalSince1970: 150)
-        service.dismissWatchPositionOffer()
-        #expect(service.pendingWatchPositionOffer == nil)
-        #expect(!service.continueFromWatch(offer))
-        #expect(book.lastReadWordIndex == 20)
-        #expect(book.finishedAt == Date(timeIntervalSince1970: 150))
-        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 1)
-    }
-
-    @Test func deletedBookInvalidatesPendingOffer() throws {
-        let (service, container, book) = try positionFixture()
-        service.applyIncomingPosition(position(book, index: 70, time: 200))
-        let offer = try #require(service.pendingWatchPositionOffer)
-        container.mainContext.delete(book)
-        try container.mainContext.save()
-        #expect(!service.continueFromWatch(offer))
-        #expect(service.pendingWatchPositionOffer == nil)
-        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 0)
-    }
-
-    @Test(arguments: [200.0, 201.0])
-    func localReadingAtOrAfterOfferInvalidatesIt(time: Double) throws {
-        let (service, container, book) = try positionFixture()
-        service.applyIncomingPosition(position(book, index: 70, time: 200))
-        let offer = try #require(service.pendingWatchPositionOffer)
-        book.lastReadWordIndex = 25
-        book.browseWordIndex = 25
-        book.lastReadDate = Date(timeIntervalSince1970: time)
-        book.finishedAt = book.lastReadDate
-        try container.mainContext.save()
-        #expect(!service.continueFromWatch(offer))
-        #expect(service.pendingWatchPositionOffer == nil)
-        #expect(book.lastReadWordIndex == 25)
-        #expect(book.browseWordIndex == 25)
-        #expect(book.lastReadDate == Date(timeIntervalSince1970: time))
-        #expect(book.finishedAt == book.lastReadDate)
-    }
-
-    @Test func replacementOfferRejectsOldValueAndPersistsAcceptedPosition() throws {
-        let (service, container, book) = try positionFixture()
-        service.applyIncomingPosition(position(book, index: 70, time: 200))
-        let oldOffer = try #require(service.pendingWatchPositionOffer)
-        service.applyIncomingPosition(position(book, index: 80, time: 300))
-        let newOffer = try #require(service.pendingWatchPositionOffer)
-        #expect(!service.continueFromWatch(oldOffer))
-        #expect(service.pendingWatchPositionOffer == newOffer)
-        #expect(service.continueFromWatch(newOffer))
-        let freshContext = ModelContext(container)
-        let persisted = try #require(freshContext.fetch(FetchDescriptor<Book>()).first)
-        #expect(persisted.lastReadWordIndex == 80)
-        #expect(persisted.browseWordIndex == 80)
-        #expect(persisted.furthestReadWordIndex == 80)
-        #expect(persisted.lastReadDate == Date(timeIntervalSince1970: 300))
-    }
-
-    @Test func unconfiguredAndUnknownBookPositionsDoNotCreateOffers() throws {
-        let (service, container, book) = try positionFixture()
-        let incoming = position(book, index: 70, time: 200)
-        let unconfigured = WatchSyncService(session: FakeWatchConnectivitySession())
-        unconfigured.applyIncomingPosition(incoming)
-        #expect(unconfigured.pendingWatchPositionOffer == nil)
-        service.applyIncomingPosition(.init(bookId: UUID(), bookTitle: "Unknown", wordIndex: 70,
-                                            timestamp: incoming.timestamp, furthestReadWordIndex: 90))
-        #expect(service.pendingWatchPositionOffer == nil)
-        #expect(book.furthestReadWordIndex == 20)
-        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 1)
-    }
-
-    @Test func emptyBookOfferFormattingHasNoDivisionByZero() {
-        let offer = WatchSyncService.PositionOffer(bookId: UUID(), bookTitle: "Empty", wordIndex: 0,
-                                                   wordCount: 0, timestamp: .distantPast)
-        #expect(offer.id == offer.bookId)
-        #expect(offer.displayText == "Continue from Apple Watch — 0%, word 1")
     }
 
     @Test("An explicit error reply fails without retrying the rejected payload")
@@ -369,21 +159,6 @@ struct WatchSyncServiceTests {
         #expect(service.sendState == .failed("Apple Watch did not accept the book."))
         #expect(connection.messages.count == 1)
         #expect(connection.files.isEmpty)
-    }
-
-    @Test("A delayed older context preserves the newer pending offer")
-    func pendingOfferPreservesNewestWhenContextsArriveOutOfOrder() throws {
-        let (service, container, book) = try positionFixture()
-        service.applyIncomingPosition(position(book, index: 80, time: 300))
-        #expect(service.pendingWatchPositionOffer?.wordIndex == 80)
-        service.applyIncomingPosition(position(book, index: 60, time: 200))
-        let offer = try #require(service.pendingWatchPositionOffer)
-        #expect(offer.wordIndex == 80)
-        #expect(offer.timestamp == Date(timeIntervalSince1970: 300))
-        #expect(service.continueFromWatch(offer))
-        #expect(book.lastReadWordIndex == 80)
-        #expect(book.furthestReadWordIndex == 80)
-        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 1)
     }
 
     @Test(arguments: ["missing", "type", "unknown"])
@@ -411,52 +186,10 @@ struct WatchSyncServiceTests {
         #expect(WatchSyncLogic.PositionPayload.decode(from: negative.dictionary) == nil)
         var zero = negative.dictionary
         zero["wordIndex"] = 0
+        zero["browseWordIndex"] = 0
         let decoded = try #require(WatchSyncLogic.PositionPayload.decode(from: zero))
         #expect(decoded.wordIndex == 0)
         #expect(decoded.bookId == id)
-    }
-
-    @Test func directlyConstructedNegativePositionCannotProduceNegativeOffer() throws {
-        // Mutation caught: omitting the lower bound when constructing an incoming offer.
-        // Direct callers are not protected by the transport decoder.
-        let (service, container, book) = try positionFixture()
-        service.applyIncomingPosition(position(book, index: -1, time: 200))
-        let offer = try #require(service.pendingWatchPositionOffer)
-        #expect(offer.wordIndex == 0)
-        #expect(book.lastReadWordIndex == 20)
-        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 1)
-    }
-
-    @Test(arguments: [-100, 1000])
-    func incomingOfferAndHighWaterClampBothSides(index: Int) throws {
-        // Mutation: remove either ingress offer bound, or the high-water upper bound.
-        let (service, container, book) = try positionFixture()
-        book.furthestReadWordIndex = index
-        service.applyIncomingPosition(position(book, index: index, time: 200))
-        let expected = index < 0 ? 0 : 99
-        #expect(service.pendingWatchPositionOffer?.wordIndex == expected)
-        // Legacy migration raises a negative high-water to the existing reading index (20).
-        #expect(book.furthestReadWordIndex == (index < 0 ? 20 : 99))
-        let saved = try #require(ModelContext(container).fetch(FetchDescriptor<Book>()).first)
-        #expect(saved.furthestReadWordIndex == book.furthestReadWordIndex)
-    }
-
-    @Test(arguments: [-100, 1000])
-    func acceptanceIndependentlyClampsBothSides(index: Int) throws {
-        // Mutation: remove either acceptance bound; an ingress clamp must not mask this test.
-        let (_, container, book) = try positionFixture()
-        let offer = WatchSyncService.PositionOffer(bookId: book.id, bookTitle: book.title,
-            wordIndex: index, wordCount: book.wordCount, timestamp: Date(timeIntervalSince1970: 200))
-        let service = WatchSyncService(session: FakeWatchConnectivitySession(), pendingOffer: offer)
-        service.configure(modelContext: container.mainContext)
-        book.furthestReadWordIndex = index
-        #expect(service.continueFromWatch(offer))
-        let saved = try #require(ModelContext(container).fetch(FetchDescriptor<Book>()).first)
-        let expected = index < 0 ? 0 : 99
-        #expect(saved.lastReadWordIndex == expected)
-        #expect(saved.browseWordIndex == expected)
-        #expect(saved.furthestReadWordIndex == (index < 0 ? 20 : 99))
-        #expect(service.pendingWatchPositionOffer == nil)
     }
 
     @Test(arguments: ["Transferred", ""])
@@ -480,6 +213,272 @@ struct WatchSyncServiceTests {
         #expect(service.sendState == .idle)
     }
 
+    // MARK: - The watch's place is adopted, never offered
+
+    @Test func delegateApplicationContextAdoptsANewerWatchPlaceWithoutAsking() async throws {
+        let (service, container, book) = try positionFixture()
+        let payload = position(book, index: 70, time: 200, furthest: 80)
+
+        service.session(.default, didReceiveApplicationContext: payload.dictionary)
+        for _ in 0..<50 where book.lastReadWordIndex != 70 { await Task.yield() }
+
+        #expect(book.lastReadWordIndex == 70)
+        #expect(book.lastReadDate == Date(timeIntervalSince1970: 200))
+        #expect(book.browseWordIndex == 70)
+        #expect(book.browseDate == Date(timeIntervalSince1970: 200))
+        #expect(book.furthestReadWordIndex == 80)
+        let persisted = try #require(ModelContext(container).fetch(FetchDescriptor<Book>()).first)
+        #expect(persisted.lastReadWordIndex == 70)
+        #expect(persisted.browseWordIndex == 70)
+    }
+
+    @Test func liveMessagesTakeTheSamePathAsContexts() async throws {
+        let (service, container, book) = try positionFixture()
+        defer { withExtendedLifetime(container) {} }
+        service.session(.default, didReceiveMessage: position(book, index: 55, time: 200).dictionary)
+        for _ in 0..<50 where book.browseWordIndex != 55 { await Task.yield() }
+        #expect(book.browseWordIndex == 55)
+    }
+
+    @Test func staleReadingStillMaxMergesFurthestWithoutMovingThePlace() throws {
+        // The fixture's place was never moved (browseDate nil), so it dates from the last read
+        // at 100. A nil-means-always rule would let this stale place through.
+        let (service, container, book) = try positionFixture()
+        defer { withExtendedLifetime(container) {} }
+        #expect(book.browseDate == nil)
+        service.receivePosition(position(book, index: 5, time: 50, furthest: 80))
+        #expect(book.lastReadWordIndex == 20)
+        #expect(book.browseWordIndex == 20)
+        #expect(book.lastReadDate == Date(timeIntervalSince1970: 100))
+        #expect(book.furthestReadWordIndex == 80)
+    }
+
+    @Test func aCrownMoveOnTheWatchMovesThePlaceButNotTheReadingPosition() throws {
+        let (service, container, book) = try positionFixture()
+        defer { withExtendedLifetime(container) {} }
+        // The watch last read at 50; the crown moved its place at 300.
+        service.receivePosition(.init(bookId: book.id, bookTitle: book.title, wordIndex: 5,
+            timestamp: Date(timeIntervalSince1970: 50), furthestReadWordIndex: 5,
+            browseWordIndex: 64, browseTimestamp: Date(timeIntervalSince1970: 300)))
+        #expect(book.browseWordIndex == 64)
+        #expect(book.browseDate == Date(timeIntervalSince1970: 300))
+        #expect(book.lastReadWordIndex == 20)
+        #expect(book.lastReadDate == Date(timeIntervalSince1970: 100))
+    }
+
+    @Test func anOlderPlaceDeliveredLateDoesNotUndoANewerOne() throws {
+        let (service, container, book) = try positionFixture()
+        service.receivePosition(position(book, index: 80, time: 300))
+        service.receivePosition(position(book, index: 60, time: 200))
+        #expect(book.lastReadWordIndex == 80)
+        #expect(book.browseWordIndex == 80)
+        #expect(book.furthestReadWordIndex == 80)
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 1)
+    }
+
+    @Test(arguments: [-100, 1000])
+    func anAdoptedPlaceIsClampedOnBothSides(index: Int) throws {
+        // Direct callers are not protected by the transport decoder.
+        let (service, container, book) = try positionFixture()
+        service.receivePosition(position(book, index: index, time: 200))
+        let expected = index < 0 ? 0 : 99
+        #expect(book.lastReadWordIndex == expected)
+        #expect(book.browseWordIndex == expected)
+        #expect(book.furthestReadWordIndex == (index < 0 ? 20 : 99))
+        let saved = try #require(ModelContext(container).fetch(FetchDescriptor<Book>()).first)
+        #expect(saved.browseWordIndex == expected)
+    }
+
+    @Test func unconfiguredAndUnknownBookPositionsChangeNothing() throws {
+        let (service, container, book) = try positionFixture()
+        let unconfigured = WatchSyncService(session: FakeWatchConnectivitySession())
+        unconfigured.receivePosition(position(book, index: 70, time: 200))
+        service.receivePosition(.init(bookId: UUID(), bookTitle: "Unknown", wordIndex: 70,
+                                      timestamp: Date(timeIntervalSince1970: 200), furthestReadWordIndex: 90))
+        #expect(book.lastReadWordIndex == 20)
+        #expect(book.furthestReadWordIndex == 20)
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 1)
+    }
+
+    // MARK: - Presence
+
+    @Test func aFreshPlayingPayloadRaisesPresenceAndAPauseClearsIt() throws {
+        let (service, container, book) = try positionFixture()
+        defer { withExtendedLifetime(container) {} }
+        service.clock = { Date(timeIntervalSince1970: 201) }
+        service.receivePosition(live(book, index: 40, sentAt: 200, startedAt: 190))
+        #expect(service.remotePresence(for: book.id)?.wordIndex == 40)
+        #expect(book.browseWordIndex == 40)
+
+        service.receivePosition(position(book, index: 44, time: 202, sentAt: 202))
+        #expect(service.remotePresence == nil)
+        #expect(book.browseWordIndex == 44)
+    }
+
+    @Test func aPauseOlderThanTheLiveHeartbeatDoesNotClearIt() throws {
+        let (service, container, book) = try positionFixture()
+        defer { withExtendedLifetime(container) {} }
+        service.clock = { Date(timeIntervalSince1970: 201) }
+        service.receivePosition(live(book, index: 40, sentAt: 200, startedAt: 190))
+        service.receivePosition(position(book, index: 30, time: 150, sentAt: 150))
+        #expect(service.remotePresence?.wordIndex == 40)
+        #expect(book.browseWordIndex == 40)
+    }
+
+    @Test func presenceExpiresWhenTheReadingDeviceGoesQuiet() throws {
+        let (service, container, book) = try positionFixture()
+        defer { withExtendedLifetime(container) {} }
+        service.clock = { Date(timeIntervalSince1970: 200) }
+        service.receivePosition(live(book, index: 40, sentAt: 200, startedAt: 190))
+        service.expirePresence(now: Date(timeIntervalSince1970: 205.9))
+        #expect(service.remotePresence != nil)
+        service.expirePresence(now: Date(timeIntervalSince1970: 206))
+        #expect(service.remotePresence == nil)
+        // Unlocked at the last place heard.
+        #expect(book.browseWordIndex == 40)
+    }
+
+    @Test func aPlayingContextDeliveredLateRaisesNoCard() throws {
+        let (service, container, book) = try positionFixture()
+        defer { withExtendedLifetime(container) {} }
+        service.clock = { Date(timeIntervalSince1970: 900) }
+        service.receivePosition(live(book, index: 40, sentAt: 200, startedAt: 190))
+        #expect(service.remotePresence == nil)
+        #expect(book.browseWordIndex == 40)
+    }
+
+    @Test func presenceIsNotShownForTheBookThisDeviceIsReading() throws {
+        let (service, container, book) = try positionFixture()
+        defer { withExtendedLifetime(container) {} }
+        service.clock = { Date(timeIntervalSince1970: 200) }
+        service.receivePosition(live(book, index: 40, sentAt: 200, startedAt: 190))
+        #expect(service.remotePresence(for: UUID()) == nil)
+        #expect(service.remotePresence(for: nil) == nil)
+        service.beginLocalRun(bookId: book.id, snapshot: { nil }, onYield: { _ in })
+        #expect(service.remotePresence == nil)
+        #expect(service.localRunBookId == book.id)
+        service.endLocalRun(bookId: book.id)
+        #expect(service.localRunBookId == nil)
+    }
+
+    // MARK: - Yield
+
+    @Test func aLaterRunOnTheWatchMakesThePhoneYieldAtItsWord() throws {
+        let (service, container, book) = try positionFixture()
+        defer { withExtendedLifetime(container) {} }
+        service.clock = { Date(timeIntervalSince1970: 200) }
+        var yielded: RemotePresence?
+        service.beginLocalRun(bookId: book.id, snapshot: { nil }, onYield: { yielded = $0 })
+
+        service.clock = { Date(timeIntervalSince1970: 210) }
+        service.receivePosition(live(book, index: 66, sentAt: 210, startedAt: 205))
+
+        #expect(yielded?.wordIndex == 66)
+        #expect(service.localRunBookId == nil)
+        #expect(service.remotePresence(for: book.id)?.wordIndex == 66)
+        #expect(book.browseWordIndex == 66)
+    }
+
+    @Test func anOlderRunOnTheWatchIsIgnoredAndCannotMoveThePhone() throws {
+        let (service, container, book) = try positionFixture()
+        defer { withExtendedLifetime(container) {} }
+        service.clock = { Date(timeIntervalSince1970: 200) }
+        var yielded = false
+        service.beginLocalRun(bookId: book.id, snapshot: { nil }, onYield: { _ in yielded = true })
+
+        service.receivePosition(live(book, index: 66, sentAt: 200, startedAt: 150))
+
+        #expect(!yielded)
+        #expect(service.localRunBookId == book.id)
+        #expect(service.remotePresence(for: book.id) == nil)
+        #expect(book.browseWordIndex == 20)
+        #expect(book.lastReadWordIndex == 20)
+        service.endLocalRun(bookId: book.id)
+    }
+
+    // MARK: - Sending
+
+    @Test func aCommitGoesLiveWhenReachableAndAlwaysByContext() throws {
+        let connection = FakeWatchConnectivitySession()
+        connection.activationState = .activated
+        let service = WatchSyncService(session: connection)
+        service.syncReadingPosition(bookId: UUID(), bookTitle: "B", wordIndex: 3)
+        #expect(connection.applicationContexts.count == 1)
+        #expect(connection.messages.isEmpty)
+        connection.isReachable = true
+        service.syncReadingPosition(bookId: UUID(), bookTitle: "B", wordIndex: 4)
+        #expect(connection.applicationContexts.count == 2)
+        #expect(connection.messages.count == 1)
+    }
+
+    @Test func heartbeatsAreLiveOnlyAndCarryTheRun() throws {
+        let connection = FakeWatchConnectivitySession()
+        connection.activationState = .activated
+        let service = WatchSyncService(session: connection)
+        service.heartbeatInterval = .seconds(3_600)
+        service.clock = { Date(timeIntervalSince1970: 500) }
+        let id = UUID()
+        let snapshot = WatchSyncLogic.PositionPayload(bookId: id, bookTitle: "B", wordIndex: 1,
+            timestamp: Date(timeIntervalSince1970: 400)).movingPlace(to: 12, at: Date(timeIntervalSince1970: 500))
+        service.beginLocalRun(bookId: id, snapshot: { snapshot }, onYield: { _ in })
+
+        service.sendHeartbeat()
+        #expect(connection.messages.isEmpty)
+
+        connection.isReachable = true
+        service.sendHeartbeat()
+        let sent = try #require(connection.messages.last.flatMap { WatchSyncLogic.PositionPayload.decode(from: $0) })
+        #expect(sent.isPlaying)
+        #expect(sent.playStartedAt == Date(timeIntervalSince1970: 500))
+        #expect(sent.browseWordIndex == 12)
+        #expect(sent.sentAt == Date(timeIntervalSince1970: 500))
+        #expect(connection.applicationContexts.isEmpty)
+
+        service.endLocalRun(bookId: id)
+        let heartbeats = connection.messages.count
+        service.sendHeartbeat()
+        #expect(connection.messages.count == heartbeats)
+        service.syncReadingPosition(bookId: id, bookTitle: "B", wordIndex: 13)
+        let release = try #require(connection.applicationContexts.last.flatMap { WatchSyncLogic.PositionPayload.decode(from: $0) })
+        #expect(!release.isPlaying)
+        #expect(release.playStartedAt == nil)
+    }
+
+    @Test func browseMovesAreCoalescedToTheLatest() throws {
+        let connection = FakeWatchConnectivitySession()
+        connection.activationState = .activated
+        let service = WatchSyncService(session: connection)
+        service.placeCoalescing = .seconds(3_600)
+        let id = UUID()
+        func place(_ index: Int) -> WatchSyncLogic.PositionPayload {
+            .init(bookId: id, bookTitle: "B", wordIndex: 0, timestamp: Date(timeIntervalSince1970: 1),
+                  browseWordIndex: index, browseTimestamp: Date(timeIntervalSince1970: Double(index)))
+        }
+        service.publishPlace(place(1))
+        service.publishPlace(place(2))
+        service.publishPlace(place(3))
+        #expect(connection.applicationContexts.isEmpty)
+        service.flushPendingPlace()
+        #expect(connection.applicationContexts.count == 1)
+        #expect(connection.applicationContexts.last.flatMap { WatchSyncLogic.PositionPayload.decode(from: $0) }?.browseWordIndex == 3)
+        service.flushPendingPlace()
+        #expect(connection.applicationContexts.count == 1)
+    }
+
+    @Test func aCommitSupersedesAQueuedBrowseMove() throws {
+        let connection = FakeWatchConnectivitySession()
+        connection.activationState = .activated
+        let service = WatchSyncService(session: connection)
+        service.placeCoalescing = .seconds(3_600)
+        let id = UUID()
+        service.publishPlace(.init(bookId: id, bookTitle: "B", wordIndex: 0, timestamp: Date(timeIntervalSince1970: 1),
+                                   browseWordIndex: 9, browseTimestamp: Date(timeIntervalSince1970: 1)))
+        service.syncReadingPosition(bookId: id, bookTitle: "B", wordIndex: 30)
+        service.flushPendingPlace()
+        #expect(connection.applicationContexts.count == 1)
+        #expect(connection.applicationContexts.last.flatMap { WatchSyncLogic.PositionPayload.decode(from: $0) }?.browseWordIndex == 30)
+    }
+
     private func positionFixture() throws -> (WatchSyncService, ModelContainer, Book) {
         let container = try ModelContainer(for: Book.self, Bookmark.self, Highlight.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true))
@@ -495,22 +494,22 @@ struct WatchSyncServiceTests {
         return (service, container, book)
     }
 
-    private func position(_ book: Book, index: Int, time: Double) -> WatchSyncLogic.PositionPayload {
+    private func position(_ book: Book, index: Int, time: Double, furthest: Int? = nil,
+                          sentAt: Double? = nil) -> WatchSyncLogic.PositionPayload {
         .init(bookId: book.id, bookTitle: book.title, wordIndex: index,
-              timestamp: Date(timeIntervalSince1970: time), furthestReadWordIndex: index)
+              timestamp: Date(timeIntervalSince1970: time), furthestReadWordIndex: furthest ?? index,
+              sentAt: sentAt.map { Date(timeIntervalSince1970: $0) })
     }
 
-    @Test func watchOfferTextUsesHumanWordNumberAndFormattedProgress() {
-        let offer = WatchSyncService.PositionOffer(
-            bookId: UUID(),
-            bookTitle: "Book",
-            wordIndex: 4_119,
-            wordCount: 12_000,
-            timestamp: Date(timeIntervalSince1970: 100)
-        )
-
-        #expect(offer.displayText == "Continue from Apple Watch — 34%, word 4,120")
+    /// A heartbeat from the watch: playing, its place moved at `sentAt`, reading stamp old.
+    private func live(_ book: Book, index: Int, sentAt: Double, startedAt: Double) -> WatchSyncLogic.PositionPayload {
+        .init(bookId: book.id, bookTitle: book.title, wordIndex: 0,
+              timestamp: Date(timeIntervalSince1970: 1), furthestReadWordIndex: 0,
+              browseWordIndex: index, browseTimestamp: Date(timeIntervalSince1970: sentAt),
+              isPlaying: true, playStartedAt: Date(timeIntervalSince1970: startedAt),
+              sentAt: Date(timeIntervalSince1970: sentAt))
     }
+
 }
 
 @MainActor

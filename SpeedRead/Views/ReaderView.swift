@@ -18,7 +18,7 @@ struct ReaderView: View {
     @AppStorage("rsvpLastWPM") private var lastWPM: Int = ReaderConfig.RSVP.defaultWPM
 
     @State private var session: ReaderSession
-    @State private var showRSVP = false
+    @State private var rsvpLaunch: RSVPLaunch?
     @State private var showChapters = false
     @State private var showBookmarks = false
     @State private var showHighlights = false
@@ -68,7 +68,29 @@ struct ReaderView: View {
                 }
             }
 
-            bottomBar
+            if let presence = readingElsewhere {
+                ReadingElsewhereCard(
+                    presence: presence,
+                    wordCount: book.wordCount,
+                    chapters: book.chapters,
+                    background: currentTheme.background,
+                    foreground: currentTheme.bodyText,
+                    accent: currentTheme.accent,
+                    onAccent: currentTheme.onAccent,
+                    onReadHere: {
+                        rsvpLaunch = RSVPLaunch(autoplay: true)
+                    }
+                )
+                .padding(.bottom, 8)
+            } else {
+                bottomBar
+            }
+        }
+        .animation(.easeInOut, value: readingElsewhere)
+        // The place moved on the watch, or the watch is reading: keep its word in view.
+        .onChange(of: book.browseWordIndex) { _, _ in
+            guard rsvpLaunch == nil, session.wordFlash == nil else { return }
+            session.reconcileRSVPDismiss(for: book)
         }
         .overlay(alignment: .top) {
             if let offer = serverSync.pendingOffer, offer.bookId == book.id {
@@ -133,7 +155,7 @@ struct ReaderView: View {
             // captures can reach them without driving the menu.
             if ProcessInfo.processInfo.arguments.contains("--auto-open-rsvp") {
                 try? await Task.sleep(for: .milliseconds(800))
-                showRSVP = true
+                rsvpLaunch = RSVPLaunch()
             } else if let sheetFlag = ProcessInfo.processInfo.arguments.first(where: {
                 $0.hasPrefix("--auto-open-reader-sheet=")
             }) {
@@ -174,7 +196,7 @@ struct ReaderView: View {
                 return
             }
             guard session.wordFlash == flash else { return }
-            showRSVP = true
+            rsvpLaunch = RSVPLaunch()
         }
         .task(id: session.wordFlash?.id) {
             guard let flash = session.wordFlash else { return }
@@ -190,10 +212,10 @@ struct ReaderView: View {
             await Task.yield()
             session.reconcileRSVPDismiss(for: book)
         }
-        .fullScreenCover(isPresented: $showRSVP, onDismiss: {
+        .fullScreenCover(item: $rsvpLaunch, onDismiss: {
             rsvpDismissGeneration += 1
-        }) {
-            RSVPView(book: book)
+        }) { launch in
+            RSVPView(book: book, autoplay: launch.autoplay)
         }
         .sheet(isPresented: $showChapters) {
             ReaderChapterPicker(chapters: ChapterNavigation(chapters: book.chapters),
@@ -265,7 +287,7 @@ struct ReaderView: View {
         WordFlowLayout(hSpacing: 2, vSpacing: CGFloat(lineSpacingPref)) {
             ForEach(Array(paragraph.words.enumerated()), id: \.offset) { offset, word in
                 let absoluteIndex = paragraph.startIndex + offset
-                let isLastRead = absoluteIndex == clampedLastReadIndex
+                let isLastRead = absoluteIndex == clampedPlaceIndex
                 let isFlashed = absoluteIndex == session.wordFlash?.wordIndex
                 let highlighted = isLastRead || isFlashed
                 let displayText = word + " "
@@ -286,6 +308,8 @@ struct ReaderView: View {
                         .animation(.spring(response: 0.28, dampingFraction: 0.7), value: isFlashed)
                 }
                 .buttonStyle(.plain)
+                // While the watch reads, only the card's "Read here" moves the book on.
+                .disabled(readingElsewhere != nil)
                 .id(session.scrollAnchorID(for: absoluteIndex))
                 .accessibilityLabel(Text(word))
                 .accessibilityHint(Text("Start RSVP from this word"))
@@ -324,7 +348,7 @@ struct ReaderView: View {
             .accessibilityLabel("Resume — jump to the last-read word")
 
             Button {
-                showRSVP = true
+                rsvpLaunch = RSVPLaunch()
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "play.fill")
@@ -371,8 +395,13 @@ struct ReaderView: View {
         #endif
     }
 
-    private var clampedLastReadIndex: Int {
-        session.clampedIndex(book.lastReadWordIndex)
+    /// The red word: the place, shared live with the watch.
+    private var clampedPlaceIndex: Int {
+        session.clampedIndex(book.browseWordIndex)
+    }
+
+    private var readingElsewhere: RemotePresence? {
+        syncService.remotePresence(for: book.id)
     }
 
     private var headerSubtitle: String {
@@ -411,7 +440,7 @@ struct ReaderView: View {
     }
 
     private func browse(to index: Int) {
-        if !session.browse(to: index, book: book, saver: modelContext) {
+        if !session.browse(to: index, book: book, saver: modelContext, sync: syncService) {
             Self.logger.error("Failed to persist reader browse position")
         }
     }
@@ -464,4 +493,12 @@ struct ServerPositionOfferBanner: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("server-position-offer")
     }
+}
+
+/// One presentation of RSVP. The autoplay flag travels with the presentation: a separate
+/// `@State` read only inside the cover's closure reached RSVP stale, so "Read here" opened it
+/// paused and the watch kept the book.
+private struct RSVPLaunch: Identifiable {
+    let id = UUID()
+    var autoplay = false
 }

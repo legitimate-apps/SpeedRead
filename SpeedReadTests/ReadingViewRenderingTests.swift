@@ -55,13 +55,8 @@ struct ReadingViewRenderingTests {
 
     @Test("RSVP exposes play and pause as an assistive-technology control")
     func rsvpPlaybackAffordanceRemainsAccessibleInBothStates() throws {
-        let (container, book) = try makeStoredBook(text: "zero one two", index: 1)
-        let engine = RSVPEngine()
-        let surface = RSVPView(book: book, engine: engine)
-
-        let bodyType = withExtendedLifetime(container) {
-            String(reflecting: type(of: surface.body))
-        }
+        // The static body type: evaluating `body` would need the hosted environment objects.
+        let bodyType = String(reflecting: RSVPView.Body.self)
 
         #expect(bodyType.contains("RSVPPlaybackControl"))
         #expect(RSVPPlaybackControl.accessibilityIdentifier == "rsvp-playback-toggle")
@@ -251,6 +246,63 @@ struct ReadingViewRenderingTests {
         #expect(!highlightBSignatures.isEmpty)
         #expect(highlightASignatures != highlightBSignatures)
 
+        _ = container
+    }
+
+    // MARK: - "Reading on Apple Watch"
+
+    private func card(at word: Int, onReadHere: @escaping () -> Void = {}) -> ReadingElsewhereCard {
+        ReadingElsewhereCard(
+            presence: RemotePresence(bookId: UUID(), wordIndex: word, playStartedAt: .distantPast, sentAt: .distantPast),
+            wordCount: 100,
+            chapters: [ChapterMark(title: "One", startWordIndex: 0), ChapterMark(title: "Two", startWordIndex: 50)],
+            background: .black, foreground: .white, accent: .yellow, onAccent: .black, onReadHere: onReadHere)
+    }
+
+    @Test func theReadingElsewhereCardShowsWhereTheWatchIs() throws {
+        let early = try PresentationRaster(card(at: 3), width: 390, height: 160)
+        let control = try PresentationRaster(card(at: 3), width: 390, height: 160)
+        let later = try PresentationRaster(card(at: 75), width: 390, height: 160)
+        #expect(early == control, "Rendering is deterministic, so a difference is the text")
+        #expect(early != later, "The chapter and percentage follow the watch's word")
+        var tapped = false
+        card(at: 3, onReadHere: { tapped = true }).onReadHere()
+        #expect(tapped)
+    }
+
+    @Test(arguments: [false, true])
+    func readerAndRSVPShowTheCardOnlyWhileTheWatchReadsThisBook(rsvp: Bool) async throws {
+        let (container, book) = try makeStoredBook(text: "zero one two three", index: 1)
+        func render(_ service: WatchSyncService) async throws -> Data {
+            let view: AnyView = rsvp
+                ? AnyView(RSVPView(book: book, engine: RSVPEngine()))
+                : AnyView(ReaderView(book: book, session: ReaderSession()))
+            let host = UIHostingController(rootView: view.modelContainer(container).environmentObject(service))
+            let window = try hostInWindow(host)
+            defer { window.isHidden = true }
+            for _ in 0..<20 { await Task.yield() }
+            host.view.setNeedsLayout()
+            host.view.layoutIfNeeded()
+            let image = UIGraphicsImageRenderer(bounds: host.view.bounds).image { host.view.layer.render(in: $0.cgContext) }
+            return try #require(image.pngData())
+        }
+        let quiet = WatchSyncService(session: FakeWatchConnectivitySession())
+        let reading = WatchSyncService(session: FakeWatchConnectivitySession())
+        let now = Date()
+        reading.clock = { now }
+        reading.receivePosition(.init(bookId: book.id, bookTitle: book.title, wordIndex: 1, timestamp: now,
+                                      isPlaying: true, playStartedAt: now, sentAt: now))
+        #expect(reading.remotePresence(for: book.id) != nil)
+        let elsewhere = WatchSyncService(session: FakeWatchConnectivitySession())
+        elsewhere.clock = { now }
+        elsewhere.receivePosition(.init(bookId: UUID(), bookTitle: "Other", wordIndex: 1, timestamp: now,
+                                        isPlaying: true, playStartedAt: now, sentAt: now))
+
+        let first = try await render(quiet)
+        let control = try await render(quiet)
+        #expect(first == control, "The quiet render is stable, so a difference is the card")
+        #expect(try await render(reading) != first)
+        #expect(try await render(elsewhere) == first, "Another book being read leaves this one alone")
         _ = container
     }
 
