@@ -4,6 +4,7 @@ import SwiftData
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var showServers = false
 
     var body: some View {
         NavigationStack {
@@ -42,6 +43,18 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color.appSurface, for: .navigationBar)
+            .navigationDestination(isPresented: $showServers) {
+                ServerListView()
+            }
+            .task {
+                #if DEBUG
+                // Screenshot hook: push the server list without driving the row.
+                if ProcessInfo.processInfo.arguments.contains("--auto-open-servers") {
+                    try? await Task.sleep(for: .milliseconds(600))
+                    showServers = true
+                }
+                #endif
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }

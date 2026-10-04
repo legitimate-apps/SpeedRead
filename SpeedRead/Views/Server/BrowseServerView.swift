@@ -150,6 +150,8 @@ private struct BrowseFeedView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.opdsClientFactory) private var makeClient
+    @State private var autoOpenEntry: OPDSEntry?
+    @State private var showAutoDetail = false
 
     private var entrySections: OPDSBrowseLogic.EntrySections {
         OPDSBrowseLogic.sections(for: session.displayEntries)
@@ -189,7 +191,27 @@ private struct BrowseFeedView: View {
         .navigationBarTitleDisplayMode(.inline)
         .background(Color.appSurface)
         .toolbarBackground(Color.appSurface, for: .navigationBar)
-        .task(id: url) { await session.load(url: url, on: server, modelContext: modelContext, makeClient: makeClient) }
+        .navigationDestination(isPresented: $showAutoDetail) {
+            if let entry = autoOpenEntry {
+                RemoteBookDetailView(
+                    server: server,
+                    entry: entry,
+                    onAdded: { title in session.downloadCompleteTitle = title }
+                )
+            }
+        }
+        .task(id: url) {
+            await session.load(url: url, on: server, modelContext: modelContext, makeClient: makeClient)
+            #if DEBUG
+            // Screenshot hook: push the first book's detail page without driving the row.
+            if ProcessInfo.processInfo.arguments.contains("--auto-open-feed-entry"),
+               autoOpenEntry == nil,
+               let first = entrySections.books.first {
+                autoOpenEntry = first
+                showAutoDetail = true
+            }
+            #endif
+        }
         .searchable(text: $session.searchText, prompt: "Search this server")
         .onSubmit(of: .search) { Task { await session.runSearch(on: server, makeClient: makeClient) } }
         .overlay(alignment: .bottom) {

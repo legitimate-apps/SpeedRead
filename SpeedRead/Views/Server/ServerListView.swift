@@ -50,6 +50,15 @@ struct ServerListView: View {
                 ServerEditView(server: nil)
             }
         }
+        .task {
+            #if DEBUG
+            // Screenshot hook: open the new-server editor without driving the plus button.
+            if ProcessInfo.processInfo.arguments.contains("--auto-open-server-edit") {
+                try? await Task.sleep(for: .milliseconds(600))
+                showingNewServer = true
+            }
+            #endif
+        }
     }
 
     private func serverRow(_ server: OPDSServer) -> some View {

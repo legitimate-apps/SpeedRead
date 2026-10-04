@@ -303,6 +303,10 @@ verification without driving the UI:
 | `--auto-open-theme-picker` | **DEBUG builds only.** Opens the shelf-theme picker ~700ms after launch |
 | `--auto-open-rsvp` | **DEBUG builds only.** Inside `--auto-open-first-book`: presents RSVP ~800ms after the reader loads |
 | `--auto-open-reader-sheet=settings\|chapters\|bookmarks\|highlights` | **DEBUG builds only.** Inside `--auto-open-first-book`: presents that reader sheet ~800ms after load |
+| `--onboarding-page=N` | **DEBUG builds only.** Onboarding opens on page N (screenshot captures) |
+| `--auto-open-servers` | **DEBUG builds only.** Inside `--auto-open-settings`: pushes the server list |
+| `--auto-open-server-edit` | **DEBUG builds only.** Inside the server list: opens the new-server editor |
+| `--auto-open-feed-entry` | **DEBUG builds only.** Inside `--auto-open-browse`: pushes the first book's detail page once the feed loads |
 | `--seed-test-opds-server` | **DEBUG builds only.** Seeds an OPDS server from the environment (below) so Browse/Detail can be captured without driving the Settings form |
 | `--reset-onboarding` | **DEBUG builds only.** Clears the persisted `hasCompletedOnboarding` so a UI test can watch onboarding *complete*. Do NOT reach for `-hasCompletedOnboarding NO` instead: the argument domain outranks the persistent one on read, so the write onboarding performs stays masked and the app never advances — the shadow that makes the test repeatable is the same thing that makes it unable to prove anything |
 

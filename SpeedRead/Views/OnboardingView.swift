@@ -15,6 +15,13 @@ struct OnboardingView: View {
         UIPageControl.appearance().currentPageIndicatorTintColor = UIColor(Color.appAccent)
         UIPageControl.appearance().pageIndicatorTintColor = UIColor(Color.appInkSecondary).withAlphaComponent(0.35)
         #endif
+        #if DEBUG
+        // Screenshot hook: land on a specific page without swiping.
+        if let flag = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--onboarding-page=") }),
+           let page = Int(flag.components(separatedBy: "=").last ?? "") {
+            _currentPage = State(initialValue: page)
+        }
+        #endif
     }
 
     var body: some View {
