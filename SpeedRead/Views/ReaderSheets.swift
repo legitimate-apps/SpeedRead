@@ -55,9 +55,15 @@ struct ReaderSettingsSheet: View {
             .foregroundStyle(palette.bodyText)
             .background(palette.background)
             .navigationTitle("Reader Settings")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(palette.background, for: .navigationBar)
             .toolbarColorScheme(palette.toolbarColorScheme, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Reader Settings")
+                        .font(.displayFont(size: 17, weight: .semibold))
+                        .foregroundStyle(palette.titleText)
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                         .foregroundStyle(palette.accent)
@@ -161,9 +167,15 @@ struct ReaderBookmarkPicker: View {
                 }
             }
             .navigationTitle("Bookmarks")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(palette.background, for: .navigationBar)
             .toolbarColorScheme(palette.toolbarColorScheme, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Bookmarks")
+                        .font(.displayFont(size: 17, weight: .semibold))
+                        .foregroundStyle(palette.titleText)
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                         .foregroundStyle(palette.accent)
@@ -242,9 +254,15 @@ struct ReaderHighlightPicker: View {
                 }
             }
             .navigationTitle("Highlights")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(palette.background, for: .navigationBar)
             .toolbarColorScheme(palette.toolbarColorScheme, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Highlights")
+                        .font(.displayFont(size: 17, weight: .semibold))
+                        .foregroundStyle(palette.titleText)
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                         .foregroundStyle(palette.accent)
@@ -294,9 +312,15 @@ struct ReaderChapterPicker: View {
             .scrollContentBackground(.hidden)
             .background(palette.background)
             .navigationTitle("Chapters")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(palette.background, for: .navigationBar)
             .toolbarColorScheme(palette.toolbarColorScheme, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Chapters")
+                        .font(.displayFont(size: 17, weight: .semibold))
+                        .foregroundStyle(palette.titleText)
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                         .foregroundStyle(palette.accent)
