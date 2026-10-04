@@ -57,7 +57,7 @@ struct BookmarkListView: View {
                                 at: indexSet,
                                 from: displayedBookmarks
                             ) {
-                                modelContext.delete(bookmark)
+                                ServerAnnotationSync.shared.delete(bookmark, in: modelContext)
                             }
                         }
                     }

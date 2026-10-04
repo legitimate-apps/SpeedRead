@@ -63,7 +63,7 @@ nonisolated struct ReadingAnchor: Codable, Hashable, Sendable {
     static let maximumTextScalars = 200
     static let maximumContextScalars = 600
 
-    private static func trimmed(_ context: String, keepingEnd: Bool) -> String {
+    static func trimmed(_ context: String, keepingEnd: Bool) -> String {
         var words = context.split(separator: " ")
         while words.joined(separator: " ").unicodeScalars.count > maximumContextScalars {
             if keepingEnd { words.removeFirst() } else { words.removeLast() }
@@ -136,10 +136,10 @@ nonisolated struct AnchoredText: Sendable {
     /// A one-sided needle shorter than this (folded bytes) is too likely to recur.
     static let minimumPartialNeedle = 16
 
-    private let words: [Substring]
-    private let wordFirstTokens: [Int]
-    private let wordStarts: [Int]
-    private let folded: [UInt8]
+    let words: [Substring]
+    let wordFirstTokens: [Int]
+    let wordStarts: [Int]
+    let folded: [UInt8]
     let tokenCount: Int
 
     init(_ text: String) {
@@ -179,7 +179,7 @@ nonisolated struct AnchoredText: Sendable {
         word(containingToken: tokenIndex).map { wordFirstTokens[$0] }
     }
 
-    private func word(containingToken tokenIndex: Int) -> Int? {
+    func word(containingToken tokenIndex: Int) -> Int? {
         guard tokenIndex >= 0, tokenIndex < tokenCount else { return nil }
         return lastIndex(in: wordFirstTokens, atOrBelow: tokenIndex)
     }
@@ -212,7 +212,7 @@ nonisolated struct AnchoredText: Sendable {
         return nil
     }
 
-    private func occurrences(of needle: [UInt8]) -> [Int] {
+    func occurrences(of needle: [UInt8]) -> [Int] {
         guard !needle.isEmpty, needle.count <= folded.count else { return [] }
         var starts: [Int] = []
         folded.withUnsafeBytes { haystack in
@@ -232,7 +232,7 @@ nonisolated struct AnchoredText: Sendable {
 
     /// The last index whose value is ≤ `value` in an ascending array. Words that fold to nothing
     /// share their start with the next word, which wins because it comes later.
-    private func lastIndex(in ascending: [Int], atOrBelow value: Int) -> Int? {
+    func lastIndex(in ascending: [Int], atOrBelow value: Int) -> Int? {
         var low = 0, high = ascending.count
         while low < high {
             let mid = (low + high) / 2

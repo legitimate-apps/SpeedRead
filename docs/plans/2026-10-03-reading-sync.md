@@ -212,6 +212,52 @@ What the run changed:
   page put its CSS into the book's first words, and every bundled sample began with the word
   `"Cover"`. Existing books keep their stored text, and the fix applies from the next import.
 
+## Highlights, notes and bookmarks (client built 2026-10-03; server half in progress)
+
+The operator scoped this to CWNG only (2026-10-03). No standard sync protocol for annotations exists:
+W3C EPUB Annotations 1.0 is an interchange file, and OPDS Progression is a position-only draft. Users
+are pointed to CWNG.
+
+**Contract, agreed with CWNG 2026-10-03** (additive; stock KOSync clients are unchanged):
+
+- Gate: the client syncs annotations only when `/kosync/users/auth` lists `annotations_text_quote`,
+  and only for a book downloaded from that server with the server's sync switch on. The position
+  and annotation switch is the same one.
+- `document` is the server's numeric book id, falling back to the digest. The digest of an OPDS
+  copy differs from the library file (`d9e3…` ≠ `aedf…` in the position e2e).
+- `PUT /kosync/syncs/annotations`:
+  `{document, device, device_id, annotations: [{annotation_id, source: "textquote",
+  type: highlight|dogear, text_quote: {exact, prefix, suffix}, percentage, note_text, color,
+  device_origin_id, hidden}], deleted: [...], delete_source: "textquote"}`.
+  - `exact` is the whole source words, joined by single spaces. Context is up to 8 words per side.
+  - Limits: `exact` ≤ 4000 scalars; `prefix`/`suffix` ≤ 600, trimmed by whole words.
+  - `note_text` is always sent, `null` included, so removing a note removes it on the server.
+- `GET /kosync/syncs/annotations/<document>` returns every row for the user and book, from every
+  source, including `hidden` tombstones. The server adds `text_quote` wherever it can derive one.
+  `book_known: false` means the server doesn't have the book.
+- The server resolves a pushed quote to its own anchors (an XPointer range, checked by
+  `derive_cfi_range`), so KOReader and the web reader see the highlight. An unresolvable quote is
+  stored with its quote kept, never guessed.
+
+**Client rules** (`Sync/AnnotationSyncLogic.swift`, `Sync/ServerAnnotationSync.swift`):
+
+- **Sync order.** A book syncs when it opens, and after a local change once there's a 10 s quiet
+  interval or the app leaves the foreground. Each sync pulls first, then pushes.
+- **Deletes are only named.** A hidden row deletes the local copy, and an absent row never does.
+  - Deleting this app's own row sends its id in `deleted`, held in `annotationSyncPendingDeletes`
+    until a push succeeds.
+  - Another reader's row can be deleted only by that reader (#920). Deleting one here hides it on
+    this device for good (`annotationSyncForgotten`) and doesn't touch the server.
+- **Editing.** An unsent local edit beats the server. With no unsent edit, the server's note is
+  taken.
+  - Another reader's highlight is read-only here: its note shows but can't be edited.
+  - A note typed while a push is in flight stays unsent and goes with the next push.
+- **Adopting other readers' rows.** A row from another reader is placed by its quote: unique, or
+  nearest its percentage within the drift window. A row that can't be placed stays on the server
+  and is retried at the next sync. Unanchored notes are skipped.
+- **Pending: captured fixtures.** The wire fixtures are built from the server's `to_portable`
+  field set. Replace them with captured responses when the server half lands.
+
 ## Open for the operator
 
 - The furthest-wins policy on CWNG is product policy. The client never jumps silently, so it is

@@ -72,10 +72,13 @@ nonisolated enum KOSyncWire {
         return components?.url
     }
 
-    static func support(fromAuthBody data: Data) -> KOSyncServerSupport {
+    static func capabilities(fromAuthBody data: Data) -> Set<String> {
         struct Auth: Decodable { let capabilities: [String]? }
-        let capabilities = (try? JSONDecoder().decode(Auth.self, from: data))?.capabilities ?? []
-        return capabilities.contains("anchor") ? .anchorPositions : .unsupported
+        return Set((try? JSONDecoder().decode(Auth.self, from: data))?.capabilities ?? [])
+    }
+
+    static func support(fromAuthBody data: Data) -> KOSyncServerSupport {
+        capabilities(fromAuthBody: data).contains("anchor") ? .anchorPositions : .unsupported
     }
 
     static func encode(_ push: KOSyncPush) throws -> Data {
@@ -117,18 +120,21 @@ actor KOSyncClient {
         self.session = session
     }
 
-    func support(of server: OPDSRequestConfiguration) async throws -> KOSyncServerSupport {
-        guard let base = KOSyncWire.kosyncBase(fromOPDS: server.baseURL) else { return .unsupported }
-        let (data, status) = try await perform(
-            request(KOSyncWire.authURL(base: base), method: "GET", server: server)
-        )
+    /// Every capability the server names in its auth answer; empty for a stock or older server.
+    func capabilities(of server: OPDSRequestConfiguration) async throws -> Set<String> {
+        guard let base = KOSyncWire.kosyncBase(fromOPDS: server.baseURL) else { return [] }
+        let (data, status) = try await send(KOSyncWire.authURL(base: base), method: "GET", server: server)
         // A stock server answers Basic with 401 (it wants its own x-auth headers); a server
-        // without KOSync answers 404. Neither is a failure: it is a server we do not push to.
+        // without KOSync answers 404. Neither is a failure: it is a server we do not write to.
         guard (200...299).contains(status) else {
-            if [401, 403, 404, 405].contains(status) { return .unsupported }
+            if [401, 403, 404, 405].contains(status) { return [] }
             throw OPDSError.httpError(status: status)
         }
-        return KOSyncWire.support(fromAuthBody: data)
+        return KOSyncWire.capabilities(fromAuthBody: data)
+    }
+
+    func support(of server: OPDSRequestConfiguration) async throws -> KOSyncServerSupport {
+        try await capabilities(of: server).contains("anchor") ? .anchorPositions : .unsupported
     }
 
     func push(_ position: KOSyncPush, to server: OPDSRequestConfiguration) async throws {
@@ -150,6 +156,15 @@ actor KOSyncClient {
         } catch {
             throw OPDSError.parseError
         }
+    }
+
+    func send(_ url: URL, method: String, server: OPDSRequestConfiguration, body: Data? = nil) async throws -> (Data, Int) {
+        var request = try request(url, method: method, server: server)
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = body
+        }
+        return try await perform(request)
     }
 
     private func request(_ url: URL, method: String, server: OPDSRequestConfiguration) throws -> URLRequest {

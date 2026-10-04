@@ -190,15 +190,18 @@ final class RSVPPresentationSession {
         return commit
     }
 
-    func addBookmark(at index: Int, book: Book, modelContext: ModelContext) {
+    func addBookmark(at index: Int, book: Book, modelContext: ModelContext,
+                     annotationSync: any AnnotationChangeNoting = ServerAnnotationSync.shared) {
         let draft = bookmarkDraft(at: index)
         let bookmark = Bookmark(wordIndex: draft.wordIndex, previewText: draft.previewText)
         bookmark.book = book
         modelContext.insert(bookmark)
+        annotationSync.noteChanged(bookId: book.id)
     }
 
     /// Returns whether the second tap completed and inserted a highlight.
-    func toggleHighlight(at index: Int, book: Book, modelContext: ModelContext) -> Bool {
+    func toggleHighlight(at index: Int, book: Book, modelContext: ModelContext,
+                         annotationSync: any AnnotationChangeNoting = ServerAnnotationSync.shared) -> Bool {
         guard let draft = toggleHighlight(at: index) else { return false }
         let highlight = Highlight(
             startWordIndex: draft.startIndex,
@@ -207,6 +210,7 @@ final class RSVPPresentationSession {
         )
         highlight.book = book
         modelContext.insert(highlight)
+        annotationSync.noteChanged(bookId: book.id)
         return true
     }
 

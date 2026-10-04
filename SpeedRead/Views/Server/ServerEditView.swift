@@ -66,13 +66,13 @@ struct ServerEditView: View {
 
             Section {
                 Toggle(isOn: $session.syncsReadingPosition) {
-                    Label("Sync reading position", systemImage: "arrow.triangle.2.circlepath")
+                    Label("Sync position and highlights", systemImage: "arrow.triangle.2.circlepath")
                 }
                 .accessibilityIdentifier("server-sync-position-toggle")
             } header: {
-                Text("Reading Position")
+                Text("Reading Sync")
             } footer: {
-                Text("For books downloaded from this server: your place is saved to it, and you are offered the place you reached in other readers that sync with it. Only servers that support text-anchored positions are used.")
+                Text("For books downloaded from this server: your place, highlights, notes and bookmarks are saved to it, and you get the ones you made in other readers that sync with it. Only servers that support text-anchored sync are used.")
             }
 
             Section {

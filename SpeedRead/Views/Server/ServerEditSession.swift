@@ -55,6 +55,7 @@ final class ServerEditSession {
             server.syncsReadingPosition = syncsReadingPosition
             persistPassword(validated.password, for: server.keychainTag)
             positionSync.serverSettingsChanged(server)
+            ServerAnnotationSync.shared.serverSettingsChanged(server)
         } else {
             let s = OPDSServer(
                 name: validated.name,

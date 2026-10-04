@@ -12,6 +12,15 @@ import Testing
 @Suite("Annotation list logic")
 @MainActor
 struct AnnotationListLogicTests {
+    @Test func anAnnotationFromAnotherReaderNamesItsReader() {
+        #expect(AnnotationListLogic.sourceLabel(nil) == nil)
+        #expect(AnnotationListLogic.sourceLabel("textquote") == nil)
+        #expect(AnnotationListLogic.sourceLabel("koreader") == "From KOReader")
+        #expect(AnnotationListLogic.sourceLabel("kobo") == "From Kobo")
+        #expect(AnnotationListLogic.sourceLabel("webreader") == "From the web reader")
+        #expect(AnnotationListLogic.sourceLabel("unknown") == "From your library")
+    }
+
 
     // MARK: - Ordering is by position in the book, never by insertion order
 

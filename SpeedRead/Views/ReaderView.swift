@@ -131,14 +131,21 @@ struct ReaderView: View {
         }
         .task(id: book.id) {
             await serverSync.pull(bookId: book.id)
+            await ServerAnnotationSync.shared.sync(bookId: book.id)
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
-            Task { await serverSync.pull(bookId: book.id) }
+            Task {
+                await serverSync.pull(bookId: book.id)
+                await ServerAnnotationSync.shared.sync(bookId: book.id)
+            }
         }
         .onDisappear {
             serverSync.dismissOffer(for: book.id)
-            Task { await serverSync.flush() }
+            Task {
+                await serverSync.flush()
+                await ServerAnnotationSync.shared.flush()
+            }
         }
         .task(id: session.wordFlash?.id) {
             guard let flash = session.wordFlash else { return }

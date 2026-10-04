@@ -46,6 +46,17 @@ struct AnnotationListLogic {
         offsets.map { displayedHighlights[$0] }
     }
 
+    /// Which reader an annotation came from, for one that did not start here.
+    static func sourceLabel(_ syncSource: String?) -> String? {
+        switch syncSource {
+        case nil, KOSyncAnnotationPush.source?: nil
+        case "koreader"?: "From KOReader"
+        case "kobo"?: "From Kobo"
+        case "webreader"?: "From the web reader"
+        default: "From your library"
+        }
+    }
+
     static func positionLabel(wordIndex: Int) -> String {
         "Word \(wordIndex + 1)"
     }

@@ -130,6 +130,12 @@ struct ReaderHighlightPicker: View {
                 .font(.system(size: 15, design: .serif))
                 .foregroundStyle(.primary)
                 .lineLimit(3)
+            if let note = highlight.note {
+                Label(note, systemImage: "note.text")
+                    .font(.system(size: 13, design: .serif).italic())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(4)
+            }
             Text(AnnotationListLogic.rangeLabel(
                 startWordIndex: highlight.startWordIndex,
                 endWordIndex: highlight.endWordIndex
