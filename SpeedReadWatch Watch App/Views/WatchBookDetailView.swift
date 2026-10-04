@@ -116,14 +116,14 @@ struct WatchBookDetailContent: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color.crimsonSoft)
+                .tint(Color.agedGold)
 
                 Button(role: .destructive) {
                     requestRemoval()
                 } label: {
                     Text("Remove from Watch")
                         .font(.caption)
-                        .foregroundStyle(Color.crimsonSoft.opacity(0.7))
+                        .foregroundStyle(Color.appError)
                 }
                 .buttonStyle(.plain)
             }

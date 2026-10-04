@@ -59,7 +59,7 @@ struct WatchRSVPSurface: View {
                     Spacer()
                     WatchRSVPPlaybackControl(isPlaying: true, action: onTogglePlayback)
                         .font(.system(size: 30))
-                        .foregroundStyle(Color.crimsonSoft)
+                        .foregroundStyle(Color.agedGold)
                         .frame(minWidth: 44, minHeight: 44)
                         .padding(.bottom, 2)
                 }
@@ -74,7 +74,7 @@ struct WatchRSVPSurface: View {
                                 .font(.body.weight(.semibold))
                                 .foregroundStyle(Color.rsvpText)
                                 .frame(width: 36, height: 36)
-                                .background(Color.walnut.opacity(0.6), in: Circle())
+                                .background(Color.rsvpText.opacity(0.14), in: Circle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Settings")
@@ -96,7 +96,7 @@ struct WatchRSVPSurface: View {
 
                     WatchRSVPPlaybackControl(isPlaying: false, action: onTogglePlayback)
                         .font(.system(size: 44))
-                        .foregroundStyle(Color.crimsonSoft)
+                        .foregroundStyle(Color.agedGold)
                         .frame(minWidth: 44, minHeight: 44)
 
                     Text("\(engine.wpm) WPM")

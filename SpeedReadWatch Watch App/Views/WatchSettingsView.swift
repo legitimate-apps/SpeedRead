@@ -141,7 +141,7 @@ struct WatchSpeedSettingsControl: View {
                 dismiss()
             }
             .buttonStyle(.borderedProminent)
-            .tint(Color.crimsonSoft)
+            .tint(Color.agedGold)
         }
     }
 

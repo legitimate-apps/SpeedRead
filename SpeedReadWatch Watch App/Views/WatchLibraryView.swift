@@ -78,7 +78,7 @@ struct WatchLibraryContent: View {
 
                             Image(systemName: "play.circle.fill")
                                 .font(.system(size: 28))
-                                .foregroundStyle(Color.crimsonSoft)
+                                .foregroundStyle(Color.agedGold)
                         }
                     }
                     .buttonStyle(.plain)
@@ -136,7 +136,7 @@ struct WatchLibraryContent: View {
             ) {
             case .current:
                 Circle()
-                    .fill(Color.crimsonSoft)
+                    .fill(Color.agedGold)
                     .frame(width: 8, height: 8)
             case .progress(let progress):
                 ZStack {
