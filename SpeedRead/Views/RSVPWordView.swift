@@ -14,9 +14,9 @@ struct RSVPWordView: View {
         VStack(spacing: 2) {
             guideMark
             Canvas { context, size in
-                let before = context.resolve(segment(segments.before, color: .rsvpText.opacity(0.5)))
-                let focus = context.resolve(segment(segments.focus, color: .crimson))
-                let after = context.resolve(segment(segments.after, color: .rsvpText.opacity(0.5)))
+                let before = context.resolve(segment(segments.before, color: .rsvpText.opacity(0.65)))
+                let focus = context.resolve(segment(segments.focus, color: .pivot))
+                let after = context.resolve(segment(segments.after, color: .rsvpText.opacity(0.65)))
                 let proposal = CGSize(width: CGFloat.infinity, height: CGFloat.infinity)
                 let focusWidth = focus.measure(in: proposal).width
                 let fit = RSVPWordFit(
@@ -45,7 +45,7 @@ struct RSVPWordView: View {
 
     private var guideMark: some View {
         Rectangle()
-            .fill(Color.crimson)
+            .fill(Color.pivot)
             .frame(width: 2, height: 8)
             .accessibilityHidden(true)
     }

@@ -21,13 +21,13 @@ struct HighlightListView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "highlighter")
                             .font(.system(size: 40))
-                            .foregroundStyle(Color.rsvpText.opacity(0.3))
+                            .foregroundStyle(Color.rsvpText.opacity(0.45))
                         Text("No highlights yet")
                             .font(.system(size: 16))
-                            .foregroundStyle(Color.rsvpText.opacity(0.5))
+                            .foregroundStyle(Color.rsvpText.opacity(0.75))
                         Text("Tap Highlight while paused, read or scrub, then tap Stop")
                             .font(.system(size: 13))
-                            .foregroundStyle(Color.rsvpText.opacity(0.3))
+                            .foregroundStyle(Color.rsvpText.opacity(0.55))
                             .multilineTextAlignment(.center)
                     }
                     .padding()
@@ -72,7 +72,7 @@ struct HighlightListView: View {
                                 }
                                 .padding(.vertical, 4)
                             }
-                            .listRowBackground(Color.walnut.opacity(0.3))
+                            .listRowBackground(Color.appSurfaceRaised)
                             .swipeActions(edge: .leading) {
                                 if highlight.isEditableOnServer {
                                     Button {

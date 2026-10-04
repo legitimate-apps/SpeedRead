@@ -71,7 +71,7 @@ struct RSVPView: View {
 
                 // Highlight flash overlay
                 if presentation.feedbackFlash?.kind == .highlight {
-                    Color.crimson.opacity(0.15)
+                    Color.rsvpText.opacity(0.12)
                         .ignoresSafeArea()
                         .allowsHitTesting(false)
                 }
@@ -104,7 +104,7 @@ struct RSVPView: View {
                     VStack(spacing: 2) {
                         Text(book.title)
                             .font(.system(size: 13, weight: .medium, design: .serif))
-                            .foregroundStyle(Color.rsvpText.opacity(0.4))
+                            .foregroundStyle(Color.rsvpText.opacity(0.65))
                             .lineLimit(1)
                         if let chapter = chapters.current(at: engine.currentIndex) {
                             Text(chapter.title)
@@ -227,7 +227,7 @@ struct RSVPView: View {
             } label: {
                 Image(systemName: "minus.circle.fill")
                     .font(.system(size: 28))
-                    .foregroundStyle(Color.walnut.opacity(0.8))
+                    .foregroundStyle(Color.rsvpText.opacity(0.75))
             }
             .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("Decrease speed by 25 words per minute")
@@ -245,7 +245,7 @@ struct RSVPView: View {
             } label: {
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 28))
-                    .foregroundStyle(Color.walnut.opacity(0.8))
+                    .foregroundStyle(Color.rsvpText.opacity(0.75))
             }
             .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("Increase speed by 25 words per minute")
@@ -258,7 +258,7 @@ struct RSVPView: View {
                 togglePlayback()
             }
             .font(.system(size: 44))
-            .foregroundStyle(Color.crimsonSoft)
+            .foregroundStyle(Color.agedGold)
             .frame(minWidth: 44, minHeight: 44)
 
             Button {
@@ -268,7 +268,7 @@ struct RSVPView: View {
                     .font(.system(size: 20))
                     .foregroundStyle(Color.agedGold)
                     .padding(10)
-                    .background(Color.walnut.opacity(0.6), in: Circle())
+                    .background(Color.rsvpText.opacity(0.14), in: Circle())
             }
             .frame(minWidth: 44, minHeight: 44)
             .opacity(engine.state != .playing ? 1 : 0)
@@ -282,11 +282,11 @@ struct RSVPView: View {
                     Text(presentation.highlightStartIndex != nil ? "Stop" : "Highlight")
                         .font(.system(size: 13, weight: .medium))
                 }
-                .foregroundStyle(presentation.highlightStartIndex != nil ? .white : Color.rsvpText)
+                .foregroundStyle(presentation.highlightStartIndex != nil ? Color.rsvpBackground : Color.rsvpText)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(
-                    presentation.highlightStartIndex != nil ? Color.crimson : Color.walnut.opacity(0.6),
+                    presentation.highlightStartIndex != nil ? Color.agedGold : Color.rsvpText.opacity(0.14),
                     in: Capsule()
                 )
             }
@@ -301,7 +301,7 @@ struct RSVPView: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.walnut)
+                        .fill(Color.rsvpText.opacity(0.18))
                         .frame(height: 4)
                     RoundedRectangle(cornerRadius: 2)
                         .fill(
@@ -323,7 +323,7 @@ struct RSVPView: View {
                 Text("of \(engine.totalWords)")
             }
             .font(.system(size: 11))
-            .foregroundStyle(Color.rsvpText.opacity(0.4))
+            .foregroundStyle(Color.rsvpText.opacity(0.65))
             .monospacedDigit()
         }
     }

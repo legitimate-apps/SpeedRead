@@ -19,13 +19,13 @@ struct BookmarkListView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "bookmark")
                             .font(.system(size: 40))
-                            .foregroundStyle(Color.rsvpText.opacity(0.3))
+                            .foregroundStyle(Color.rsvpText.opacity(0.45))
                         Text("No bookmarks yet")
                             .font(.system(size: 16))
-                            .foregroundStyle(Color.rsvpText.opacity(0.5))
+                            .foregroundStyle(Color.rsvpText.opacity(0.75))
                         Text("Tap the bookmark icon while paused to save your place")
                             .font(.system(size: 13))
-                            .foregroundStyle(Color.rsvpText.opacity(0.3))
+                            .foregroundStyle(Color.rsvpText.opacity(0.55))
                             .multilineTextAlignment(.center)
                     }
                     .padding()
@@ -50,7 +50,7 @@ struct BookmarkListView: View {
                                 }
                                 .padding(.vertical, 4)
                             }
-                            .listRowBackground(Color.walnut.opacity(0.3))
+                            .listRowBackground(Color.appSurfaceRaised)
                         }
                         .onDelete { indexSet in
                             for bookmark in AnnotationListLogic.bookmarksToDelete(
