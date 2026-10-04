@@ -212,7 +212,7 @@ What the run changed:
   page put its CSS into the book's first words, and every bundled sample began with the word
   `"Cover"`. Existing books keep their stored text, and the fix applies from the next import.
 
-## Highlights, notes and bookmarks (client built 2026-10-03; server half in progress)
+## Highlights, notes and bookmarks (client built 2026-10-03; server half is CWNG PR #2466)
 
 The operator scoped this to CWNG only (2026-10-03). No standard sync protocol for annotations exists:
 W3C EPUB Annotations 1.0 is an interchange file, and OPDS Progression is a position-only draft. Users
@@ -232,9 +232,12 @@ are pointed to CWNG.
   - `exact` is the whole source words, joined by single spaces. Context is up to 8 words per side.
   - Limits: `exact` ≤ 4000 scalars; `prefix`/`suffix` ≤ 600, trimmed by whole words.
   - `note_text` is always sent, `null` included, so removing a note removes it on the server.
-- `GET /kosync/syncs/annotations/<document>` returns every row for the user and book, from every
-  source, including `hidden` tombstones. The server adds `text_quote` wherever it can derive one.
+- `GET /kosync/syncs/annotations/<document>?text_quote=1` returns every row for the user and book,
+  from every source, including `hidden` tombstones. With the query, the server adds `text_quote`
+  wherever it can derive one; without it, other readers' rows carry `text_quote: null`.
   `book_known: false` means the server doesn't have the book.
+- The server's edit clock is `content_revision`, with `server_modified_at` beside it. `last_synced`
+  is not an edit time. The client reads none of them: what is unsent is a local fact (`needsPush`).
 - The server resolves a pushed quote to its own anchors (an XPointer range, checked by
   `derive_cfi_range`), so KOReader and the web reader see the highlight. An unresolvable quote is
   stored with its quote kept, never guessed.
@@ -255,8 +258,10 @@ are pointed to CWNG.
 - **Adopting other readers' rows.** A row from another reader is placed by its quote: unique, or
   nearest its percentage within the drift window. A row that can't be placed stays on the server
   and is retried at the next sync. Unanchored notes are skipped.
-- **Pending: captured fixtures.** The wire fixtures are built from the server's `to_portable`
-  field set. Replace them with captured responses when the server half lands.
+- **Fixtures are captured.** `AnnotationWireTests` decodes a pull, a PUT response and an
+  unknown-book body captured verbatim from the CWNG rig (book 221) on 2026-10-04 UTC.
+- **Pending: joint e2e** against the rig. It runs app → server, a KOReader row server → app, and
+  deletes both ways.
 
 ## Open for the operator
 

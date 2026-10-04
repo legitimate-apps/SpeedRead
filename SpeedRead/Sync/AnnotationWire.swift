@@ -74,7 +74,6 @@ nonisolated struct KOSyncRemoteAnnotation: Equatable, Sendable {
     let note: String?
     let hidden: Bool
     let deviceOriginID: String?
-    let updatedAt: Date?
     /// 0–1, when the server sends one: it places a quote that occurs more than once.
     let percentage: Double?
 
@@ -97,8 +96,13 @@ nonisolated extension KOSyncWire {
         base.appendingPathComponent("syncs").appendingPathComponent("annotations")
     }
 
+    /// `text_quote=1` asks the server to derive a quote for other readers' rows; without it only
+    /// rows this app pushed carry one.
     static func annotationsFetchURL(base: URL, document: String) -> URL {
-        annotationsPushURL(base: base).appendingPathComponent(document)
+        var components = URLComponents(url: annotationsPushURL(base: base).appendingPathComponent(document),
+                                       resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "text_quote", value: "1")]
+        return components.url!
     }
 
     static func encode(_ push: KOSyncAnnotationPush) throws -> Data {
@@ -137,8 +141,7 @@ nonisolated extension KOSyncWire {
         let annotation: KOSyncRemoteAnnotation
 
         enum CodingKeys: String, CodingKey {
-            case annotation_id, source, type, text_quote, note_text, hidden, device_origin_id
-            case updated_at, last_synced, percentage
+            case annotation_id, source, type, text_quote, note_text, hidden, device_origin_id, percentage
         }
 
         init(from decoder: any Decoder) throws {
@@ -162,30 +165,9 @@ nonisolated extension KOSyncWire {
                 note: note.flatMap { $0.isEmpty ? nil : $0 },
                 hidden: (try? c.decodeIfPresent(Bool.self, forKey: .hidden)).flatMap { $0 } ?? false,
                 deviceOriginID: (try? c.decodeIfPresent(String.self, forKey: .device_origin_id)).flatMap { $0 },
-                updatedAt: Self.date(c, .updated_at) ?? Self.date(c, .last_synced),
                 percentage: percentage.map { min(max($0 > 1 ? $0 / 100 : $0, 0), 1) }
             )
         }
-
-        private static func date(_ c: KeyedDecodingContainer<CodingKeys>, _ key: CodingKeys) -> Date? {
-            if let seconds = try? c.decode(Double.self, forKey: key) { return Date(timeIntervalSince1970: seconds) }
-            return (try? c.decode(String.self, forKey: key)).flatMap(KOSyncWire.serverDate)
-        }
-    }
-
-    /// An ISO-8601 time as a Python server writes it: fractional seconds of any length, and a
-    /// naive time (no offset) meaning UTC.
-    static func serverDate(_ text: String) -> Date? {
-        var whole = Substring(text), fraction = 0.0
-        if let dot = whole.firstIndex(of: ".") {
-            let digits = whole[whole.index(after: dot)...].prefix(while: \.isNumber)
-            fraction = Double("0." + digits) ?? 0
-            whole = whole[..<dot] + whole[digits.endIndex...]
-        }
-        let time = whole.split(separator: "T").last ?? ""
-        let hasOffset = time.contains("Z") || time.contains("+") || time.contains("-")
-        guard let date = ISO8601DateFormatter().date(from: String(whole) + (hasOffset ? "" : "Z")) else { return nil }
-        return date.addingTimeInterval(fraction)
     }
 }
 

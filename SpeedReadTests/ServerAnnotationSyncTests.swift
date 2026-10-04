@@ -290,7 +290,7 @@ struct ServerAnnotationSyncTests {
         let server: OPDSServer
         let book: Book
         let authURL = URL(string: "https://books.example.com/kosync/users/auth")!
-        let fetchURL = URL(string: "https://books.example.com/kosync/syncs/annotations/42")!
+        let fetchURL = URL(string: "https://books.example.com/kosync/syncs/annotations/42?text_quote=1")!
         let pushURL = URL(string: "https://books.example.com/kosync/syncs/annotations")!
 
         init() throws {
