@@ -33,11 +33,11 @@ syncs phone ↔ watch over WatchConnectivity.
 
 - Swift 6 language mode, Swift 6.3 toolchain (uses `PBXFileSystemSynchronizedRootGroup` — files dropped into
   source dirs auto-include).
-- `MARKETING_VERSION` = 1.4, `CURRENT_PROJECT_VERSION` = 7.
+- `MARKETING_VERSION` = 1.4, `CURRENT_PROJECT_VERSION` = 8.
 
 ## Release state
 
-**1.4 (build 7) is on TestFlight, uploaded 2026-10-04**: build 6 (chapters, server position sync, EPUB/watch fixes) plus highlight/note/bookmark sync with CWNG and the warm-palette restyle (light and dark). No App Store version for 1.4 exists yet, and it has not been submitted for review. **1.3 (build 5) is live: released 2026-10-03** (approved after the 2026-09-07 submission, then
+**1.4 (build 8) is on TestFlight, uploaded 2026-10-04**: build 7 (chapters, server position sync, EPUB/watch fixes, highlight/note/bookmark sync with CWNG, the warm-palette restyle) plus the live phone↔watch handoff (one shared place, "Reading on …" card, tap to take over). No App Store version for 1.4 exists yet, and it has not been submitted for review. **1.3 (build 5) is live: released 2026-10-03** (approved after the 2026-09-07 submission, then
 held in `PENDING_DEVELOPER_RELEASE` for weeks because the version was created `MANUAL`).
 **New versions are created with `releaseType: AFTER_APPROVAL`** — the operator wants an approved
 build live, not parked. If one ever lands in `PENDING_DEVELOPER_RELEASE`, release it
@@ -53,7 +53,7 @@ correctness bugs. Everything else in that range is tests, lane tooling and behav
 extraction into the Session types.
 
 `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the table above are the values IN THE TREE
-(1.4 / 7), which are the uploaded ones. Bump both before the next archive.
+(1.4 / 8), which are the uploaded ones. Bump both before the next archive.
 
 > Before any future submission, diff the candidate build's **source** against the live build's
 > source — not just the version number.
