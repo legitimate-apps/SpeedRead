@@ -10,7 +10,6 @@ struct RemoteBookDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.opdsClientFactory) private var makeClient
-    @Environment(ThemeManager.self) private var themeManager
 
     @State private var session: RemoteBookDetailSession
 
@@ -26,7 +25,7 @@ struct RemoteBookDetailView: View {
         let supportedAcquisitions = availability.readable
         let acquisitionLabels = OPDSAcquisitionLabelLogic.labels(for: supportedAcquisitions)
         ZStack {
-            themeManager.currentTheme.backgroundColor.ignoresSafeArea()
+            Color.appSurface.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     cover
@@ -34,22 +33,24 @@ struct RemoteBookDetailView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(entry.title)
                             .font(.displayFont(size: 26, weight: .regular))
-                            .foregroundStyle(Color.walnut)
+                            .foregroundStyle(Color.appInk)
                         if !entry.authors.isEmpty {
                             Text(entry.authors.joined(separator: ", "))
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundStyle(Color.walnutLight)
+                                .font(.bodySerif(size: 16))
+                                .italic()
+                                .foregroundStyle(Color.appInkSecondary)
                         }
                         ForEach(OPDSMetadataLogic.detailFields(for: entry)) { field in
                             Text(field.text)
                                 .font(.caption)
-                                .foregroundStyle(Color.walnutLight)
+                                .foregroundStyle(Color.appInkSecondary)
                         }
                     }
                     if let summary = entry.summary, !summary.isEmpty {
                         Text(summary)
-                            .font(.body)
-                            .foregroundStyle(Color.walnut)
+                            .font(.bodySerif(size: 16))
+                            .lineSpacing(4)
+                            .foregroundStyle(Color.appInk)
                     }
                     if supportedAcquisitions.count > 1 {
                         Picker("Format", selection: $session.selectedAcquisitionIndex) {
@@ -63,14 +64,14 @@ struct RemoteBookDetailView: View {
                     if let downloadError = session.downloadError {
                         Text(downloadError)
                             .font(.footnote)
-                            .foregroundStyle(Color.crimsonSoft)
+                            .foregroundStyle(Color.appError)
                     }
                     if !availability.unreadableDisplayNames.isEmpty {
                         unavailableFormats(availability.unreadableDisplayNames)
                     } else if supportedAcquisitions.isEmpty {
                         Text("This book has no downloadable formats.")
                             .font(.footnote)
-                            .foregroundStyle(Color.walnutLight)
+                            .foregroundStyle(Color.appInkSecondary)
                     }
                 }
                 .padding()
@@ -78,6 +79,7 @@ struct RemoteBookDetailView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.appSurface, for: .navigationBar)
         .task { await session.loadCover(entry: entry, on: server, makeClient: makeClient) }
     }
 
@@ -88,8 +90,12 @@ struct RemoteBookDetailView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(maxHeight: 280)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .shadow(radius: 4)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.appInk.opacity(0.2), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
         } else if entry.coverURL != nil || entry.thumbnailURL != nil {
             ProgressView()
                 .controlSize(.large)
@@ -97,7 +103,7 @@ struct RemoteBookDetailView: View {
         } else {
             Image(systemName: "book.closed")
                 .font(.system(size: 100))
-                .foregroundStyle(Color.walnutLight)
+                .foregroundStyle(Color.appInkSecondary)
                 .frame(height: 280)
         }
     }
@@ -111,19 +117,19 @@ struct RemoteBookDetailView: View {
                         .font(.system(size: 10, weight: .medium))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.walnutLight.opacity(0.15), in: Capsule())
-                        .foregroundStyle(Color.walnutLight)
+                        .background(Color.appInkSecondary.opacity(0.15), in: Capsule())
+                        .foregroundStyle(Color.appInkSecondary)
                 }
             }
             Text(OPDSFormatAvailabilityLogic.unavailableFormatMessage)
                 .font(.footnote)
-                .foregroundStyle(Color.walnutLight)
+                .foregroundStyle(Color.appInkSecondary)
             Link(
                 OPDSFormatAvailabilityLogic.supportRequestLabel,
                 destination: OPDSFormatAvailabilityLogic.supportRequestURL
             )
             .font(.footnote.weight(.medium))
-            .foregroundStyle(Color.crimsonSoft)
+            .foregroundStyle(Color.appAccent)
         }
     }
 
@@ -140,7 +146,7 @@ struct RemoteBookDetailView: View {
         } label: {
             HStack {
                 if session.downloading {
-                    ProgressView().controlSize(.small).tint(Color.parchment)
+                    ProgressView().controlSize(.small).tint(Color.appOnAccent)
                     Text("Downloading…")
                 } else {
                     Image(systemName: "arrow.down.circle.fill")
@@ -148,11 +154,11 @@ struct RemoteBookDetailView: View {
                 }
             }
             .font(.system(size: 16, weight: .medium))
-            .foregroundStyle(Color.parchment)
+            .foregroundStyle(Color.appOnAccent)
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
-            .background(Color.crimsonSoft, in: Capsule())
+            .background(Color.appAccent, in: Capsule())
         }
         .disabled(session.downloading || selectedAcquisition == nil)
     }

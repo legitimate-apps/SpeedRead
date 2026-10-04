@@ -5,10 +5,10 @@ import SwiftData
 struct BrowseServerView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(ThemeManager.self) private var themeManager
     @Query(sort: \OPDSServer.sortIndex) private var servers: [OPDSServer]
 
     @State private var session: BrowseServerSession
+    @State private var showingNewServer = false
 
     init(session: BrowseServerSession? = nil) {
         _session = State(initialValue: session ?? BrowseServerSession())
@@ -24,7 +24,7 @@ struct BrowseServerView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                themeManager.currentTheme.backgroundColor.ignoresSafeArea()
+                Color.appSurface.ignoresSafeArea()
                 switch route {
                 case .empty:
                     emptyState
@@ -47,10 +47,11 @@ struct BrowseServerView: View {
             }
             .navigationTitle("Browse")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.appSurface, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
-                        .foregroundStyle(Color.crimsonSoft)
+                        .foregroundStyle(Color.appAccent)
                 }
             }
         }
@@ -67,48 +68,67 @@ struct BrowseServerView: View {
                             VStack(alignment: .leading) {
                                 Text(server.name)
                                     .font(.headline)
-                                    .foregroundStyle(Color.walnut)
+                                    .foregroundStyle(Color.appInk)
                                 Text(server.baseURLString)
                                     .font(.caption)
-                                    .foregroundStyle(Color.walnutLight)
+                                    .foregroundStyle(Color.appInkSecondary)
                             }
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .foregroundStyle(Color.walnutLight)
+                                .foregroundStyle(Color.appInkSecondary)
                         }
                     }
                 }
             }
         }
         .scrollContentBackground(.hidden)
+        .listRowBackground(Color.appSurfaceRaised)
     }
 
     private var emptyState: some View {
         VStack(spacing: 16) {
             Image(systemName: "icloud.slash")
                 .font(.system(size: 48))
-                .foregroundStyle(Color.walnutLight)
+                .foregroundStyle(Color.appInkSecondary)
             Text("No Library Servers")
                 .font(.displayFont(size: 22, weight: .regular))
-                .foregroundStyle(Color.walnut)
-            Text("Open Settings to add an OPDS server.")
-                .font(.system(size: 14))
-                .foregroundStyle(Color.walnutLight)
+                .foregroundStyle(Color.appInk)
+            Text("Add a server to browse books from your Calibre, Calibre-Web, or any other OPDS catalog.")
+                .font(.bodySerif(size: 15))
+                .foregroundStyle(Color.appInkSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button {
+                showingNewServer = true
+            } label: {
+                Label("Add a Library Server", systemImage: "plus.circle.fill")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Color.appOnAccent)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.appAccent, in: Capsule())
+            }
+            .padding(.top, 8)
         }
         .padding()
+        .sheet(isPresented: $showingNewServer) {
+            NavigationStack {
+                ServerEditView(server: nil)
+            }
+        }
     }
 
     private func invalidServerState(serverName: String) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 48))
-                .foregroundStyle(Color.crimsonSoft)
+                .foregroundStyle(Color.appError)
             Text("Invalid Server URL")
                 .font(.displayFont(size: 22, weight: .regular))
-                .foregroundStyle(Color.walnut)
+                .foregroundStyle(Color.appInk)
             Text("The saved URL for \(serverName) is invalid. Open Settings to correct it.")
-                .font(.system(size: 14))
-                .foregroundStyle(Color.walnutLight)
+                .font(.bodySerif(size: 15))
+                .foregroundStyle(Color.appInkSecondary)
                 .multilineTextAlignment(.center)
         }
         .padding()
@@ -152,13 +172,14 @@ private struct BrowseFeedView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
-                        .foregroundStyle(Color.crimsonSoft)
+                        .foregroundStyle(Color.appError)
                     Text(message)
+                        .foregroundStyle(Color.appInk)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                     Button("Retry") { Task { await session.load(url: url, on: server, modelContext: modelContext, makeClient: makeClient) } }
                         .buttonStyle(.borderedProminent)
-                        .tint(Color.crimsonSoft)
+                        .tint(Color.appAccent)
                 }
             case .content:
                 feedList
@@ -166,6 +187,8 @@ private struct BrowseFeedView: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .background(Color.appSurface)
+        .toolbarBackground(Color.appSurface, for: .navigationBar)
         .task(id: url) { await session.load(url: url, on: server, modelContext: modelContext, makeClient: makeClient) }
         .searchable(text: $session.searchText, prompt: "Search this server")
         .onSubmit(of: .search) { Task { await session.runSearch(on: server, makeClient: makeClient) } }
@@ -177,7 +200,7 @@ private struct BrowseFeedView: View {
             case .none:
                 EmptyView()
             case .added(let title):
-                ToastView(icon: "checkmark.circle.fill", text: "Added \(title)", color: Color.agedGold)
+                ToastView(icon: "checkmark.circle.fill", text: "Added \(title)", color: Color.appSuccess)
                     .onAppear {
                         Task {
                             try? await Task.sleep(for: .seconds(2.2))
@@ -185,7 +208,7 @@ private struct BrowseFeedView: View {
                         }
                     }
             case .failure(let message):
-                ToastView(icon: "exclamationmark.triangle.fill", text: message, color: Color.crimsonSoft)
+                ToastView(icon: "exclamationmark.triangle.fill", text: message, color: Color.appError)
                     .onTapGesture { session.downloadError = nil }
             }
         }
@@ -201,7 +224,7 @@ private struct BrowseFeedView: View {
                                 BrowseFeedView(server: server, url: target, title: entry.title)
                             } label: {
                                 Label(entry.title, systemImage: "folder")
-                                    .foregroundStyle(Color.walnut)
+                                    .foregroundStyle(Color.appInk)
                             }
                         }
                     }
@@ -235,7 +258,7 @@ private struct BrowseFeedView: View {
                                 ProgressView().controlSize(.small)
                             case .loadMore:
                                 Button("Load more") { Task { await session.loadMore(on: server, makeClient: makeClient) } }
-                                    .foregroundStyle(Color.crimsonSoft)
+                                    .foregroundStyle(Color.appAccent)
                             case .hidden:
                                 EmptyView()
                             }
@@ -249,6 +272,7 @@ private struct BrowseFeedView: View {
             }
         }
         .scrollContentBackground(.hidden)
+        .listRowBackground(Color.appSurfaceRaised)
         .refreshable { await session.load(url: url, on: server, modelContext: modelContext, makeClient: makeClient) }
     }
 
@@ -263,7 +287,9 @@ private struct ToastView: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon).foregroundStyle(color)
-            Text(text).font(.system(size: 14, weight: .medium))
+            Text(text)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color.appInk)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

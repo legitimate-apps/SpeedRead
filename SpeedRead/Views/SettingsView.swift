@@ -4,19 +4,23 @@ import SwiftData
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(ThemeManager.self) private var themeManager
 
     var body: some View {
         NavigationStack {
             ZStack {
-                themeManager.currentTheme.backgroundColor.ignoresSafeArea()
+                Color.appSurface.ignoresSafeArea()
                 Form {
                     Section {
                         NavigationLink {
                             ServerListView()
                         } label: {
-                            Label("Library Servers", systemImage: "icloud")
-                                .foregroundStyle(Color.crimsonSoft)
+                            Label {
+                                Text("Library Servers")
+                                    .foregroundStyle(Color.appInk)
+                            } icon: {
+                                Image(systemName: "icloud")
+                                    .foregroundStyle(Color.appAccent)
+                            }
                         }
                     } header: {
                         Text("Remote Libraries")
@@ -32,13 +36,16 @@ struct SettingsView: View {
                     }
                 }
                 .scrollContentBackground(.hidden)
+                .listRowBackground(Color.appSurfaceRaised)
+                .tint(Color.appAccent)
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.appSurface, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                        .foregroundStyle(Color.crimsonSoft)
+                        .foregroundStyle(Color.appAccent)
                 }
             }
         }

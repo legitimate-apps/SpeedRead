@@ -6,7 +6,6 @@ struct ServerEditView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.opdsClientFactory) private var makeClient
     @Environment(\.dismiss) private var dismiss
-    @Environment(ThemeManager.self) private var themeManager
 
     let server: OPDSServer?
 
@@ -58,7 +57,7 @@ struct ServerEditView: View {
             } footer: {
                 if pendingHTTP && !session.allowInsecureHTTP {
                     Text("This server uses http://. Enable plain HTTP or change the URL to https://.")
-                        .foregroundStyle(Color.crimsonSoft)
+                        .foregroundStyle(Color.appError)
                 } else {
                     Text("Only enable plain HTTP for trusted local-network servers. HTTPS is recommended.")
                 }
@@ -88,10 +87,10 @@ struct ServerEditView: View {
                             Text("Testing…")
                         case .success:
                             Label("Connection OK", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Color.appSuccess)
                         case .failure(let msg):
                             Label(msg, systemImage: "xmark.octagon")
-                                .foregroundStyle(Color.crimsonSoft)
+                                .foregroundStyle(Color.appError)
                         }
                     }
                 }
@@ -104,15 +103,18 @@ struct ServerEditView: View {
             if let validationError = session.validationError {
                 Section {
                     Text(validationError)
-                        .foregroundStyle(Color.crimsonSoft)
+                        .foregroundStyle(Color.appError)
                         .font(.footnote)
                 }
             }
         }
         .scrollContentBackground(.hidden)
-        .background(themeManager.currentTheme.backgroundColor)
+        .listRowBackground(Color.appSurfaceRaised)
+        .tint(Color.appAccent)
+        .background(Color.appSurface)
         .navigationTitle(presentation.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.appSurface, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {

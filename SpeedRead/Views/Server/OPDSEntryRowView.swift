@@ -12,36 +12,36 @@ struct OPDSEntryRowView: View {
         HStack(alignment: .top, spacing: 12) {
             cover
                 .frame(width: 56, height: 84)
-                .background(Color.walnutLight.opacity(0.2))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .background(Color.appInkSecondary.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(Color.walnut.opacity(0.2), lineWidth: 0.5)
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.appInk.opacity(0.15), lineWidth: 0.5)
                 )
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.title)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.walnut)
+                    .foregroundStyle(Color.appInk)
                     .lineLimit(2)
                 if !entry.authors.isEmpty {
                     Text(entry.authors.joined(separator: ", "))
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.walnutLight)
+                        .foregroundStyle(Color.appInkSecondary)
                         .lineLimit(1)
                 }
                 ForEach(OPDSMetadataLogic.discoveryFields(for: entry)) { field in
                     Text(field.text)
                         .font(.caption)
-                        .foregroundStyle(Color.walnutLight)
+                        .foregroundStyle(Color.appInkSecondary)
                         .lineLimit(2)
                 }
                 if !entry.acquisitions.isEmpty {
                     HStack(spacing: 6) {
                         ForEach(Array(entry.acquisitions.enumerated()), id: \.offset) { index, acq in
                             let tint = OPDSFormatAvailabilityLogic.isReadable(acq)
-                                ? Color.crimsonSoft
-                                : Color.walnutLight
+                                ? Color.appGoldText
+                                : Color.appInkSecondary
                             Text(acquisitionLabels[index])
                                 .font(.system(size: 10, weight: .medium))
                                 .padding(.horizontal, 6)
@@ -74,7 +74,7 @@ struct OPDSEntryRowView: View {
         } else {
             Image(systemName: "book.closed")
                 .font(.system(size: 24))
-                .foregroundStyle(Color.walnutLight)
+                .foregroundStyle(Color.appInkSecondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }

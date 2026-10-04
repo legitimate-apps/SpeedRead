@@ -4,14 +4,13 @@ import SwiftData
 
 struct ServerListView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(ThemeManager.self) private var themeManager
     @Query(sort: \OPDSServer.sortIndex) private var servers: [OPDSServer]
 
     @State private var showingNewServer = false
 
     var body: some View {
         ZStack {
-            themeManager.currentTheme.backgroundColor.ignoresSafeArea()
+            Color.appSurface.ignoresSafeArea()
             if servers.isEmpty {
                 emptyState
             } else {
@@ -30,17 +29,19 @@ struct ServerListView: View {
                     }
                 }
                 .scrollContentBackground(.hidden)
+                .listRowBackground(Color.appSurfaceRaised)
             }
         }
         .navigationTitle("Library Servers")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.appSurface, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showingNewServer = true
                 } label: {
                     Image(systemName: "plus")
-                        .foregroundStyle(Color.crimsonSoft)
+                        .foregroundStyle(Color.appAccent)
                 }
             }
         }
@@ -55,14 +56,14 @@ struct ServerListView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(server.name)
                 .font(.headline)
-                .foregroundStyle(Color.walnut)
+                .foregroundStyle(Color.appInk)
             Text(server.baseURLString)
                 .font(.caption)
-                .foregroundStyle(Color.walnutLight)
+                .foregroundStyle(Color.appInkSecondary)
                 .lineLimit(1)
             Text(ServerListLogic.accountDetail(username: server.username))
                 .font(.caption2)
-                .foregroundStyle(Color.walnutLight)
+                .foregroundStyle(Color.appInkSecondary)
         }
         .padding(.vertical, 4)
     }
@@ -71,13 +72,13 @@ struct ServerListView: View {
         VStack(spacing: 16) {
             Image(systemName: "icloud.slash")
                 .font(.system(size: 48))
-                .foregroundStyle(Color.walnutLight)
+                .foregroundStyle(Color.appInkSecondary)
             Text("No Library Servers")
                 .font(.displayFont(size: 22, weight: .regular))
-                .foregroundStyle(Color.walnut)
+                .foregroundStyle(Color.appInk)
             Text("Add a server URL to browse books from your Calibre, Calibre-Web, or any other OPDS catalog.")
-                .font(.system(size: 14))
-                .foregroundStyle(Color.walnutLight)
+                .font(.bodySerif(size: 15))
+                .foregroundStyle(Color.appInkSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
             Button {
@@ -85,10 +86,10 @@ struct ServerListView: View {
             } label: {
                 Label("Add Server", systemImage: "plus.circle.fill")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Color.parchment)
+                    .foregroundStyle(Color.appOnAccent)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
-                    .background(Color.crimsonSoft, in: Capsule())
+                    .background(Color.appAccent, in: Capsule())
             }
             .padding(.top, 8)
         }
