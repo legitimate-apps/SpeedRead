@@ -157,6 +157,8 @@ struct RSVPView: View {
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(Color.rsvpText)
                     }
+                    // Both lists jump, and the other device owns the place while it reads.
+                    .disabled(readingElsewhere != nil)
                 }
             }
             .toolbarBackground(Color.rsvpBackground, for: .navigationBar)

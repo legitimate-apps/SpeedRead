@@ -116,6 +116,8 @@ final class WatchRSVPSession {
 
     /// The phone took the book over: stop without committing, at the phone's word.
     func yield(to presence: RemotePresence) -> Double {
+        // Nothing played here is left to commit, so leaving must not send the phone's word back.
+        positionCommitPolicy.reset()
         engine.pause()
         engine.seek(to: presence.wordIndex)
         return synchronizeCrownValue()

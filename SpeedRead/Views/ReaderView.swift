@@ -130,13 +130,17 @@ struct ReaderView: View {
                             showChapters = true
                         } label: { Label("Chapters", systemImage: "list.bullet") }
                         .accessibilityLabel("Chapters")
+                        // Every jump moves the place, and the watch owns it while it reads.
+                        .disabled(readingElsewhere != nil)
                     }
                     Button {
                         showBookmarks = true
                     } label: { Label("Bookmarks", systemImage: "bookmark") }
+                    .disabled(readingElsewhere != nil)
                     Button {
                         showHighlights = true
                     } label: { Label("Highlights", systemImage: "highlighter") }
+                    .disabled(readingElsewhere != nil)
                     Divider()
                     Button {
                         showSettings = true
@@ -440,6 +444,8 @@ struct ReaderView: View {
     }
 
     private func browse(to index: Int) {
+        // A picker opened before the watch started reading: the jump would be overwritten.
+        guard readingElsewhere == nil else { return }
         if !session.browse(to: index, book: book, saver: modelContext, sync: syncService) {
             Self.logger.error("Failed to persist reader browse position")
         }

@@ -304,9 +304,14 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     private var pendingPlace: WatchSyncLogic.PositionPayload?
     private var placeFlushTask: Task<Void, Never>?
     private var lastLivePersist: Date = .distantPast
+    private var pendingPersistTask: Task<Void, Never>?
+    /// Per book, when the other device last said it was not playing. A heartbeat sent before
+    /// that (a message can arrive after the context that followed it) belongs to a released run.
+    private var releasedAt: [UUID: Date] = [:]
     var clock: () -> Date = { Date() }
     var heartbeatInterval = LiveHandoffLogic.heartbeatInterval
     var placeCoalescing = LiveHandoffLogic.placeCoalescing
+    var livePersistInterval = LiveHandoffLogic.livePersistInterval
 
     #if os(watchOS)
     @Published var library: WatchLibrary = .empty
@@ -652,6 +657,11 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
     /// Returns whether this device keeps reading the book, in which case the incoming place is
     /// an older run's and must not move it.
     private func updatePresence(from payload: WatchSyncLogic.PositionPayload, now: Date) -> Bool {
+        if !payload.isPlaying {
+            releasedAt[payload.bookId] = max(releasedAt[payload.bookId] ?? .distantPast, payload.sentAt)
+        } else if let released = releasedAt[payload.bookId], payload.sentAt <= released {
+            return false
+        }
         guard let presence = LiveHandoffLogic.presence(from: payload, now: now) else {
             if let current = remotePresence,
                current.bookId == payload.bookId,
@@ -700,13 +710,25 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
         persistLivePlace()
     }
 
-    private func shouldPersistLive(_ payload: WatchSyncLogic.PositionPayload, now: Date) -> Bool {
-        guard payload.isPlaying,
-              now.timeIntervalSince(lastLivePersist) < LiveHandoffLogic.livePersistInterval else {
+    /// Reading persists at once. A place alone (a heartbeat, a scrub, a crown turn on the other
+    /// device) persists at most once per interval, and a trailing write lands the latest.
+    private func persistIncoming(readingMoved: Bool, now: Date) {
+        let wait = readingMoved ? 0 : livePersistInterval - now.timeIntervalSince(lastLivePersist)
+        guard wait > 0 else {
+            pendingPersistTask?.cancel()
+            pendingPersistTask = nil
             lastLivePersist = now
-            return true
+            persistLivePlace()
+            return
         }
-        return false
+        guard pendingPersistTask == nil else { return }
+        pendingPersistTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            guard !Task.isCancelled, let self else { return }
+            self.pendingPersistTask = nil
+            self.lastLivePersist = self.clock()
+            self.persistLivePlace()
+        }
     }
 
     // MARK: - watchOS Persistence
@@ -755,11 +777,12 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
             local: book.furthestReadWordIndex,
             incoming: payload.furthestReadWordIndex
         )
-        var changed = library.mergeFurthestReadPosition(bookId: payload.bookId, index: mergedFurthest)
+        var readingMoved = library.mergeFurthestReadPosition(bookId: payload.bookId, index: mergedFurthest)
+        var placeMoved = false
         if !ownedHere {
             if WatchSyncLogic.reconcile(incoming: payload, bookExists: true,
                                         lastReadDate: book.lastReadDate) == .apply {
-                changed = library.updatePosition(
+                readingMoved = library.updatePosition(
                     bookId: payload.bookId,
                     index: payload.wordIndex,
                     timestamp: payload.timestamp,
@@ -767,19 +790,19 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
                     didFinish: payload.didFinish,
                     finishedAt: payload.finishedAt,
                     movesPlace: false
-                ) || changed
+                ) || readingMoved
             }
             // A place never moved dates from the last read.
             if LiveHandoffLogic.shouldApplyPlace(localDate: book.browseDate ?? book.lastReadDate,
                                                  incomingDate: payload.browseTimestamp) {
-                changed = library.applyPlace(
+                placeMoved = library.applyPlace(
                     bookId: payload.bookId,
                     index: payload.browseWordIndex,
                     date: payload.browseTimestamp
-                ) || changed
+                )
             }
         }
-        if changed, shouldPersistLive(payload, now: now) { persistLibrary() }
+        if readingMoved || placeMoved { persistIncoming(readingMoved: readingMoved, now: now) }
     }
 
     private func ingest(_ payload: BookPayload) {
@@ -892,7 +915,7 @@ final class WatchSyncService: NSObject, ObservableObject, WCSessionDelegate {
                 book.browseDate = payload.browseTimestamp
             }
         }
-        if shouldPersistLive(payload, now: now) { persistLivePlace() }
+        persistIncoming(readingMoved: readingMoved, now: now)
         // Reading happened on the watch; the phone carries it to the library server.
         if readingMoved { ServerPositionSync.shared.noteCommitted(bookId: book.id) }
     }

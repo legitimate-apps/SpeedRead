@@ -95,8 +95,10 @@ final class RSVPPresentationSession {
                 guard let engine else { return nil }
                 return book.positionPayload().movingPlace(to: engine.currentIndex, at: Date())
             },
-            onYield: { [weak engine] presence in
+            onYield: { [weak self, weak engine] presence in
                 // The other device took the book: stop without committing, and show its word.
+                // Nothing played here is left to commit, so leaving must not send its word back.
+                self?.positionCommitPolicy.reset()
                 engine?.pause()
                 engine?.seek(to: presence.wordIndex)
             }

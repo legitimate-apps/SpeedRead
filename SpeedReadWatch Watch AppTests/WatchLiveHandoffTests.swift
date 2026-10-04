@@ -71,6 +71,28 @@ struct WatchLiveHandoffTests {
         #expect(storage.store.load().currentBook?.browseWordIndex == 5)
     }
 
+    @Test func phoneScrubsPersistAtMostEveryFewSecondsAndTheLatestLands() async throws {
+        // Mutation: persist every changed place at once. A scrub on the phone sends up to four
+        // places a second, and each one rewrites the whole library, every book's text included.
+        let (service, book) = fixture()
+        service.livePersistInterval = 0.5
+        service.clock = { Date(timeIntervalSince1970: 300) }
+        service.receivePosition(phone(book, reading: 2, at: 100, place: 4, placedAt: 300))
+        #expect(storage.store.load().currentBook?.browseWordIndex == 4)
+
+        service.clock = { Date(timeIntervalSince1970: 300.1) }
+        service.receivePosition(phone(book, reading: 2, at: 100, place: 5, placedAt: 300.1))
+        service.clock = { Date(timeIntervalSince1970: 300.2) }
+        service.receivePosition(phone(book, reading: 2, at: 100, place: 6, placedAt: 300.2))
+        #expect(service.currentBook?.browseWordIndex == 6)
+        #expect(storage.store.load().currentBook?.browseWordIndex == 4)
+
+        for _ in 0..<40 where storage.store.load().currentBook?.browseWordIndex != 6 {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(storage.store.load().currentBook?.browseWordIndex == 6, "The trailing write lands the latest place")
+    }
+
     @Test func thePhoneTakingTheBookMakesTheWatchYield() {
         let (service, book) = fixture()
         service.clock = { Date(timeIntervalSince1970: 200) }
@@ -121,7 +143,7 @@ struct WatchLiveHandoffTests {
         let session = WatchRSVPSession()
         let (_, book) = fixture()
         _ = session.load(book: book, wpm: 300)
-        session.togglePlayback()
+        _ = session.togglePlayback(book: book)
         #expect(session.engine.state == .playing)
         #expect(session.follow(placeAt: 6) == nil)
         #expect(session.engine.currentIndex == 2)
@@ -130,6 +152,18 @@ struct WatchLiveHandoffTests {
                                              playStartedAt: .distantPast, sentAt: .distantPast))
         #expect(session.engine.state == .paused)
         #expect(session.engine.currentIndex == 7)
+        // Mutation: drop the policy reset from the yield; leaving would then commit the
+        // phone's word as the watch's newer reading and roll the still-playing phone back.
+        #expect(session.close(book: book) == nil)
+    }
+
+    @Test func aWatchThatPlayedAndWasNotTakenOverCommitsOnLeaving() throws {
+        // The control for the yield above: without a yield, leaving commits.
+        let session = WatchRSVPSession()
+        let (_, book) = fixture()
+        _ = session.load(book: book, wpm: 300)
+        _ = session.togglePlayback(book: book)
+        #expect(try #require(session.close(book: book)).wordIndex == 2)
     }
 
     // MARK: - The card and the takeover

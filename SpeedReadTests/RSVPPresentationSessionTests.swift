@@ -443,6 +443,45 @@ struct RSVPPresentationSessionTests {
         #expect(sync.indices == [2, 2])
     }
 
+    @Test(arguments: [false, true])
+    func aDeviceThatYieldedCommitsNothingWhenItLeaves(byDisappearing: Bool) throws {
+        // Mutation: drop the policy reset from the yield. Leaving then re-sends the watch's
+        // word as this device's newer reading and rolls the still-playing watch back.
+        let book = makeBook(text: "zero one two three four")
+        let engine = RSVPEngine()
+        let session = RSVPPresentationSession()
+        let saver = RSVPSaver()
+        let sync = RSVPSync()
+        session.load(book: book, engine: engine, wpm: 300)
+        _ = try #require(session.togglePlayback(engine: engine, book: book, saver: saver, sync: sync))
+        let yieldToWatch = try #require(sync.onYield)
+        yieldToWatch(RemotePresence(bookId: book.id, wordIndex: 3, playStartedAt: .now, sentAt: .now))
+        #expect(engine.state == .paused)
+        #expect(engine.currentIndex == 3)
+
+        let leaving = byDisappearing
+            ? session.handleDisappear(engine: engine, book: book, saver: saver, sync: sync)
+            : session.close(engine: engine, book: book, saver: saver, sync: sync)
+        #expect(leaving == nil)
+        #expect(sync.indices == [0], "Only the play's own commit")
+    }
+
+    @Test func readingHereAgainAfterAYieldCommitsOnLeaving() throws {
+        // The control for the test above: the reset must not outlive the next play.
+        let book = makeBook(text: "zero one two three four")
+        let engine = RSVPEngine()
+        let session = RSVPPresentationSession()
+        let saver = RSVPSaver()
+        let sync = RSVPSync()
+        session.load(book: book, engine: engine, wpm: 300)
+        _ = session.togglePlayback(engine: engine, book: book, saver: saver, sync: sync)
+        let yieldToWatch = try #require(sync.onYield)
+        yieldToWatch(RemotePresence(bookId: book.id, wordIndex: 3, playStartedAt: .now, sentAt: .now))
+        _ = session.togglePlayback(engine: engine, book: book, saver: saver, sync: sync)
+        let leaving = try #require(session.close(engine: engine, book: book, saver: saver, sync: sync))
+        #expect(leaving.index == 3)
+    }
+
     @Test func unloadedPlaybackDoesNotCommit() {
         // Mutation: remove the isLoaded guard; an unloaded stream then overwrites the book's position.
         let book = makeBook(text: "zero one two")
@@ -476,6 +515,15 @@ private final class RSVPSaver: ReadingPositionSaving {
 @MainActor
 private final class RSVPSync: ReadingPositionSyncing {
     private(set) var indices: [Int] = []
+    private(set) var onYield: ((RemotePresence) -> Void)?
+
+    func beginLocalRun(
+        bookId: UUID,
+        snapshot: @escaping () -> WatchSyncLogic.PositionPayload?,
+        onYield: @escaping (RemotePresence) -> Void
+    ) {
+        self.onYield = onYield
+    }
 
     func syncReadingPosition(
         bookId: UUID,

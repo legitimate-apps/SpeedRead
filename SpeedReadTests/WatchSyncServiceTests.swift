@@ -325,6 +325,23 @@ struct WatchSyncServiceTests {
         #expect(book.browseWordIndex == 40)
     }
 
+    @Test func aHeartbeatDeliveredAfterItsPauseCannotRaiseTheCardAgain() throws {
+        // Mutation: drop the release floor. A heartbeat sent just before the pause but delivered
+        // after it (message and context race) then locks this device out for six seconds.
+        let (service, container, book) = try positionFixture()
+        defer { withExtendedLifetime(container) {} }
+        service.clock = { Date(timeIntervalSince1970: 201) }
+        service.receivePosition(live(book, index: 40, sentAt: 199, startedAt: 190))
+        service.receivePosition(position(book, index: 44, time: 200, sentAt: 200))
+        service.receivePosition(live(book, index: 41, sentAt: 199.5, startedAt: 190))
+        #expect(service.remotePresence == nil)
+        #expect(book.browseWordIndex == 44)
+
+        // The control: a new run after the pause raises the card.
+        service.receivePosition(live(book, index: 45, sentAt: 200.5, startedAt: 200.5))
+        #expect(service.remotePresence(for: book.id)?.wordIndex == 45)
+    }
+
     @Test func presenceExpiresWhenTheReadingDeviceGoesQuiet() throws {
         let (service, container, book) = try positionFixture()
         defer { withExtendedLifetime(container) {} }
