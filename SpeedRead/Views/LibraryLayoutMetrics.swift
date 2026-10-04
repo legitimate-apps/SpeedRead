@@ -31,8 +31,11 @@ nonisolated struct LibraryLayoutMetrics: Equatable {
         return isRegularWidth ? computed : min(4, computed)
     }
 
-    var regularShelfRowHeight: CGFloat {
-        maximumSpineHeight + shelfPlankHeight
+    /// Bay height an empty shelf still claims, so fill shelves look like shelves.
+    /// Compact uses the SHORTEST spine: populated rows already stand at least that
+    /// tall, so the lift only ever affects empty shelves.
+    var emptyShelfBayHeight: CGFloat {
+        isRegularWidth ? maximumSpineHeight : minimumSpineHeight
     }
 
     func shelves<BookElement>(for books: [BookElement]) -> [[BookElement]] {
@@ -41,12 +44,11 @@ nonisolated struct LibraryLayoutMetrics: Equatable {
         }
     }
 
-    /// Regular-width libraries extend a continuous, backed bookcase to the
-    /// bottom of the viewport. Extra rows are deliberately empty bays.
+    /// Sparse libraries extend empty shelf rows to the bottom of the viewport, on
+    /// both size classes — a one-row library reads as a bookcase, not a bare page.
     func minimumVisibleShelfCount(viewportHeight: CGFloat) -> Int {
-        guard isRegularWidth else { return 0 }
         let availableHeight = max(0, viewportHeight - 16)
-        let rowStride = regularShelfRowHeight + shelfSpacing
+        let rowStride = emptyShelfBayHeight + shelfPlankHeight + shelfSpacing
         return max(1, Int(ceil((availableHeight + shelfSpacing) / rowStride)))
     }
 }
@@ -65,8 +67,7 @@ struct EqualShelfSlotLayout: Layout {
         let contentHeight = subviews.reduce(CGFloat.zero) { height, subview in
             max(height, subview.sizeThatFits(.unspecified).height)
         }
-        let minimumHeight = metrics.isRegularWidth ? metrics.maximumSpineHeight : 0
-        return CGSize(width: proposedWidth, height: max(contentHeight, minimumHeight))
+        return CGSize(width: proposedWidth, height: max(contentHeight, metrics.emptyShelfBayHeight))
     }
 
     func placeSubviews(

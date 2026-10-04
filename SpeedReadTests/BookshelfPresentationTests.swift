@@ -63,9 +63,11 @@ struct BookshelfPresentationTests {
         let regularEmpty = try render(.regular, populated: false)
         let compact = try render(.compact, populated: true)
         let regular = try render(.regular, populated: true)
-        #expect(compactEmpty.height == 12)
+        // Empty compact shelves claim the shortest-spine bay (120) so a sparse library
+        // still reads as a bookcase; populated rows are unchanged when content is taller.
+        #expect(compactEmpty.height == 132)
         #expect(regularEmpty.height == 316)
-        #expect(compact.height == 112)
+        #expect(compact.height == 132)
         #expect(regular.height == 316)
         #expect(regular.region(x: 30..<370, y: 300..<316) == regularEmpty.region(x: 30..<370, y: 300..<316))
         #expect(regular.region(x: 48..<352, y: 200..<300) != regularEmpty.region(x: 48..<352, y: 200..<300))

@@ -14,7 +14,9 @@ struct LibraryLayoutMetricsTests {
         #expect(metrics.maximumSpineHeight == 180)
         #expect(metrics.titleFontSize == 9)
         #expect(metrics.authorFontSize == 7)
-        #expect(metrics.minimumVisibleShelfCount(viewportHeight: 852) == 0)
+        // Sparse compact libraries fill the viewport with empty shelves too (warm-palette
+        // restyle): (852 - 16 + 24) / (120 + 12 + 24) = 5.51 -> 6.
+        #expect(metrics.minimumVisibleShelfCount(viewportHeight: 852) == 6)
     }
 
     @Test("iPad portrait capacity is derived from width")

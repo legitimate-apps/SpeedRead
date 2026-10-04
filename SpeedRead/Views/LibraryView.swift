@@ -31,6 +31,7 @@ struct LibraryView: View {
             }
             .navigationTitle("Your Library")
             .toolbarBackground(themeManager.currentTheme.backgroundColor, for: .navigationBar)
+            .toolbarColorScheme(themeManager.currentTheme.toolbarColorScheme, for: .navigationBar)
             .task {
                 guard !didLoadSamples else { return }
                 didLoadSamples = true
@@ -77,28 +78,28 @@ struct LibraryView: View {
                             showThemePicker = true
                         } label: {
                             Image(systemName: "paintpalette")
-                                .foregroundStyle(Color.crimsonSoft)
+                                .foregroundStyle(themeManager.currentTheme.chromeAccent)
                         }
 
                         Button {
                             showBrowse = true
                         } label: {
                             Image(systemName: "icloud.and.arrow.down")
-                                .foregroundStyle(Color.crimsonSoft)
+                                .foregroundStyle(themeManager.currentTheme.chromeAccent)
                         }
 
                         Button {
                             showImporter = true
                         } label: {
                             Image(systemName: "plus")
-                                .foregroundStyle(Color.crimsonSoft)
+                                .foregroundStyle(themeManager.currentTheme.chromeAccent)
                         }
 
                         Button {
                             showSettings = true
                         } label: {
                             Image(systemName: "gearshape")
-                                .foregroundStyle(Color.crimsonSoft)
+                                .foregroundStyle(themeManager.currentTheme.chromeAccent)
                         }
                     }
                 }
@@ -123,11 +124,11 @@ struct LibraryView: View {
             }
             .overlay(alignment: .bottom) {
                 if case .sending(let title) = syncService.sendState {
-                    SendToast(icon: "arrow.up.circle", message: "Sending \(title)...", color: Color.agedGold)
+                    SendToast(icon: "arrow.up.circle", message: "Sending \(title)...", color: Color.appGoldText)
                 } else if case .sent(let title) = syncService.sendState {
-                    SendToast(icon: "checkmark.circle.fill", message: "Sent \(title) to Watch", color: Color.agedGold)
+                    SendToast(icon: "checkmark.circle.fill", message: "Sent \(title) to Watch", color: Color.appSuccess)
                 } else if case .failed(let error) = syncService.sendState {
-                    SendToast(icon: "exclamationmark.triangle.fill", message: error, color: Color.crimsonSoft)
+                    SendToast(icon: "exclamationmark.triangle.fill", message: error, color: Color.appError)
                 }
             }
             .overlay(alignment: .top) {
@@ -161,7 +162,7 @@ struct LibraryView: View {
             Text("Your shelves are waiting...")
                 .font(.displayFont(size: 20, weight: .regular))
                 .italic()
-                .foregroundStyle(Color.walnutLight)
+                .foregroundStyle(themeManager.currentTheme.chromeText)
                 .padding(.top, 20)
 
             Button {
@@ -169,10 +170,10 @@ struct LibraryView: View {
             } label: {
                 Label("Import a Book", systemImage: "plus.circle.fill")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Color.parchment)
+                    .foregroundStyle(themeManager.currentTheme.chromeOnAccent)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
-                    .background(Color.crimsonSoft, in: Capsule())
+                    .background(themeManager.currentTheme.chromeAccent, in: Capsule())
             }
         }
         .padding()
@@ -309,22 +310,26 @@ struct WatchPositionOfferBanner: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(offer.displayText)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.parchment)
+                .foregroundStyle(Color.appInk)
 
             HStack(spacing: 12) {
                 Button("Continue", action: onContinue)
                     .buttonStyle(.borderedProminent)
-                    .tint(Color.crimsonSoft)
+                    .tint(Color.appAccent)
                     .accessibilityIdentifier("watch-position-offer-continue")
 
                 Button("Dismiss", action: onDismiss)
                     .buttonStyle(.bordered)
-                    .tint(Color.parchment)
+                    .tint(Color.appAccent)
                     .accessibilityIdentifier("watch-position-offer-dismiss")
             }
         }
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        // Opaque card: the old translucent material let the parchment shelf show through,
+        // leaving cream text on a cream card.
+        .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.appInk.opacity(0.12)))
+        .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
         .padding(.horizontal, 16)
         .padding(.top, 8)
         .transition(.move(edge: .top).combined(with: .opacity))
@@ -343,6 +348,7 @@ private struct SendToast: View {
                 .foregroundStyle(color)
             Text(message)
                 .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color.appInk)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

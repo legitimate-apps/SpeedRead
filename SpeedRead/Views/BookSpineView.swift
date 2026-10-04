@@ -59,7 +59,7 @@ struct BookSpineView: View {
 
                 Text(author)
                     .font(.system(size: metrics.authorFontSize, weight: .regular, design: theme.fontDesign))
-                    .foregroundStyle(theme.spineTextColor.opacity(0.6))
+                    .foregroundStyle(theme.spineTextColor.opacity(0.85))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.7)

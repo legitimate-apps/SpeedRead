@@ -8,7 +8,7 @@ struct ThemePickerView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                themeManager.currentTheme.backgroundColor.ignoresSafeArea()
+                Color.appSurface.ignoresSafeArea()
 
                 ScrollView {
                     LazyVStack(spacing: 20) {
@@ -21,10 +21,11 @@ struct ThemePickerView: View {
             }
             .navigationTitle("Themes")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.appSurface, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                        .foregroundStyle(Color.agedGold)
+                        .foregroundStyle(Color.appAccent)
                 }
             }
         }
@@ -57,14 +58,22 @@ struct ThemePickerView: View {
 
                 Text(theme.name)
                     .font(.system(size: 15, weight: .medium, design: theme.fontDesign))
-                    .foregroundStyle(theme.spineTextColor)
+                    .foregroundStyle(theme.chromeText)
                     .padding(.bottom, 12)
             }
             .background(theme.backgroundColor, in: RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(isSelected ? Color.agedGold : .clear, lineWidth: 2)
+                    .strokeBorder(isSelected ? Color.agedGold : Color.appInk.opacity(0.12), lineWidth: isSelected ? 2 : 1)
             )
+            .overlay(alignment: .topTrailing) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(theme.chromeOnAccent, theme.chromeAccent)
+                        .padding(8)
+                }
+            }
         }
     }
 }
