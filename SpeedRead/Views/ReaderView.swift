@@ -128,6 +128,25 @@ struct ReaderView: View {
         }
         .task {
             session.load(book: book)
+            #if DEBUG
+            // Screenshot hooks: auto-present RSVP or one of the reader sheets so scripted
+            // captures can reach them without driving the menu.
+            if ProcessInfo.processInfo.arguments.contains("--auto-open-rsvp") {
+                try? await Task.sleep(for: .milliseconds(800))
+                showRSVP = true
+            } else if let sheetFlag = ProcessInfo.processInfo.arguments.first(where: {
+                $0.hasPrefix("--auto-open-reader-sheet=")
+            }) {
+                try? await Task.sleep(for: .milliseconds(800))
+                switch sheetFlag.components(separatedBy: "=").last {
+                case "settings": showSettings = true
+                case "chapters": showChapters = true
+                case "bookmarks": showBookmarks = true
+                case "highlights": showHighlights = true
+                default: break
+                }
+            }
+            #endif
         }
         .task(id: book.id) {
             await serverSync.pull(bookId: book.id)

@@ -300,6 +300,9 @@ verification without driving the UI:
 | `--auto-send-first-book` | Auto-fires `WatchSyncService.sendBook` on first book ~1s after launch |
 | `--auto-open-first-book` | Auto-navigates into ReaderView for the first Metamorphosis (or first) book ~800ms after launch |
 | `--auto-open-settings` / `--auto-open-browse` | Opens the Settings / Browse sheet ~700ms after launch |
+| `--auto-open-theme-picker` | **DEBUG builds only.** Opens the shelf-theme picker ~700ms after launch |
+| `--auto-open-rsvp` | **DEBUG builds only.** Inside `--auto-open-first-book`: presents RSVP ~800ms after the reader loads |
+| `--auto-open-reader-sheet=settings\|chapters\|bookmarks\|highlights` | **DEBUG builds only.** Inside `--auto-open-first-book`: presents that reader sheet ~800ms after load |
 | `--seed-test-opds-server` | **DEBUG builds only.** Seeds an OPDS server from the environment (below) so Browse/Detail can be captured without driving the Settings form |
 | `--reset-onboarding` | **DEBUG builds only.** Clears the persisted `hasCompletedOnboarding` so a UI test can watch onboarding *complete*. Do NOT reach for `-hasCompletedOnboarding NO` instead: the argument domain outranks the persistent one on read, so the write onboarding performs stays masked and the app never advances — the shadow that makes the test repeatable is the same thing that makes it unable to prove anything |
 

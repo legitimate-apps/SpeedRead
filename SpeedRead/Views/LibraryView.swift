@@ -70,6 +70,12 @@ struct LibraryView: View {
                     try? await Task.sleep(for: .milliseconds(700))
                     showBrowse = true
                 }
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--auto-open-theme-picker") {
+                    try? await Task.sleep(for: .milliseconds(700))
+                    showThemePicker = true
+                }
+                #endif
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {

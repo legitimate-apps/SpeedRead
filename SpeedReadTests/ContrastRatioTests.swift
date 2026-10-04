@@ -62,6 +62,7 @@ struct ContrastRatioTests {
 }
 
 @Suite("App palette contrast")
+@MainActor
 struct AppPaletteContrastTests {
     private func resolve(_ color: Color, _ style: UIUserInterfaceStyle) -> ContrastRatio.RGBA {
         let uiColor = UIColor(color).resolvedColor(with: UITraitCollection(userInterfaceStyle: style))
