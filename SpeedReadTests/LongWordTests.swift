@@ -78,4 +78,15 @@ struct LongWordTests {
         #expect(try #require(pieces.first).hasPrefix("“"))
         #expect(try #require(pieces.last).hasSuffix("!”"))
     }
+
+    @Test func aRunOfLettersLongerThanAnyWordIsShownWholeAndCostsLinearTime() {
+        // Mutation: drop the length bound. Splitting is then quadratic, on the main actor, for a
+        // token any broken or hostile file can contain.
+        let junk = String(repeating: "a", count: 200_000)
+        let start = Date()
+        #expect(LongWord.kind(of: junk) == .literal)
+        #expect(LongWord.pieces(of: junk) == [junk])
+        #expect(Date().timeIntervalSince(start) < 1)
+        #expect(LongWord.kind(of: String(repeating: "a", count: LongWord.maxSplittableLength)) == .splittable)
+    }
 }

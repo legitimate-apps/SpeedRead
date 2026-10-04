@@ -17,11 +17,15 @@ nonisolated enum LongWord {
     }
 
     static let maxPieceLength = 13
+    /// No word is longer than this; a longer run of letters is junk or embedded data from the
+    /// file, and splitting it would cost time in the square of its length on the main actor.
+    static let maxSplittableLength = 64
 
     static func kind(of word: String) -> Kind {
         let core = coreRange(of: word)
         let letters = word[core]
         guard letters.count > maxPieceLength else { return .ordinary }
+        guard letters.count <= maxSplittableLength else { return .literal }
         return letters.allSatisfy { $0.isLetter || joiners.contains($0) || dashes.contains($0) }
             ? .splittable : .literal
     }

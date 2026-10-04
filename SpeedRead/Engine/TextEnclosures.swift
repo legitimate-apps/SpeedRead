@@ -177,8 +177,10 @@ nonisolated private struct EnclosureScanner {
             return
         }
         leading(characters[..<first], at: index, lineStart: lineBreak != .none)
+        // A dash inside a word ("physician—perhaps") bounds the words after or before it; the
+        // word it sits in is half outside, so it is left out.
         for character in characters[first...last] where character == "\u{2014}" {
-            if isOpen(.dash) { close(.dash, end: index) } else { open(.dash, start: index) }
+            if isOpen(.dash) { close(.dash, end: index - 1) } else { open(.dash, start: index + 1) }
         }
         trailing(characters[(last + 1)...], at: index)
     }
@@ -238,7 +240,12 @@ nonisolated private struct EnclosureScanner {
         stack.contains { $0.kind == kind }
     }
 
+    /// Real nesting is a few levels deep. Past this, openers are ignored, which keeps every stack
+    /// search constant-time on a file built from nothing but opening marks.
+    static let maximumDepth = 16
+
     private mutating func open(_ kind: Kind, start: Int, markWord: Int? = nil) {
+        guard stack.count < Self.maximumDepth else { return }
         stack.append(Open(kind: kind, start: start, markWord: markWord, anchor: start))
     }
 

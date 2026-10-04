@@ -163,6 +163,20 @@ struct TextEnclosuresTests {
         print("TextEnclosures.scan: \(found.tokenCount) words in \(elapsed)s")
     }
 
+    @Test func aFileOfNothingButMarksScansInLinearTime() {
+        // Mutation: drop the depth cap. Every stack search is then linear in a stack this input
+        // grows without end, and the scan is quadratic.
+        let openers = Array(repeating: "(", count: 60_000).joined(separator: " ")
+        let dashes = Array(repeating: "a", count: 60_001).joined(separator: "\u{2014}")
+        let text = openers + " " + dashes
+        let start = Date()
+        let found = TextEnclosures.scan(text)
+        let elapsed = Date().timeIntervalSince(start)
+        #expect(found.tokenCount == 60_001)
+        #expect(found.enclosures(at: 60_000).isEmpty, "Pairs inside one word bound nothing")
+        #expect(elapsed < 3, "took \(elapsed)s")
+    }
+
     private func marks(_ found: TextEnclosures, at index: Int) -> [String] {
         found.enclosures(at: index).map { $0.opener + $0.closer }
     }

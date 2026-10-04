@@ -18,7 +18,7 @@ nonisolated struct WordTimer: Sendable {
 
         if LongWord.kind(of: word) == .literal {
             // A URL or an address is read a few characters at a time: hold it in proportion.
-            multiplier *= max(1.3, Double(trimmed.count) / literalCharactersPerBeat)
+            multiplier *= min(max(1.3, Double(trimmed.count) / literalCharactersPerBeat), maximumLiteralBeats)
         } else if trimmed.count >= 8 {
             multiplier *= 1.3
         }
@@ -39,6 +39,8 @@ nonisolated struct WordTimer: Sendable {
     }
 
     static let literalCharactersPerBeat = 10.0
+    /// A token from a broken file can be a megabyte long; it must not hold the screen for hours.
+    static let maximumLiteralBeats = 4.0
 
     private static let sentenceTerminators: Set<Character> = [".", "?", "!"]
     private static let clauseTerminators: Set<Character> = [",", ";", ":", "\u{2014}", "\u{2013}"]
