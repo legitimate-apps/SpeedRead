@@ -276,6 +276,7 @@ are pointed to CWNG.
     adopted). With it restored, the test passes.
   - Defect it found, now fixed: an edit pushed from a second device re-stamped `device_origin_id`
     with that device. `Highlight.syncOriginDevice` now keeps the creator.
+    The server keeps the first `device_origin_id` too, as of #2466 head 6faeb4dae.
 
 ## Open for the operator
 
