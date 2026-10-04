@@ -65,12 +65,17 @@ struct ThemeTests {
             assertColor(palette.bodyText, equals: expected.bodyText)
             assertColor(palette.headerText, equals: expected.headerText)
             assertColor(palette.accent, equals: expected.accent)
+            assertColor(palette.onAccent, equals: expected.onAccent)
+            assertColor(palette.pivot, equals: expected.pivot)
             assertColor(palette.barBackground, equals: expected.barBackground)
             assertColor(palette.barText, equals: expected.barText)
 
             #expect(contrastRatio(foreground: palette.titleText, background: palette.background) >= 4.5)
             #expect(contrastRatio(foreground: palette.bodyText, background: palette.background) >= 4.5)
             #expect(contrastRatio(foreground: palette.barText, background: palette.barBackground) >= 4.5)
+            #expect(contrastRatio(foreground: palette.pivot, background: palette.background) >= 4.5)
+            #expect(contrastRatio(foreground: palette.onAccent, background: palette.accent) >= 4.5)
+            #expect(contrastRatio(foreground: palette.accent, background: palette.background) >= 3)
         }
 
         #expect(ReaderThemeMode.allCases.map(\.rawValue).count == 3)
@@ -84,7 +89,9 @@ struct ThemeTests {
                 titleText: Color.inkBlack,
                 bodyText: Color.inkBlack.opacity(0.92),
                 headerText: Color.inkBlack.opacity(0.85),
-                accent: Color.crimsonSoft,
+                accent: Color(red: 0x7A / 255, green: 0x4A / 255, blue: 0x2B / 255),
+                onAccent: Color.parchment,
+                pivot: Color(red: 0xB3 / 255, green: 0x26 / 255, blue: 0x1E / 255),
                 barBackground: Color.parchment.opacity(0.92),
                 barText: Color.inkBlack.opacity(0.78),
                 toolbarColorScheme: .light
@@ -95,19 +102,23 @@ struct ThemeTests {
                 titleText: Color(red: 0x42 / 255, green: 0x2A / 255, blue: 0x12 / 255),
                 bodyText: Color(red: 0x42 / 255, green: 0x2A / 255, blue: 0x12 / 255).opacity(0.92),
                 headerText: Color(red: 0x42 / 255, green: 0x2A / 255, blue: 0x12 / 255).opacity(0.85),
-                accent: Color.crimsonSoft,
+                accent: Color(red: 0x7A / 255, green: 0x4A / 255, blue: 0x2B / 255),
+                onAccent: Color.parchment,
+                pivot: Color(red: 0xB3 / 255, green: 0x26 / 255, blue: 0x1E / 255),
                 barBackground: Color(red: 0xF1 / 255, green: 0xE3 / 255, blue: 0xC2 / 255).opacity(0.94),
                 barText: Color(red: 0x42 / 255, green: 0x2A / 255, blue: 0x12 / 255).opacity(0.8),
                 toolbarColorScheme: .light
             )
         case .night:
             return ReaderPalette(
-                background: Color(red: 0x10 / 255, green: 0x10 / 255, blue: 0x12 / 255),
+                background: Color(red: 0x17 / 255, green: 0x11 / 255, blue: 0x0E / 255),
                 titleText: Color(red: 0xF1 / 255, green: 0xEC / 255, blue: 0xDD / 255),
                 bodyText: Color(red: 0xE7 / 255, green: 0xE2 / 255, blue: 0xD2 / 255).opacity(0.92),
                 headerText: Color(red: 0xE7 / 255, green: 0xE2 / 255, blue: 0xD2 / 255).opacity(0.85),
-                accent: Color.crimsonSoft,
-                barBackground: Color(red: 0x18 / 255, green: 0x18 / 255, blue: 0x1B / 255).opacity(0.94),
+                accent: Color(red: 0xD9 / 255, green: 0xB9 / 255, blue: 0x68 / 255),
+                onAccent: Color(red: 0x1A / 255, green: 0x12 / 255, blue: 0x10 / 255),
+                pivot: Color(red: 0xE2 / 255, green: 0x57 / 255, blue: 0x4C / 255),
+                barBackground: Color(red: 0x1F / 255, green: 0x18 / 255, blue: 0x14 / 255).opacity(0.94),
                 barText: Color(red: 0xE7 / 255, green: 0xE2 / 255, blue: 0xD2 / 255).opacity(0.85),
                 toolbarColorScheme: .dark
             )
@@ -142,22 +153,12 @@ struct ThemeTests {
         return (r, g, b, a)
     }
 
-    private func luminance(_ color: Color) -> CGFloat {
-        let (r, g, b, _) = rgba(color)
-        let adjust: (CGFloat) -> CGFloat = {
-            if $0 <= 0.03928 {
-                return $0 / 12.92
-            }
-            return pow(($0 + 0.055) / 1.055, 2.4)
-        }
-        return 0.2126 * adjust(r) + 0.7152 * adjust(g) + 0.0722 * adjust(b)
-    }
-
     private func contrastRatio(foreground: Color, background: Color) -> CGFloat {
-        let l1 = luminance(foreground)
-        let l2 = luminance(background)
-        let bright = max(l1, l2)
-        let dark = min(l1, l2)
-        return (bright + 0.05) / (dark + 0.05)
+        let (fr, fg, fb, fa) = rgba(foreground)
+        let (br, bg, bb, _) = rgba(background)
+        return ContrastRatio.ratio(
+            foreground: ContrastRatio.RGBA(red: fr, green: fg, blue: fb, alpha: fa),
+            background: ContrastRatio.RGBA(red: br, green: bg, blue: bb)
+        )
     }
 }

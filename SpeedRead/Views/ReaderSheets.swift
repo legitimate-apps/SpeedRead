@@ -4,17 +4,28 @@ struct ReaderSettingsSheet: View {
     @Binding var fontSize: Double
     @Binding var lineSpacing: Double
     @Binding var themeMode: String
+    var palette: ReaderPalette = ReaderThemeMode.parchment.palette
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Theme") {
+                    HStack(spacing: 12) {
+                        ForEach(ReaderThemeMode.allCases, id: \.rawValue) { mode in
+                            themeSwatch(mode)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                }
+
                 Section("Typography") {
                     HStack {
                         Text("Font size")
                         Spacer()
                         Text("\(Int(fontSize)) pt")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.bodyText.opacity(0.65))
                             .monospacedDigit()
                     }
                     Slider(
@@ -22,12 +33,13 @@ struct ReaderSettingsSheet: View {
                         in: ReaderConfig.Classic.fontSizeRange,
                         step: 1
                     )
+                    .tint(palette.accent)
 
                     HStack {
                         Text("Line spacing")
                         Spacer()
                         Text("\(Int(lineSpacing)) pt")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.bodyText.opacity(0.65))
                             .monospacedDigit()
                     }
                     Slider(
@@ -35,30 +47,63 @@ struct ReaderSettingsSheet: View {
                         in: ReaderConfig.Classic.lineSpacingRange,
                         step: ReaderConfig.Classic.lineSpacingStep
                     )
-                }
-
-                Section("Theme") {
-                    Picker("Reading theme", selection: $themeMode) {
-                        ForEach(ReaderThemeMode.allCases, id: \.rawValue) { mode in
-                            Text(mode.rawValue.capitalized).tag(mode.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+                    .tint(palette.accent)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .listRowBackground(palette.rowFill)
+            .foregroundStyle(palette.bodyText)
+            .background(palette.background)
             .navigationTitle("Reader Settings")
+            .toolbarBackground(palette.background, for: .navigationBar)
+            .toolbarColorScheme(palette.toolbarColorScheme, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                        .foregroundStyle(palette.accent)
                 }
             }
         }
         .presentationDetents([.medium])
     }
+
+    private func themeSwatch(_ mode: ReaderThemeMode) -> some View {
+        let isSelected = themeMode == mode.rawValue
+        let swatchPalette = mode.palette
+
+        return Button {
+            themeMode = mode.rawValue
+            UISelectionFeedbackGenerator().selectionChanged()
+        } label: {
+            VStack(spacing: 6) {
+                Text("Aa")
+                    .font(.displayFont(size: 22, weight: .medium))
+                    .foregroundStyle(swatchPalette.titleText)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(swatchPalette.background, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(
+                                isSelected ? Color.agedGold : swatchPalette.bodyText.opacity(0.2),
+                                lineWidth: isSelected ? 2 : 1
+                            )
+                    )
+                Text(mode.rawValue.capitalized)
+                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(palette.bodyText.opacity(isSelected ? 0.9 : 0.6))
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(mode.rawValue.capitalized)
+        .accessibilityValue(isSelected ? "Selected" : "")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
 }
 
 struct ReaderBookmarkPicker: View {
     let book: Book
+    var palette: ReaderPalette = ReaderThemeMode.parchment.palette
     let onSelect: (Int) -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -74,11 +119,11 @@ struct ReaderBookmarkPicker: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(bookmark.previewText)
                 .font(.system(size: 15, design: .serif))
-                .foregroundStyle(.primary)
+                .foregroundStyle(palette.bodyText)
                 .lineLimit(2)
             Text(AnnotationListLogic.positionLabel(wordIndex: bookmark.wordIndex))
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.bodyText.opacity(0.6))
         }
     }
 
@@ -86,25 +131,42 @@ struct ReaderBookmarkPicker: View {
         let displayedBookmarks = orderedBookmarks()
 
         NavigationStack {
-            List {
+            ZStack {
+                palette.background.ignoresSafeArea()
+
                 if displayedBookmarks.isEmpty {
-                    Text("No bookmarks yet.")
-                        .foregroundStyle(.secondary)
+                    EmptyStateView(
+                        icon: "bookmark",
+                        title: "No bookmarks yet",
+                        message: "Tap the bookmark icon in RSVP while paused to save your place",
+                        tint: palette.bodyText.opacity(0.45),
+                        titleColor: palette.titleText.opacity(0.75),
+                        messageColor: palette.bodyText.opacity(0.55),
+                        titleFont: .system(size: 16, weight: .medium, design: .serif),
+                        messageFont: .system(size: 13, design: .serif)
+                    )
                 } else {
-                    ForEach(displayedBookmarks, id: \.id) { bookmark in
-                        Button {
-                            select(bookmark)
-                            dismiss()
-                        } label: {
-                            rowLabel(for: bookmark)
+                    List {
+                        ForEach(displayedBookmarks, id: \.id) { bookmark in
+                            Button {
+                                select(bookmark)
+                                dismiss()
+                            } label: {
+                                rowLabel(for: bookmark)
+                            }
+                            .listRowBackground(palette.rowFill)
                         }
                     }
+                    .scrollContentBackground(.hidden)
                 }
             }
             .navigationTitle("Bookmarks")
+            .toolbarBackground(palette.background, for: .navigationBar)
+            .toolbarColorScheme(palette.toolbarColorScheme, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
+                        .foregroundStyle(palette.accent)
                 }
             }
         }
@@ -113,6 +175,7 @@ struct ReaderBookmarkPicker: View {
 
 struct ReaderHighlightPicker: View {
     let book: Book
+    var palette: ReaderPalette = ReaderThemeMode.parchment.palette
     let onSelect: (Int) -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -128,12 +191,12 @@ struct ReaderHighlightPicker: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(highlight.highlightedText)
                 .font(.system(size: 15, design: .serif))
-                .foregroundStyle(.primary)
+                .foregroundStyle(palette.bodyText)
                 .lineLimit(3)
             if let note = highlight.note {
                 Label(note, systemImage: "note.text")
                     .font(.system(size: 13, design: .serif).italic())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.bodyText.opacity(0.7))
                     .lineLimit(4)
             }
             Text(AnnotationListLogic.rangeLabel(
@@ -141,7 +204,7 @@ struct ReaderHighlightPicker: View {
                 endWordIndex: highlight.endWordIndex
             ))
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.bodyText.opacity(0.6))
         }
     }
 
@@ -149,25 +212,42 @@ struct ReaderHighlightPicker: View {
         let displayedHighlights = orderedHighlights()
 
         NavigationStack {
-            List {
+            ZStack {
+                palette.background.ignoresSafeArea()
+
                 if displayedHighlights.isEmpty {
-                    Text("No highlights yet.")
-                        .foregroundStyle(.secondary)
+                    EmptyStateView(
+                        icon: "highlighter",
+                        title: "No highlights yet",
+                        message: "Tap Highlight in RSVP while paused, read or scrub, then tap Stop",
+                        tint: palette.bodyText.opacity(0.45),
+                        titleColor: palette.titleText.opacity(0.75),
+                        messageColor: palette.bodyText.opacity(0.55),
+                        titleFont: .system(size: 16, weight: .medium, design: .serif),
+                        messageFont: .system(size: 13, design: .serif)
+                    )
                 } else {
-                    ForEach(displayedHighlights, id: \.id) { highlight in
-                        Button {
-                            select(highlight)
-                            dismiss()
-                        } label: {
-                            rowLabel(for: highlight)
+                    List {
+                        ForEach(displayedHighlights, id: \.id) { highlight in
+                            Button {
+                                select(highlight)
+                                dismiss()
+                            } label: {
+                                rowLabel(for: highlight)
+                            }
+                            .listRowBackground(palette.rowFill)
                         }
                     }
+                    .scrollContentBackground(.hidden)
                 }
             }
             .navigationTitle("Highlights")
+            .toolbarBackground(palette.background, for: .navigationBar)
+            .toolbarColorScheme(palette.toolbarColorScheme, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
+                        .foregroundStyle(palette.accent)
                 }
             }
         }
@@ -177,6 +257,7 @@ struct ReaderHighlightPicker: View {
 struct ReaderChapterPicker: View {
     let chapters: ChapterNavigation
     let wordIndex: Int
+    var palette: ReaderPalette = ReaderThemeMode.parchment.palette
     let onSelect: (Int) -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -192,11 +273,12 @@ struct ReaderChapterPicker: View {
                     } label: {
                         HStack {
                             Text(chapter.title)
-                                .font(.system(size: 15, design: .serif))
+                                .font(.system(size: 15, weight: isCurrent ? .semibold : .regular, design: .serif))
+                                .foregroundStyle(palette.bodyText)
                             Spacer()
                             if isCurrent {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(palette.accent)
                             }
                         }
                         .frame(minHeight: 44)
@@ -206,12 +288,18 @@ struct ReaderChapterPicker: View {
                     .accessibilityLabel(chapter.title)
                     .accessibilityValue(isCurrent ? "Current chapter" : "")
                     .accessibilityHint("Browse to chapter without changing your reading position")
+                    .listRowBackground(palette.rowFill)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(palette.background)
             .navigationTitle("Chapters")
+            .toolbarBackground(palette.background, for: .navigationBar)
+            .toolbarColorScheme(palette.toolbarColorScheme, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
+                        .foregroundStyle(palette.accent)
                         .accessibilityLabel("Close chapters")
                 }
             }

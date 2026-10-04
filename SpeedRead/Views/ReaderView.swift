@@ -98,7 +98,7 @@ struct ReaderView: View {
                         .lineLimit(1)
                     Text(headerSubtitle)
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundStyle(currentTheme.headerText.opacity(0.55))
+                        .foregroundStyle(currentTheme.headerText.opacity(0.7))
                 }
             }
             ToolbarItem(placement: .primaryAction) {
@@ -178,17 +178,18 @@ struct ReaderView: View {
         }
         .sheet(isPresented: $showChapters) {
             ReaderChapterPicker(chapters: ChapterNavigation(chapters: book.chapters),
-                                wordIndex: book.browseWordIndex) { index in
+                                wordIndex: book.browseWordIndex,
+                                palette: currentTheme) { index in
                 browse(to: index)
             }
         }
         .sheet(isPresented: $showBookmarks) {
-            ReaderBookmarkPicker(book: book) { index in
+            ReaderBookmarkPicker(book: book, palette: currentTheme) { index in
                 browse(to: index)
             }
         }
         .sheet(isPresented: $showHighlights) {
-            ReaderHighlightPicker(book: book) { index in
+            ReaderHighlightPicker(book: book, palette: currentTheme) { index in
                 browse(to: index)
             }
         }
@@ -196,7 +197,8 @@ struct ReaderView: View {
             ReaderSettingsSheet(
                 fontSize: $fontSize,
                 lineSpacing: $lineSpacingPref,
-                themeMode: $themeMode
+                themeMode: $themeMode,
+                palette: currentTheme
             )
         }
     }
@@ -253,11 +255,11 @@ struct ReaderView: View {
                 } label: {
                     Text(displayText)
                         .font(.system(size: fontSize, weight: highlighted ? .bold : .regular, design: .serif))
-                        .foregroundStyle(highlighted ? Color.crimson : currentTheme.bodyText)
+                        .foregroundStyle(highlighted ? currentTheme.pivot : currentTheme.bodyText)
                         .padding(.horizontal, 1)
                         .background(
                             highlighted
-                                ? Color.crimson.opacity(isFlashed ? 0.28 : 0.12)
+                                ? currentTheme.pivot.opacity(isFlashed ? 0.28 : 0.12)
                                 : Color.clear,
                             in: RoundedRectangle(cornerRadius: 4)
                         )
@@ -313,10 +315,10 @@ struct ReaderView: View {
                         .lineLimit(1)
                         .fixedSize()
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(currentTheme.onAccent)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(Color.crimson, in: Capsule())
+                .background(currentTheme.accent, in: Capsule())
             }
             .accessibilityLabel("Start RSVP from current word")
         }
@@ -324,8 +326,6 @@ struct ReaderView: View {
         .padding(.vertical, 8)
         .background(
             currentTheme.barBackground
-                .opacity(0.96)
-                .background(.ultraThinMaterial)
                 .ignoresSafeArea(edges: .bottom)
         )
     }
@@ -333,7 +333,7 @@ struct ReaderView: View {
     private func iconBarButton(systemName: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(currentTheme.barText)
                 .frame(width: 38, height: 38)
         }
