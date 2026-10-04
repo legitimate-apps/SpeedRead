@@ -5,18 +5,21 @@ import Testing
 /// Every byte of the annotation exchange, without a session.
 @Suite("Annotation wire")
 struct AnnotationWireTests {
-    /// A pulled row in the shape the server's `to_portable` writes (field set read from the server
-    /// source), with the `text_quote` the textquote contract adds. Replace with a captured
-    /// response once the server half lands.
-    static let pulledRow = #"""
-    {"annotation_id":"kr-7","highlighted_text":"w10 w11","note_text":"remember this","color":"yellow",
-     "content_id":null,"start_kobospan":null,"start_offset":null,"end_kobospan":null,"end_offset":null,
-     "context_string":null,"chapter_progress":0.2,"position_type":"koreader_xpointer",
-     "start_xpointer":"/body/DocFragment[2]/body/p[3]/text().0","end_xpointer":"/body/DocFragment[2]/body/p[3]/text().7",
-     "type":"highlight","source":"koreader","hidden":false,"device_origin_id":"KOBO-1",
-     "last_synced":"2026-10-03T22:13:05.123456",
-     "text_quote":{"exact":"w10 w11","prefix":"w2 w3 w4 w5 w6 w7 w8 w9","suffix":null}}
+    /// Captured verbatim from the CWNG rig (PR #2466, Metamorphosis = book 221), 2026-10-04:
+    /// `GET /kosync/syncs/annotations/221?text_quote=1` after an inline delete of 4444. The server
+    /// session trimmed rows 2–4 to the keys shown; the full rows carry every key row 1 does. Its test
+    /// quote was cut at character offsets, hence "e darkness".
+    static let capturedPull = #"""
+    {"annotations":[{"annotation_id":"e2e-ko-2","chapter_progress":null,"color":"yellow","content_id":null,"content_revision":1,"context_string":null,"device_origin_id":"ko-dev","end_kobospan":null,"end_offset":null,"end_xpointer":"/body/DocFragment[5]/body/div[1]/p[2]/text().194","hidden":false,"highlighted_text":"and it\ntook him long, long minutes to crawl across","last_synced":"2026-10-04T01:51:48.094723","note_text":null,"position_type":"koreader_xpointer","server_modified_at":"2026-10-04T01:51:48.094723+00:00","source":"koreader","start_kobospan":null,"start_offset":null,"start_xpointer":"/body/DocFragment[5]/body/div[1]/p[2]/text().144","text_quote":{"exact":"and it took him long, long minutes to crawl across","prefix":"reduced to the condition of an ancient invalid","suffix":"his room—crawling over the ceiling was out of"},"type":"highlight"},{"annotation_id":"33333333-3333-4333-8333-333333333333","color":"yellow","content_revision":1,"device_origin_id":"tq-phone","end_xpointer":"/body/DocFragment[4]/body/div/p[3]/text().660","hidden":false,"highlighted_text":"e darkness, felt\na great pride that he was able to provide a life like that","note_text":"e2e note","position_type":"koreader_xpointer","server_modified_at":"2026-10-04T01:51:48.350172+00:00","source":"textquote","start_xpointer":"/body/DocFragment[4]/body/div/p[3]/text().585","text_quote":{"exact":"e darkness, felt a great pride that he was able to provide a life like that","prefix":"said Gregor to himself, and, gazing into th","suffix":"in such a nice home for his sister"},"type":"highlight"},{"annotation_id":"55555555-5555-4555-8555-555555555555","content_revision":1,"end_xpointer":"/body/DocFragment[4]/body/div/p[3]/text().663","hidden":false,"highlighted_text":null,"position_type":"koreader_xpointer","source":"textquote","start_xpointer":"/body/DocFragment[4]/body/div/p[3]/text().661","text_quote":{"exact":"in","prefix":"e darkness, felt a great pride that he was able to provide a life like that","suffix":"such a nice home for his sister"},"type":"dogear"},{"annotation_id":"44444444-4444-4444-8444-444444444444","content_revision":3,"hidden":true,"highlighted_text":"these words are certainly not in this book anywhere","position_type":"text_quote","server_modified_at":"2026-10-04T01:51:49.097448+00:00","source":"textquote","text_quote":{"exact":"these words are certainly not in this book anywhere","prefix":"","suffix":""},"type":"highlight"}],"book_known":true,"calibre_book_id":221,"document":"221"}
     """#
+
+    /// Captured with it: the PUT response for a highlight, a dogear and a quote not in the book.
+    static let capturedPushResponse = #"""
+    {"calibre_book_id":221,"created":3,"deleted":0,"document":"221","matched":true,"reconciled":false,"resolved":["33333333-3333-4333-8333-333333333333","55555555-5555-4555-8555-555555555555"],"skipped":0,"unchanged":0,"unresolved":["44444444-4444-4444-8444-444444444444"],"updated":0}
+    """#
+
+    /// Captured: an invisible or unknown book id, status 200.
+    static let capturedUnknownBook = #"{"annotation_count":0,"annotations":[],"book_known":false}"#
 
     @Test func aPushCarriesEachAnnotationAsItsWordsUnderThisAppsSource() throws {
         let push = KOSyncAnnotationPush(
@@ -49,31 +52,33 @@ struct AnnotationWireTests {
         #expect(rows[1]["note_text"] is NSNull)
     }
 
-    @Test func aPulledRowDecodesWithItsQuoteNoteAndOrigin() throws {
-        let body = Data(#"{"annotations":[\#(Self.pulledRow)],"annotation_count":1}"#.utf8)
-        let rows = try #require(try KOSyncWire.decodeAnnotations(body))
-        let row = try #require(rows.first)
-        #expect(row.annotationID == "kr-7")
-        #expect(row.source == "koreader")
-        #expect(row.type == .highlight)
-        #expect(row.quote == TextQuote(exact: "w10 w11", prefix: "w2 w3 w4 w5 w6 w7 w8 w9", suffix: ""))
-        #expect(row.note == "remember this")
-        #expect(!row.hidden)
-        #expect(row.deviceOriginID == "KOBO-1")
-        #expect(!row.isTextQuoteSource)
-        // A naive server time is UTC, microseconds and all.
-        let expected = try #require(ISO8601DateFormatter().date(from: "2026-10-03T22:13:05Z"))
-        #expect(abs(try #require(row.updatedAt).timeIntervalSince(expected) - 0.123456) < 0.000_01)
+    @Test func aCapturedPullDecodesEveryReadersRowsWithTheirQuotes() throws {
+        let rows = try #require(try KOSyncWire.decodeAnnotations(Data(Self.capturedPull.utf8)))
+        #expect(rows.map(\.annotationID) == ["e2e-ko-2", "33333333-3333-4333-8333-333333333333",
+                                             "55555555-5555-4555-8555-555555555555", "44444444-4444-4444-8444-444444444444"])
+        let koreader = rows[0]
+        #expect(koreader.source == "koreader")
+        #expect(!koreader.isTextQuoteSource)
+        #expect(koreader.type == .highlight)
+        #expect(koreader.quote == TextQuote(exact: "and it took him long, long minutes to crawl across",
+                                            prefix: "reduced to the condition of an ancient invalid",
+                                            suffix: "his room—crawling over the ceiling was out of"))
+        #expect(koreader.note == nil)
+        #expect(koreader.deviceOriginID == "ko-dev")
+        #expect(rows[1].note == "e2e note")
+        #expect(rows[1].isTextQuoteSource)
+        #expect(rows[2].type == .dogear)
+        #expect(rows[2].quote?.exact == "in")
+        #expect(rows[3].hidden)
     }
 
-    @Test func aBookTheServerDoesNotHaveDecodesToNil() throws {
-        let unknown = Data(#"{"document":"42","annotations":[],"annotation_count":0,"book_known":false}"#.utf8)
-        #expect(try KOSyncWire.decodeAnnotations(unknown) == nil)
+    @Test func aCapturedUnknownBookDecodesToNil() throws {
+        #expect(try KOSyncWire.decodeAnnotations(Data(Self.capturedUnknownBook.utf8)) == nil)
         #expect(try KOSyncWire.decodeAnnotations(Data(#"{"annotations":[]}"#.utf8)) == [])
     }
 
     @Test func oneUnreadableRowDoesNotLoseTheOthers() throws {
-        let body = Data(#"{"annotations":[{"annotation_id":""},{"note_text":"no id"},\#(Self.pulledRow),{"annotation_id":17,"hidden":true}]}"#.utf8)
+        let body = Data(#"{"annotations":[{"annotation_id":""},{"note_text":"no id"},{"annotation_id":"kr-7","source":"koreader"},{"annotation_id":17,"hidden":true}]}"#.utf8)
         let rows = try #require(try KOSyncWire.decodeAnnotations(body))
         #expect(rows.map(\.annotationID) == ["kr-7", "17"])
         #expect(rows[1].hidden)
@@ -87,20 +92,10 @@ struct AnnotationWireTests {
         #expect(row.percentage == 0.4)
     }
 
-    @Test func pushResultsReportAnUnknownBook() {
+    @Test func aCapturedPushResultListsWhatTheServerCouldNotPlace() {
+        let result = KOSyncWire.decodeAnnotationPushResult(Data(Self.capturedPushResponse.utf8))
+        #expect(result == KOSyncAnnotationPushResult(matched: true, unresolved: ["44444444-4444-4444-8444-444444444444"]))
         #expect(KOSyncWire.decodeAnnotationPushResult(Data(#"{"document":"42","matched":false,"created":0}"#.utf8)).matched == false)
-        let result = KOSyncWire.decodeAnnotationPushResult(Data(#"{"created":2,"resolved":["A"],"unresolved":["B"]}"#.utf8))
-        #expect(result == KOSyncAnnotationPushResult(matched: true, unresolved: ["B"]))
-    }
-
-    @Test func serverTimesInEveryShapeAPythonServerWrites() throws {
-        let base = try #require(ISO8601DateFormatter().date(from: "2026-10-03T22:13:05Z"))
-        #expect(KOSyncWire.serverDate("2026-10-03T22:13:05Z") == base)
-        #expect(KOSyncWire.serverDate("2026-10-03T22:13:05+00:00") == base)
-        #expect(KOSyncWire.serverDate("2026-10-03T18:13:05-04:00") == base)
-        #expect(KOSyncWire.serverDate("2026-10-03T22:13:05") == base)
-        #expect(KOSyncWire.serverDate("2026-10-03T22:13:05.5+00:00") == base.addingTimeInterval(0.5))
-        #expect(KOSyncWire.serverDate("yesterday") == nil)
     }
 
     @Test func theCapabilityIsReadFromTheAuthAnswer() {
@@ -114,6 +109,6 @@ struct AnnotationWireTests {
         let base = URL(string: "https://books.example.com/kosync")!
         #expect(KOSyncWire.annotationsPushURL(base: base).absoluteString == "https://books.example.com/kosync/syncs/annotations")
         #expect(KOSyncWire.annotationsFetchURL(base: base, document: "42").absoluteString
-            == "https://books.example.com/kosync/syncs/annotations/42")
+            == "https://books.example.com/kosync/syncs/annotations/42?text_quote=1")
     }
 }

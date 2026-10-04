@@ -243,6 +243,7 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
                 highlight.syncID = row.annotationID
                 highlight.syncSource = row.source ?? "unknown"
                 highlight.note = row.note
+                highlight.syncOriginDevice = row.deviceOriginID
                 highlight.syncedAt = Date()
                 highlight.book = book
                 context.insert(highlight)
@@ -259,6 +260,8 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
         let start: Int
         let end: Int
         let note: String?
+        /// The device that made it, when that was not this one.
+        let origin: String?
         /// The change being sent; a later one is still unsent after this push.
         let stamp: Date
     }
@@ -268,14 +271,15 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
         let deletes = ids(Self.pendingDeletesKey, bookId: bookId)
         let outgoing = book.highlights.filter(\.needsPush).map {
             Outgoing(id: $0.id, annotationID: $0.annotationID, kind: .highlight, start: $0.startWordIndex,
-                     end: $0.endWordIndex, note: $0.note, stamp: $0.modifiedAt ?? $0.createdAt)
+                     end: $0.endWordIndex, note: $0.note, origin: $0.syncOriginDevice,
+                     stamp: $0.modifiedAt ?? $0.createdAt)
         } + book.bookmarks.filter(\.needsPush).map {
             Outgoing(id: $0.id, annotationID: $0.annotationID, kind: .bookmark, start: $0.wordIndex,
-                     end: $0.wordIndex, note: nil, stamp: $0.createdAt)
+                     end: $0.wordIndex, note: nil, origin: nil, stamp: $0.createdAt)
         }
         guard !outgoing.isEmpty || !deletes.isEmpty else { return true }
 
-        let text = book.extractedText, wordCount = book.wordCount, origin = deviceID
+        let text = book.extractedText, wordCount = book.wordCount, thisDevice = deviceID
         let rows: [(UUID, KOSyncAnnotationPush.Row?)] = await Task.detached {
             let prepared = AnchoredText(text)
             return outgoing.map { item in
@@ -284,7 +288,7 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
                     KOSyncAnnotationPush.Row(
                         annotationID: item.annotationID, type: item.kind == .bookmark ? .dogear : .highlight,
                         quote: $0, percentage: AnnotationSyncLogic.percentage(token: item.start, wordCount: wordCount),
-                        note: item.note, deviceOriginID: origin)
+                        note: item.note, deviceOriginID: item.origin ?? thisDevice)
                 })
             }
         }.value

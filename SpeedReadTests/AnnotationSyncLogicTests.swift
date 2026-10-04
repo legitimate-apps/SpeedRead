@@ -15,7 +15,7 @@ struct AnnotationSyncLogicTests {
                                quote: TextQuote? = TextQuote(exact: "w1", prefix: "", suffix: ""),
                                note: String? = nil, hidden: Bool = false) -> KOSyncRemoteAnnotation {
         KOSyncRemoteAnnotation(annotationID: id, source: source, type: type, quote: quote, note: note, hidden: hidden,
-                               deviceOriginID: nil, updatedAt: nil, percentage: nil)
+                               deviceOriginID: nil, percentage: nil)
     }
 
     @Test func aDeletionMadeElsewhereDeletesTheLocalCopy() {

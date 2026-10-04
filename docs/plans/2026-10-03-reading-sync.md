@@ -212,7 +212,7 @@ What the run changed:
   page put its CSS into the book's first words, and every bundled sample began with the word
   `"Cover"`. Existing books keep their stored text, and the fix applies from the next import.
 
-## Highlights, notes and bookmarks (client built 2026-10-03; server half in progress)
+## Highlights, notes and bookmarks (both halves merged 2026-10-04; server is CWNG b8a75a05a, #2466)
 
 The operator scoped this to CWNG only (2026-10-03). No standard sync protocol for annotations exists:
 W3C EPUB Annotations 1.0 is an interchange file, and OPDS Progression is a position-only draft. Users
@@ -232,9 +232,12 @@ are pointed to CWNG.
   - `exact` is the whole source words, joined by single spaces. Context is up to 8 words per side.
   - Limits: `exact` ≤ 4000 scalars; `prefix`/`suffix` ≤ 600, trimmed by whole words.
   - `note_text` is always sent, `null` included, so removing a note removes it on the server.
-- `GET /kosync/syncs/annotations/<document>` returns every row for the user and book, from every
-  source, including `hidden` tombstones. The server adds `text_quote` wherever it can derive one.
+- `GET /kosync/syncs/annotations/<document>?text_quote=1` returns every row for the user and book,
+  from every source, including `hidden` tombstones. With the query, the server adds `text_quote`
+  wherever it can derive one; without it, other readers' rows carry `text_quote: null`.
   `book_known: false` means the server doesn't have the book.
+- The server's edit clock is `content_revision`, with `server_modified_at` beside it. `last_synced`
+  is not an edit time. The client reads none of them: what is unsent is a local fact (`needsPush`).
 - The server resolves a pushed quote to its own anchors (an XPointer range, checked by
   `derive_cfi_range`), so KOReader and the web reader see the highlight. An unresolvable quote is
   stored with its quote kept, never guessed.
@@ -255,8 +258,25 @@ are pointed to CWNG.
 - **Adopting other readers' rows.** A row from another reader is placed by its quote: unique, or
   nearest its percentage within the drift window. A row that can't be placed stays on the server
   and is retried at the next sync. Unanchored notes are skipped.
-- **Pending: captured fixtures.** The wire fixtures are built from the server's `to_portable`
-  field set. Replace them with captured responses when the server half lands.
+- **Fixtures are captured.** `AnnotationWireTests` decodes a pull, a PUT response and an
+  unknown-book body captured verbatim from the CWNG rig (book 221) on 2026-10-04 UTC.
+- **Joint e2e: passed 2026-10-04 UTC** against the CWNG rig rebuilt from #2466 head 7b6d34015
+  (fresh DB, book 221). It is a repeatable live test,
+  [`AnnotationSyncLiveIntegrationTests`](../../SpeedReadIntegrationTests/AnnotationSyncLiveIntegrationTests.swift),
+  in the Integration lane, gated on `SPEEDREAD_TEST_ANNOTATION_BOOK_ID`. Two devices each download
+  the EPUB over OPDS and keep their own store and device id.
+  - A highlight with a note, and a bookmark, made on the phone are stored as `textquote` rows. The
+    server anchors each one to an XPointer, which is what KOReader and the web reader read.
+  - The tablet places them on the same word indices. Its note edit reaches the phone and keeps
+    `device_origin_id` credited to the phone.
+  - The phone's deletes leave hidden tombstones, and the tablet drops its copies.
+  - A KOReader-shaped PUT (XPointers and text, no quote) is adopted on exactly its words, read-only.
+    The row goes away again when KOReader tombstones it.
+  - Control: with `?text_quote=1` removed from the pull, the KOReader test fails (row never
+    adopted). With it restored, the test passes.
+  - Defect it found, now fixed: an edit pushed from a second device re-stamped `device_origin_id`
+    with that device. `Highlight.syncOriginDevice` now keeps the creator.
+    The server keeps the first `device_origin_id` too, as of #2466 head 6faeb4dae.
 
 ## Open for the operator
 

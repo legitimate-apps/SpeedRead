@@ -21,6 +21,9 @@ final class Highlight {
     /// The reader that made it, when not this app. Only this app's own rows can be changed on
     /// the server.
     var syncSource: String? = nil
+    /// The device that made it, as the server names it. An edit sent from here keeps it, so the
+    /// highlight stays credited to the device it came from.
+    var syncOriginDevice: String? = nil
 
     init(startWordIndex: Int, endWordIndex: Int, highlightedText: String) {
         self.id = UUID()
