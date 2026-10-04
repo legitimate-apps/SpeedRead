@@ -1,6 +1,8 @@
 # Warm palette restyle — light & dark, warm & literary
 
-**Status:** in flight. **Branch:** `style/warm-palette`. **Owner decisions pre-made** (see task brief):
+**Status:** landed on `style/warm-palette` (13 commits). Verified: honesty gates PASS, hermetic
+iOS suite 396 tests PASS, UI lane PASS, watch scheme builds. After-screenshots in the session
+scratchpad `ui-after/` (50 shots, both appearances). **Branch:** `style/warm-palette`. **Owner decisions pre-made** (see task brief):
 retire coral `crimsonSoft` as accent; red survives ONLY as the reading `pivot` (RSVP ORP letter, guide
 ticks, reader last-read word); chrome follows the OS appearance; reader page themes and shelf themes
 keep their identity but stay legible in both appearances; contrast floor 4.5:1 text / 3:1 non-text.
