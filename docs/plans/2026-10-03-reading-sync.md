@@ -212,7 +212,7 @@ What the run changed:
   page put its CSS into the book's first words, and every bundled sample began with the word
   `"Cover"`. Existing books keep their stored text, and the fix applies from the next import.
 
-## Highlights, notes and bookmarks (client built 2026-10-03; server half is CWNG PR #2466)
+## Highlights, notes and bookmarks (both halves merged 2026-10-04; server is CWNG b8a75a05a, #2466)
 
 The operator scoped this to CWNG only (2026-10-03). No standard sync protocol for annotations exists:
 W3C EPUB Annotations 1.0 is an interchange file, and OPDS Progression is a position-only draft. Users
