@@ -91,7 +91,7 @@ struct ReaderSettingsSheet: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .strokeBorder(
-                                isSelected ? Color.agedGold : swatchPalette.bodyText.opacity(0.2),
+                                isSelected ? palette.accent : swatchPalette.bodyText.opacity(0.2),
                                 lineWidth: isSelected ? 2 : 1
                             )
                     )
