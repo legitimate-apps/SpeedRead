@@ -47,7 +47,7 @@ struct WatchRSVPSurface: View {
                 .onLongPressGesture(perform: onOpenSettings)
 
             if engine.state == .playing {
-                RSVPWordView(segments: engine.currentSegments, fontSize: 20)
+                RSVPWordView(segments: engine.currentSegments, fontSize: 20, enclosures: engine.currentEnclosures)
                     .frame(width: Self.screenWidth)
                     .allowsHitTesting(false)
                     .accessibilityElement(children: .ignore)
@@ -84,7 +84,7 @@ struct WatchRSVPSurface: View {
 
                     Spacer()
 
-                    RSVPWordView(segments: engine.currentSegments, fontSize: 18)
+                    RSVPWordView(segments: engine.currentSegments, fontSize: 18, enclosures: engine.currentEnclosures)
                         .frame(width: Self.screenWidth)
                         .allowsHitTesting(false)
                         .accessibilityElement(children: .ignore)

@@ -126,4 +126,19 @@ struct ORPCalculatorTests {
             #expect(segments.before + segments.focus + segments.after == word)
         }
     }
+
+    // MARK: - Long non-words
+
+    @Test func aLongNonWordPivotsOnItsMiddleSoItSitsCentered() {
+        // Mutation: drop the literal rule. The pivot then comes from "www" alone, index 1, and the
+        // other 27 characters hang off one side at a fraction of the size (TestFlight 1.4 (8)).
+        let url = "www.gutenberg.org/ebooks/1952"
+        let segments = ORPCalculator.segments(for: url)
+        #expect(segments.before.count == url.count / 2)
+        #expect(abs(segments.before.count - segments.after.count) <= 1)
+    }
+
+    @Test func aShortTokenWithDotsKeepsTheOrdinaryRule() {
+        #expect(ORPCalculator.orpIndex(for: "www.x.org") == 1)
+    }
 }

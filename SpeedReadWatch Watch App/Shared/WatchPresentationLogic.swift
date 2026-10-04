@@ -36,6 +36,7 @@ final class WatchRSVPSession {
             return 0
         }
         engine.load(words: book.tokenizeWords(), startingAt: book.browseWordIndex)
+        engine.annotate(text: book.text)
         engine.wpm = wpm
         return synchronizeCrownValue()
     }

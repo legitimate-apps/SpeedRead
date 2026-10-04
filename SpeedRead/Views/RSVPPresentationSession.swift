@@ -61,6 +61,7 @@ final class RSVPPresentationSession {
         positionCommitPolicy.reset()
         engine.wpm = wpm
         engine.load(words: cachedWords, startingAt: book.browseWordIndex)
+        engine.annotate(text: book.extractedText)
     }
 
     func togglePlayback(

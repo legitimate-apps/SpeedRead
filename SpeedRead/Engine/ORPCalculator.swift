@@ -11,6 +11,8 @@ nonisolated enum ORPCalculator {
 
     static func orpIndex(for word: String) -> Int {
         guard !word.isEmpty else { return 0 }
+        // A long non-word is shown whole and centered: its pivot is its middle.
+        if LongWord.kind(of: word) == .literal { return word.count / 2 }
 
         let leadingPunctCount = word.prefix(while: \.isPunctuationOrSymbol).count
         let strippedLength = word.dropFirst(leadingPunctCount)

@@ -67,13 +67,22 @@ final class RSVPEngine {
         }
     }
 
+    /// Which piece of a long word is on screen; always 0 for an ordinary word.
+    private(set) var currentPiece: Int = 0
+    /// The bounded passages around the current word, outermost first.
+    private(set) var currentEnclosures: [TextEnclosure] = []
+
     private var _wpm: Int = 300
     private var words: [String] = []
+    private var currentPieces: [String] = []
+    private var enclosures = TextEnclosures.empty
+    private var annotationTask: Task<Void, Never>?
     private var timer = WordTimer(wpm: 300)
     private var playbackTask: Task<Void, Never>?
 
+    /// The text on screen: the current word, or the current piece of a long one.
     var currentSegments: ORPCalculator.WordSegments {
-        ORPCalculator.segments(for: currentWord)
+        ORPCalculator.segments(for: currentPieces.indices.contains(currentPiece) ? currentPieces[currentPiece] : currentWord)
     }
 
     var progress: Double {
@@ -88,21 +97,41 @@ final class RSVPEngine {
         self.totalWords = words.count
         self.didFinish = false
         if words.isEmpty {
-            self.currentIndex = 0
-            self.currentWord = ""
             self.state = .idle
         } else {
-            let clamped = ReadingPositionCoordinator.clampedIndex(index, wordCount: words.count)
-            self.currentIndex = clamped
-            self.currentWord = words[clamped]
+            show(ReadingPositionCoordinator.clampedIndex(index, wordCount: words.count))
             self.state = .paused
         }
+    }
+
+    /// Finds the book's bounded passages off the main actor and applies them when ready. The
+    /// text must be the one the loaded words were tokenized from; if the counts differ the
+    /// passages are dropped rather than drawn over the wrong words.
+    func annotate(text: String) {
+        annotationTask?.cancel()
+        let loaded = words.count
+        annotationTask = Task { [weak self] in
+            let found = await Task.detached(priority: .userInitiated) { TextEnclosures.scan(text) }.value
+            guard !Task.isCancelled, let self, self.words.count == loaded else { return }
+            self.annotate(found)
+        }
+    }
+
+    func annotate(_ found: TextEnclosures) {
+        guard found.tokenCount == words.count else { return }
+        enclosures = found
+        currentEnclosures = words.isEmpty ? [] : found.enclosures(at: currentIndex)
     }
 
     func play() {
         guard state != .playing, !words.isEmpty else { return }
         didFinish = false
         state = .playing
+        if currentPiece == 0 {
+            let first = RSVPPlaybackStep.firstShown(from: currentIndex, wordCount: words.count,
+                                                    isSilent: enclosures.isSilent)
+            if first != currentIndex { show(first) }
+        }
         startPlayback()
     }
 
@@ -138,9 +167,15 @@ final class RSVPEngine {
     func stop() {
         playbackTask?.cancel()
         playbackTask = nil
+        annotationTask?.cancel()
+        annotationTask = nil
         state = .idle
         currentIndex = 0
         currentWord = ""
+        currentPieces = []
+        currentPiece = 0
+        currentEnclosures = []
+        enclosures = .empty
         totalWords = 0
         didFinish = false
         words = []
@@ -148,10 +183,17 @@ final class RSVPEngine {
 
     func seek(to index: Int) {
         guard !words.isEmpty else { return }
-        let clamped = ReadingPositionCoordinator.clampedIndex(index, wordCount: words.count)
-        currentIndex = clamped
-        currentWord = words[clamped]
+        show(ReadingPositionCoordinator.clampedIndex(index, wordCount: words.count))
         didFinish = false
+    }
+
+    /// Puts a word on screen, from its first piece.
+    private func show(_ index: Int) {
+        currentIndex = index
+        currentWord = words[index]
+        currentPieces = LongWord.pieces(of: currentWord)
+        currentPiece = 0
+        currentEnclosures = enclosures.enclosures(at: index)
     }
 
     private func startPlayback() {
@@ -160,12 +202,9 @@ final class RSVPEngine {
         playbackTask = Task { [weak self] in
             var nextTick = clock.now
             while !Task.isCancelled {
-                guard let self else { return }
-                if self.currentIndex >= self.words.count { break }
-
-                let word = self.words[self.currentIndex]
-                self.currentWord = word
-                nextTick = nextTick.advanced(by: .milliseconds(self.timer.delay(for: word)))
+                guard let self, self.currentPieces.indices.contains(self.currentPiece) else { return }
+                let piece = self.currentPieces[self.currentPiece]
+                nextTick = nextTick.advanced(by: .milliseconds(self.timer.delay(for: piece)))
 
                 do {
                     try await clock.sleep(until: nextTick, tolerance: .milliseconds(5))
@@ -174,17 +213,42 @@ final class RSVPEngine {
                 }
 
                 if Task.isCancelled { return }
-                self.currentIndex += 1
+                guard let step = RSVPPlaybackStep.next(
+                    index: self.currentIndex, piece: self.currentPiece, pieceCount: self.currentPieces.count,
+                    wordCount: self.words.count, isSilent: self.enclosures.isSilent
+                ) else { break }
+                if step.index == self.currentIndex {
+                    self.currentPiece = step.piece
+                } else {
+                    self.show(step.index)
+                }
             }
 
             guard let self, !Task.isCancelled else { return }
             self.state = .paused
             if !self.words.isEmpty {
-                self.currentIndex = self.words.count - 1
-                self.currentWord = self.words[self.currentIndex]
                 self.didFinish = true
             }
         }
+    }
+}
+
+/// Where playback goes after each frame.
+nonisolated enum RSVPPlaybackStep {
+    /// The next piece of a long word, else the next word that is not silent. Nil at the end.
+    static func next(index: Int, piece: Int, pieceCount: Int, wordCount: Int,
+                     isSilent: (Int) -> Bool) -> (index: Int, piece: Int)? {
+        if piece + 1 < pieceCount { return (index, piece + 1) }
+        guard index + 1 < wordCount else { return nil }
+        return (firstShown(from: index + 1, wordCount: wordCount, isSilent: isSilent), 0)
+    }
+
+    /// The first word from `index` that gets a beat. A silent last word is still shown, so a
+    /// book never ends on nothing.
+    static func firstShown(from index: Int, wordCount: Int, isSilent: (Int) -> Bool) -> Int {
+        var index = index
+        while index + 1 < wordCount, isSilent(index) { index += 1 }
+        return index
     }
 }
 

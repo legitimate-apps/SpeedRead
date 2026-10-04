@@ -96,4 +96,16 @@ struct WordTimerTests {
         timer.wpm = 600
         #expect(timer.baseDelayMs == 100)
     }
+
+    @Test func aLongNonWordIsHeldInProportionToItsLength() {
+        // 29 characters at ten a beat: 2.9 beats, where an ordinary long word gets 1.3.
+        #expect(WordTimer.multiplier(for: "www.gutenberg.org/ebooks/1952") == 2.9)
+        #expect(WordTimer.multiplier(for: "www.gutenberg.org/ebooks/1952.") == 5.8)
+        #expect(WordTimer.multiplier(for: "incomprehensibilities") == 1.3)
+    }
+
+    @Test func aLongNonWordIsNeverHeldLessThanALongWord() {
+        #expect(WordTimer.multiplier(for: "a.b/c.d/e.f/g.h") == 1.5)
+        #expect(WordTimer.multiplier(for: "a.b/c.d/e.f/g") == 1.3, "Thirteen characters is not long")
+    }
 }

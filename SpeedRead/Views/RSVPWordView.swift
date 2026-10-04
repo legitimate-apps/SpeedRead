@@ -4,15 +4,19 @@ import SwiftUI
 struct RSVPWordView: View {
     let segments: ORPCalculator.WordSegments
     let fontSize: CGFloat
+    /// The passages around the word, outermost first; their marks are drawn faintly above it.
+    let enclosures: [TextEnclosure]
 
-    init(segments: ORPCalculator.WordSegments, fontSize: CGFloat = 32) {
+    init(segments: ORPCalculator.WordSegments, fontSize: CGFloat = 32, enclosures: [TextEnclosure] = []) {
         self.segments = segments
         self.fontSize = fontSize
+        self.enclosures = enclosures
     }
 
     var body: some View {
         VStack(spacing: 2) {
             guideMark
+                .overlay { enclosureMarks }
             Canvas { context, size in
                 let before = context.resolve(segment(segments.before, color: .rsvpText.opacity(0.65)))
                 let focus = context.resolve(segment(segments.focus, color: .pivot))
@@ -37,6 +41,27 @@ struct RSVPWordView: View {
         .padding(.horizontal, 16)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(segments.before + segments.focus + segments.after)
+    }
+
+    /// The marks of the passages around the word, either side of the upper guide: outermost
+    /// pair outside, faint and small, so the eye registers "inside quotes" without reading them.
+    /// The font is monospaced and every pair is the same width, so the guide stays centered.
+    @ViewBuilder
+    private var enclosureMarks: some View {
+        let shown = enclosures.suffix(3)
+        if !shown.isEmpty {
+            HStack(spacing: fontSize * 0.7) {
+                mark(shown.map(\.opener).joined(separator: " "))
+                mark(shown.reversed().map(\.closer).joined(separator: " "))
+            }
+            .fixedSize()
+            .accessibilityHidden(true)
+        }
+    }
+
+    private func mark(_ string: String) -> Text {
+        Text(string).font(.system(size: fontSize * 0.5, weight: .semibold, design: .monospaced))
+            .foregroundColor(.rsvpText.opacity(0.5))
     }
 
     private func segment(_ string: String, color: Color) -> Text {

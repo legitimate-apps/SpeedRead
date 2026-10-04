@@ -16,7 +16,10 @@ nonisolated struct WordTimer: Sendable {
         let trimmed = word.trimmingCharacters(in: .punctuationCharacters)
         var multiplier = 1.0
 
-        if trimmed.count >= 8 {
+        if LongWord.kind(of: word) == .literal {
+            // A URL or an address is read a few characters at a time: hold it in proportion.
+            multiplier *= max(1.3, Double(trimmed.count) / literalCharactersPerBeat)
+        } else if trimmed.count >= 8 {
             multiplier *= 1.3
         }
         if !trimmed.isEmpty, trimmed.unicodeScalars.allSatisfy(CharacterSet.decimalDigits.contains) {
@@ -34,6 +37,8 @@ nonisolated struct WordTimer: Sendable {
 
         return multiplier
     }
+
+    static let literalCharactersPerBeat = 10.0
 
     private static let sentenceTerminators: Set<Character> = [".", "?", "!"]
     private static let clauseTerminators: Set<Character> = [",", ";", ":", "\u{2014}", "\u{2013}"]

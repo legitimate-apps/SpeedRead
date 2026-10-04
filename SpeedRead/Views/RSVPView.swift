@@ -54,7 +54,7 @@ struct RSVPView: View {
                     // ─── ZONE 2: Word Display (fixed center, tappable + scrubable) ───
                     VStack {
                         Spacer(minLength: 0)
-                        RSVPWordView(segments: engine.currentSegments, fontSize: 36)
+                        RSVPWordView(segments: engine.currentSegments, fontSize: 36, enclosures: engine.currentEnclosures)
                         Spacer(minLength: 0)
                     }
                     .frame(maxWidth: .infinity)
