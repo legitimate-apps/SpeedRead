@@ -186,6 +186,26 @@ struct ServerAnnotationSyncTests {
         #expect(!highlight.needsPush)
     }
 
+    @Test func aNoteAddedHereToAnotherDevicesHighlightKeepsItCreditedToThatDevice() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        f.supportsAnnotations()
+        f.serve(rows: [f.row("phone-1", from: 30, to: 31, source: "textquote")])
+        await f.sync.sync(bookId: f.book.id)
+        let highlight = try #require(f.book.highlights.first)
+        #expect(highlight.isEditableOnServer)
+
+        f.sync.setNote("from the tablet", on: highlight, in: f.context)
+        f.serve(rows: [f.row("phone-1", from: 30, to: 31, source: "textquote")])
+        f.pushAccepted()
+        await f.sync.sync(bookId: f.book.id)
+
+        let row = try #require((try f.pushedBody(at: 3)["annotations"] as? [[String: Any]])?.first)
+        #expect(row["annotation_id"] as? String == "phone-1")
+        #expect(row["note_text"] as? String == "from the tablet")
+        #expect(row["device_origin_id"] as? String == "OTHER")
+    }
+
     @Test func anEditMadeWhileAPushIsOnTheWireIsStillSent() async throws {
         let f = try Fixture()
         defer { f.close() }

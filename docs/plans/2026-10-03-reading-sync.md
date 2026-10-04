@@ -260,8 +260,22 @@ are pointed to CWNG.
   and is retried at the next sync. Unanchored notes are skipped.
 - **Fixtures are captured.** `AnnotationWireTests` decodes a pull, a PUT response and an
   unknown-book body captured verbatim from the CWNG rig (book 221) on 2026-10-04 UTC.
-- **Pending: joint e2e** against the rig. It runs app → server, a KOReader row server → app, and
-  deletes both ways.
+- **Joint e2e: passed 2026-10-04 UTC** against the CWNG rig rebuilt from #2466 head 7b6d34015
+  (fresh DB, book 221). It is a repeatable live test,
+  [`AnnotationSyncLiveIntegrationTests`](../../SpeedReadIntegrationTests/AnnotationSyncLiveIntegrationTests.swift),
+  in the Integration lane, gated on `SPEEDREAD_TEST_ANNOTATION_BOOK_ID`. Two devices each download
+  the EPUB over OPDS and keep their own store and device id.
+  - A highlight with a note, and a bookmark, made on the phone are stored as `textquote` rows. The
+    server anchors each one to an XPointer, which is what KOReader and the web reader read.
+  - The tablet places them on the same word indices. Its note edit reaches the phone and keeps
+    `device_origin_id` credited to the phone.
+  - The phone's deletes leave hidden tombstones, and the tablet drops its copies.
+  - A KOReader-shaped PUT (XPointers and text, no quote) is adopted on exactly its words, read-only.
+    The row goes away again when KOReader tombstones it.
+  - Control: with `?text_quote=1` removed from the pull, the KOReader test fails (row never
+    adopted). With it restored, the test passes.
+  - Defect it found, now fixed: an edit pushed from a second device re-stamped `device_origin_id`
+    with that device. `Highlight.syncOriginDevice` now keeps the creator.
 
 ## Open for the operator
 

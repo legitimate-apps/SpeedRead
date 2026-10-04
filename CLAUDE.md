@@ -319,6 +319,7 @@ binary — the seeder is inside `#if DEBUG`, so it is compiled out of Release en
 | `SPEEDREAD_TEST_OPDS_PASSWORD` | seeder + live tests |
 | `SPEEDREAD_TEST_OPDS_NAME` | seeder only (optional, display name) |
 | `SPEEDREAD_LIVE_OPDS=1` | live tests only — required to enable the suite |
+| `SPEEDREAD_TEST_ANNOTATION_BOOK_ID` | live annotation-sync tests only — the server's id for a copy of *The Metamorphosis* (its KOReader test plants XPointers from that EPUB) |
 
 ```bash
 # Seed the debug app on a simulator (simctl needs the SIMCTL_CHILD_ prefix)
