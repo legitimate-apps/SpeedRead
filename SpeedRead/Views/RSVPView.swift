@@ -1,4 +1,5 @@
 //  RSVPView.swift
+import QuartzCore
 import SwiftData
 import SwiftUI
 import os
@@ -19,6 +20,9 @@ struct RSVPView: View {
     @AppStorage("rsvpLastWPM") private var persistedWPM: Int = ReaderConfig.RSVP.defaultWPM
     /// The swipe hint shows until the reader has dragged through words once.
     @AppStorage("rsvpHasScrubbed") private var hasScrubbed = false
+    /// The word's drawn width, which sets where each neighbor's pivot is on screen.
+    @State private var wordWidth: CGFloat = 0
+    @State private var scrubDriver = RSVPScrubDriver()
     @State private var showBookmarks = false
     @State private var showHighlights = false
     /// Opened from the reader's "Read here": start playing at once, which takes the book over.
@@ -58,10 +62,13 @@ struct RSVPView: View {
                         Spacer(minLength: 0)
                         RSVPWordView(
                             segments: engine.currentSegments,
-                            fontSize: 36,
+                            fontSize: Self.wordFontSize,
                             enclosures: engine.currentEnclosures,
                             strip: wordStrip
                         )
+                        // Dragged past an end, the line gives a little and springs back.
+                        .offset(x: -(presentation.scrub?.stretch ?? 0))
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { wordWidth = $0 }
                         .overlay(alignment: .bottom) {
                             scrubCaption
                                 .offset(y: 40)
@@ -81,7 +88,6 @@ struct RSVPView: View {
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
                     .gesture(scrubGesture, isEnabled: readingElsewhere == nil)
-                    .animation(.easeOut(duration: 0.22), value: presentation.scrub == nil)
 
                     // ─── ZONE 3: Control Panel (fixed height) ───
                     ZStack {
@@ -202,6 +208,7 @@ struct RSVPView: View {
             if phase == .background, engine.state == .playing { togglePlayback() }
         }
         .onDisappear {
+            scrubDriver.stop()
             let result = presentation.handleDisappear(
                 engine: engine,
                 book: book,
@@ -395,7 +402,19 @@ struct RSVPView: View {
             words: presentation.cachedWords,
             index: engine.currentIndex,
             offset: presentation.scrub?.offset ?? 0,
-            opacity: presentation.scrub == nil ? 0 : 1
+            opacity: presentation.scrub?.opacity ?? 0
+        )
+    }
+
+    private static let wordFontSize: CGFloat = 36
+    private static let characterAdvance = RSVPScrubTrack.characterAdvance(fontSize: wordFontSize)
+
+    /// Where each word sits on screen, so the line moves exactly with the finger.
+    private var scrubTrack: RSVPScrubTrack {
+        RSVPScrubTrack(
+            words: presentation.cachedWords,
+            advance: Self.characterAdvance,
+            availableWidth: wordWidth - 2 * RSVPWordView.horizontalPadding
         )
     }
 
@@ -413,12 +432,14 @@ struct RSVPView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .monospacedDigit()
                 .foregroundStyle(Color.agedGold)
+                .opacity(scrub.opacity)
                 .accessibilityHidden(true)
             }
         } else if !hasScrubbed, engine.state != .playing, readingElsewhere == nil {
-            Text("Swipe to move word by word · Tap to play")
-                .font(.system(size: 12))
-                .foregroundStyle(Color.rsvpText.opacity(0.5))
+            Text("Drag right to go back, left to go ahead · Tap to play")
+                .font(.system(size: 13))
+                .foregroundStyle(Color.rsvpText.opacity(0.7))
+                .multilineTextAlignment(.center)
                 .accessibilityHidden(true)
         }
     }
@@ -426,24 +447,37 @@ struct RSVPView: View {
     private var scrubGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                if let update = presentation.updateGesture(
+                if presentation.scrub == nil { scrubDriver.prepareHaptics() }
+                apply(presentation.updateGesture(
                     translationX: value.translation.width,
+                    at: CACurrentMediaTime(),
                     isPlaying: engine.state == .playing,
                     currentIndex: engine.currentIndex,
-                    wordCount: engine.totalWords
-                ) {
-                    engine.seek(to: update.targetIndex)
-                    if !hasScrubbed { hasScrubbed = true }
-                    if update.shouldProduceHaptic {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    }
-                }
+                    wordCount: engine.totalWords,
+                    track: scrubTrack
+                ))
             }
             .onEnded { _ in
-                if presentation.endGesture() == .togglePlayback {
+                let track = scrubTrack
+                let interaction = presentation.endGesture(at: CACurrentMediaTime(), track: track)
+                if interaction == .togglePlayback {
                     togglePlayback()
                 }
+                guard presentation.isAnimating else { return }
+                scrubDriver.run { now in
+                    apply(presentation.advance(at: now, track: track))
+                    return presentation.isAnimating
+                }
             }
+    }
+
+    private func apply(_ update: RSVPScrubUpdate?) {
+        guard let update else { return }
+        if update.wordDelta != 0 {
+            engine.seek(to: update.targetIndex)
+            if !hasScrubbed { hasScrubbed = true }
+        }
+        if let haptic = update.haptic { scrubDriver.play(haptic) }
     }
 
     // MARK: - Actions
@@ -481,5 +515,49 @@ struct RSVPView: View {
         withAnimation(.easeOut(duration: ReaderConfig.RSVP.feedbackFadeDuration)) {
             _ = presentation.requestFeedback(.highlight)
         }
+    }
+}
+
+/// Runs the scrub's motion after the finger lifts on the display's frames, and plays its haptics:
+/// a tick for each word that reaches the guides, a knock at either end of the book.
+@MainActor
+private final class RSVPScrubDriver: NSObject {
+    private var link: CADisplayLink?
+    private var onFrame: ((TimeInterval) -> Bool)?
+    private let tick = UISelectionFeedbackGenerator()
+    private let knock = UIImpactFeedbackGenerator(style: .rigid)
+
+    func prepareHaptics() {
+        tick.prepare()
+        knock.prepare()
+    }
+
+    func play(_ haptic: RSVPScrubHaptic) {
+        switch haptic {
+        case .word:
+            tick.selectionChanged()
+            tick.prepare()
+        case .edge:
+            knock.impactOccurred()
+        }
+    }
+
+    /// Calls `onFrame` with each frame's time until it returns false.
+    func run(_ onFrame: @escaping (TimeInterval) -> Bool) {
+        self.onFrame = onFrame
+        guard link == nil else { return }
+        let link = CADisplayLink(target: self, selector: #selector(step))
+        link.add(to: .main, forMode: .common)
+        self.link = link
+    }
+
+    func stop() {
+        link?.invalidate()
+        link = nil
+        onFrame = nil
+    }
+
+    @objc private func step(_ link: CADisplayLink) {
+        if onFrame?(link.targetTimestamp) != true { stop() }
     }
 }

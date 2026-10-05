@@ -1,13 +1,15 @@
 //  RSVPWordView.swift
 import SwiftUI
 
-struct RSVPWordView: View, Animatable {
+struct RSVPWordView: View {
     let segments: ORPCalculator.WordSegments
     let fontSize: CGFloat
     /// The passages around the word, outermost first; their marks are drawn faintly above it.
     let enclosures: [TextEnclosure]
     /// The words around this one while dragging; hidden while reading.
-    var strip: RSVPWordStrip
+    let strip: RSVPWordStrip
+    /// Either side of the word, so the strip's drawable width is the view's width less twice this.
+    static let horizontalPadding: CGFloat = 16
 
     init(
         segments: ORPCalculator.WordSegments,
@@ -19,15 +21,6 @@ struct RSVPWordView: View, Animatable {
         self.fontSize = fontSize
         self.enclosures = enclosures
         self.strip = strip
-    }
-
-    /// The strip glides back to the guides and fades when the finger lifts.
-    var animatableData: AnimatablePair<CGFloat, Double> {
-        get { AnimatablePair(strip.offset, strip.opacity) }
-        set {
-            strip.offset = newValue.first
-            strip.opacity = newValue.second
-        }
     }
 
     var body: some View {
@@ -64,7 +57,7 @@ struct RSVPWordView: View, Animatable {
             .frame(height: fontSize * 1.5)
             guideMark
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, Self.horizontalPadding)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(segments.before + segments.focus + segments.after)
     }

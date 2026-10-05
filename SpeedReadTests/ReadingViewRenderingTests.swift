@@ -68,9 +68,10 @@ struct ReadingViewRenderingTests {
         #expect(ReaderConfig.Classic.fontSizeRange.contains(ReaderConfig.Classic.defaultFontSize))
         #expect(ReaderConfig.Classic.lineSpacingRange.contains(ReaderConfig.Classic.defaultLineSpacing))
         #expect(ReaderConfig.Classic.rsvpTransitionDelay < ReaderConfig.Classic.wordFlashDuration)
-        #expect(ReaderConfig.RSVP.scrubActivationDistance < ReaderConfig.RSVP.basePointsPerWord)
+        #expect(ReaderConfig.RSVP.scrubActivationDistance > 0)
         #expect(ReaderConfig.RSVP.wpmStep > 0)
-        #expect(ReaderConfig.RSVP.hapticWordInterval > 0)
+        #expect(ReaderConfig.RSVP.settleDuration <= ReaderConfig.RSVP.flingDurationRange.lowerBound)
+        #expect(ReaderConfig.RSVP.flingMinimumVelocity > 0 && ReaderConfig.RSVP.flingMaximumWords > 0)
     }
 
     @Test func readerViewReadingEstimateClampsSpeedAndReportsFinishBranch() {

@@ -49,7 +49,7 @@ struct ChapterNavigationTests {
         presentation.load(book: book, engine: engine, wpm: 300)
         #expect(engine.currentIndex == 4)
         #expect(navigation.current(at: engine.currentIndex)?.title == "Ending")
-        let update = try #require(presentation.updateGesture(translationX: 24, isPlaying: false, currentIndex: engine.currentIndex, wordCount: engine.totalWords))
+        let update = try #require(presentation.updateGesture(translationX: 400, at: 0, isPlaying: false, currentIndex: engine.currentIndex, wordCount: engine.totalWords, track: RSVPScrubTrack(words: presentation.cachedWords, advance: 20, availableWidth: 400)))
         engine.seek(to: update.targetIndex)
         #expect(navigation.current(at: engine.currentIndex)?.title == "Opening")
         let scrubbedTo = engine.currentIndex

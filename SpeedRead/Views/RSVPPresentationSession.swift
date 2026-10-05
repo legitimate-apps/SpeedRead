@@ -8,21 +8,31 @@ enum RSVPDisplayInteraction: Equatable {
     case scrubbed
 }
 
-/// A drag through the book, from the moment it moves far enough to be one.
+/// A drag through the book, from the moment it moves far enough to be one until the line of
+/// words has landed and faded.
 struct RSVPScrubState: Equatable {
     /// The word the drag started on.
     let startIndex: Int
     /// How far the line of words is dragged past the current word, in words: positive is
     /// toward the next word. The current word is always the nearest, so this stays within a half.
     var offset: CGFloat
+    /// 1 while the line is held or moving; falls to 0 as it fades out after landing.
+    var opacity: Double = 1
+    /// Points the line has given past an end of the book, toward the next word when positive.
+    var stretch: CGFloat = 0
+}
+
+enum RSVPScrubHaptic: Equatable {
+    /// The guides passed to another word.
+    case word
+    /// The line ran into the start or end of the book.
+    case edge
 }
 
 struct RSVPScrubUpdate: Equatable {
     let targetIndex: Int
     let wordDelta: Int
-    let velocity: CGFloat
-    let effectivePointsPerWord: CGFloat
-    let shouldProduceHaptic: Bool
+    let haptic: RSVPScrubHaptic?
 }
 
 enum RSVPFeedbackKind: Equatable {
@@ -55,10 +65,17 @@ final class RSVPPresentationSession {
     private(set) var scrub: RSVPScrubState?
 
     private var lastDragX: CGFloat = 0
-    private var dragAccumulator: CGFloat = 0
-    private var lastDragTime: Date?
-    private var dragVelocity: CGFloat = 0
     private var maximumTranslation: CGFloat = 0
+    private var line: RSVPScrubPosition?
+    private var glide: RSVPScrubGlide?
+    private var fadeStart: TimeInterval?
+    /// The touch stopped a glide, so lifting it settles the line instead of toggling playback.
+    private var caughtGlide = false
+    /// Points the finger has pulled the line past an end of the book.
+    private var stretch: CGFloat = 0
+    /// When the finger let go of a stretched line, and how far it was pulled then.
+    private var stretchRelease: (start: TimeInterval, points: CGFloat)?
+    private var releaseVelocity = RSVPReleaseVelocity()
     private var nextFeedbackID = 0
     private var didCommitClose = false
     private var positionCommitPolicy = PlaybackPositionCommitPolicy()
@@ -296,71 +313,124 @@ final class RSVPPresentationSession {
         feedbackFlash = nil
     }
 
+    /// The line of words is still moving or fading after the finger lifted: call `advance` each frame.
+    var isAnimating: Bool { glide != nil || fadeStart != nil || stretchRelease != nil }
+
+    /// A touch on the word. The line follows the finger exactly once the touch has moved far enough
+    /// to be a drag; a touch during a glide stops the line where it is, like a scroll view.
     func updateGesture(
         translationX: CGFloat,
-        at now: Date = Date(),
+        at now: TimeInterval,
         isPlaying: Bool,
         currentIndex: Int,
-        wordCount: Int
+        wordCount: Int,
+        track: RSVPScrubTrack
     ) -> RSVPScrubUpdate? {
+        if fadeStart != nil {
+            fadeStart = nil
+            line = nil
+            scrub = nil
+        }
+        stretchRelease = nil
+        releaseVelocity.record(translationX, at: now)
+        // The word last reported, so a word reached between frames is not lost to the catch.
+        let before = line?.index ?? currentIndex
+        if let moving = glide {
+            line = moving.position(at: now, on: track)
+            glide = nil
+            caughtGlide = true
+        }
         maximumTranslation = max(maximumTranslation, abs(translationX))
         guard !isPlaying,
               wordCount > 0,
-              maximumTranslation >= ReaderConfig.RSVP.scrubActivationDistance else {
+              caughtGlide || maximumTranslation >= ReaderConfig.RSVP.scrubActivationDistance else {
             return nil
         }
 
-        let deltaX = -(translationX - lastDragX)
-        if let lastDragTime {
-            let deltaTime = now.timeIntervalSince(lastDragTime)
-            if deltaTime > 0 {
-                dragVelocity = abs(deltaX / CGFloat(deltaTime))
-            }
-        }
-
-        let velocityFactor = min(
-            dragVelocity / ReaderConfig.RSVP.velocityPointsPerSecond,
-            ReaderConfig.RSVP.maximumVelocityMultiplier / ReaderConfig.RSVP.basePointsPerWord
-        )
-        let effectivePointsPerWord = ReaderConfig.RSVP.basePointsPerWord / max(1, velocityFactor)
-
-        dragAccumulator += deltaX
-        // Nearest, not truncated: the word shown is the one closest to the guides, so the line
-        // of words can follow the finger and hand over at the halfway point.
-        let wordDelta = Int((dragAccumulator / effectivePointsPerWord).rounded())
+        var position = line ?? RSVPScrubPosition(index: currentIndex)
+        var points = -(translationX - lastDragX)
         lastDragX = translationX
-        lastDragTime = now
-        let startIndex = scrub?.startIndex ?? currentIndex
-        dragAccumulator -= CGFloat(wordDelta) * effectivePointsPerWord
-        let target = ReadingPositionCoordinator.clampedIndex(currentIndex + wordDelta, wordCount: wordCount)
-        var offset = dragAccumulator / effectivePointsPerWord
-        // There is nothing to drag toward past either end of the book.
-        if (offset > 0 && target == wordCount - 1) || (offset < 0 && target == 0) {
-            offset = 0
+        let wasStretched = stretch != 0
+        // Coming back from past an end takes up the stretch before the line moves.
+        if wasStretched, (points > 0) != (stretch > 0) {
+            let taken = min(abs(points), abs(stretch))
+            stretch += stretch > 0 ? -taken : taken
+            points += points > 0 ? -taken : taken
         }
-        scrub = RSVPScrubState(startIndex: startIndex, offset: offset)
+        stretch += position.move(by: points, on: track)
+        line = position
+        scrub = RSVPScrubState(
+            startIndex: scrub?.startIndex ?? before,
+            offset: position.offset(on: track),
+            stretch: RSVPScrubStretch.displayed(stretch)
+        )
 
-        guard wordDelta != 0 else { return nil }
+        let hitEdge = stretch != 0 && !wasStretched
+        let wordDelta = position.index - before
+        guard wordDelta != 0 || hitEdge else { return nil }
         return RSVPScrubUpdate(
-            targetIndex: target,
+            targetIndex: position.index,
             wordDelta: wordDelta,
-            velocity: dragVelocity,
-            effectivePointsPerWord: effectivePointsPerWord,
-            shouldProduceHaptic: abs(wordDelta) >= ReaderConfig.RSVP.hapticWordInterval
-                || target % ReaderConfig.RSVP.hapticWordInterval == 0
+            haptic: hitEdge ? .edge : .word
         )
     }
 
-    func endGesture() -> RSVPDisplayInteraction {
-        let interaction: RSVPDisplayInteraction = maximumTranslation >= ReaderConfig.RSVP.scrubActivationDistance
+    /// The finger lifted. A drag carries on as a glide at the speed the finger left at; a touch
+    /// that never moved toggles playback.
+    func endGesture(at now: TimeInterval, track: RSVPScrubTrack) -> RSVPDisplayInteraction {
+        let interaction: RSVPDisplayInteraction =
+            caughtGlide || maximumTranslation >= ReaderConfig.RSVP.scrubActivationDistance
             ? .scrubbed
             : .togglePlayback
+        if let position = line {
+            // The finger moving left moves the line toward the next word.
+            glide = RSVPScrubGlide(from: position, velocity: -releaseVelocity.velocity(at: now), at: now, on: track)
+        }
+        if stretch != 0 {
+            stretchRelease = (now, stretch)
+            stretch = 0
+        }
         lastDragX = 0
-        dragAccumulator = 0
-        lastDragTime = nil
-        dragVelocity = 0
         maximumTranslation = 0
-        scrub = nil
+        caughtGlide = false
+        releaseVelocity = RSVPReleaseVelocity()
         return interaction
+    }
+
+    /// One frame of the line's motion after the finger lifted.
+    func advance(at now: TimeInterval, track: RSVPScrubTrack) -> RSVPScrubUpdate? {
+        if let release = stretchRelease {
+            // A line pulled past an end springs back onto it.
+            let t = min(1, (now - release.start) / ReaderConfig.RSVP.settleDuration)
+            scrub?.stretch = RSVPScrubStretch.displayed(release.points * CGFloat(pow(1 - t, 3)))
+            if t >= 1 { stretchRelease = nil }
+        }
+        if let moving = glide {
+            let before = line?.index ?? moving.origin.index
+            let position = moving.position(at: now, on: track)
+            line = position
+            scrub = RSVPScrubState(
+                startIndex: scrub?.startIndex ?? moving.origin.index,
+                offset: position.offset(on: track),
+                stretch: scrub?.stretch ?? 0
+            )
+            if moving.isFinished(at: now) {
+                glide = nil
+                fadeStart = now
+            }
+            let wordDelta = position.index - before
+            return wordDelta == 0 ? nil : RSVPScrubUpdate(targetIndex: position.index, wordDelta: wordDelta, haptic: .word)
+        }
+        if let fadeStart {
+            let faded = (now - fadeStart) / ReaderConfig.RSVP.stripFadeDuration
+            if faded >= 1 {
+                self.fadeStart = nil
+                line = nil
+                scrub = nil
+            } else {
+                scrub?.opacity = 1 - faded
+            }
+        }
+        return nil
     }
 }

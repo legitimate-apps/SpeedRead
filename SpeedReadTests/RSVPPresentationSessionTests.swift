@@ -255,226 +255,279 @@ struct RSVPPresentationSessionTests {
         #expect(session.feedbackFlash == nil)
     }
 
-    @Test("B4: a new gesture cannot inherit velocity from the previous gesture")
-    func newGestureResetsItsVelocityBaseline() throws {
+    /// A hundred five-letter words, 20 points a character: every pivot is 120 points from the next.
+    private let track = RSVPScrubTrack(
+        words: Array(repeating: "words", count: 100), advance: 20, availableWidth: 400)
+    private let wordTravel: CGFloat = 120
+
+    private func drag(
+        _ session: RSVPPresentationSession,
+        to translationX: CGFloat,
+        at now: TimeInterval = 0,
+        isPlaying: Bool = false,
+        from currentIndex: Int,
+        wordCount: Int = 100
+    ) -> RSVPScrubUpdate? {
+        session.updateGesture(
+            translationX: translationX, at: now, isPlaying: isPlaying,
+            currentIndex: currentIndex, wordCount: wordCount, track: track)
+    }
+
+    /// A drag that leaves at speed: the finger moves from rest to `translationX` in the 20 ms
+    /// before `now`, so it lifts at `translationX / 0.02` points a second.
+    private func flick(_ session: RSVPPresentationSession, to translationX: CGFloat, at now: TimeInterval, from index: Int) {
+        _ = drag(session, to: 0, at: now - 0.02, from: index)
+        _ = drag(session, to: translationX, at: now, from: index)
+    }
+
+    /// Runs the motion after release frame by frame, as the display link does, collecting updates.
+    private func runUntilStill(_ session: RSVPPresentationSession, from start: TimeInterval) -> [RSVPScrubUpdate] {
+        var updates: [RSVPScrubUpdate] = []
+        var now = start
+        while session.isAnimating, now < start + 5 {
+            now += 1.0 / 60
+            if let update = session.advance(at: now, track: track) { updates.append(update) }
+        }
+        return updates
+    }
+
+    @Test("B4: a new gesture starts from the finger, not from where the last one left the line")
+    func newGestureStartsFromItsOwnTouch() throws {
         let session = RSVPPresentationSession()
-        let firstTime = Date(timeIntervalSince1970: 1_000)
+        let first = try #require(drag(session, to: -250, from: 50))
+        #expect(first.targetIndex == 52)
+        _ = session.endGesture(at: 0, track: track)
+        _ = runUntilStill(session, from: 0)
+        #expect(session.scrub == nil)
 
-        let first = try #require(session.updateGesture(
-            translationX: -2 * ReaderConfig.RSVP.basePointsPerWord,
-            at: firstTime,
-            isPlaying: false,
-            currentIndex: 50,
-            wordCount: 100
-        ))
-        #expect(first.wordDelta == 2)
-        #expect(first.effectivePointsPerWord == ReaderConfig.RSVP.basePointsPerWord)
-        _ = session.endGesture()
-
-        let second = try #require(session.updateGesture(
-            translationX: -2 * ReaderConfig.RSVP.basePointsPerWord,
-            at: firstTime.addingTimeInterval(0.01),
-            isPlaying: false,
-            currentIndex: first.targetIndex,
-            wordCount: 100
-        ))
-
-        #expect(second.wordDelta == 2)
-        #expect(second.velocity == 0)
-        #expect(second.effectivePointsPerWord == ReaderConfig.RSVP.basePointsPerWord)
+        #expect(drag(session, to: -30, at: 10, from: first.targetIndex) == nil)
+        let second = try #require(session.scrub)
+        #expect(second.startIndex == 52)
+        #expect(abs(second.offset - 30 / wordTravel) < 0.0001)
     }
 
     @Test("B15: a quick swipe is scrub-only and never routed as a tap")
     func quickSwipeDoesNotTogglePlayback() {
         let session = RSVPPresentationSession()
-        _ = session.updateGesture(
-            translationX: -12,
-            at: Date(timeIntervalSince1970: 2_000),
-            isPlaying: false,
-            currentIndex: 10,
-            wordCount: 100
-        )
-
-        #expect(session.endGesture() == .scrubbed)
+        _ = drag(session, to: -12, from: 10)
+        #expect(session.endGesture(at: 0, track: track) == .scrubbed)
     }
 
     @Test func stationaryTouchRoutesToPlayPause() {
         let session = RSVPPresentationSession()
-        _ = session.updateGesture(
-            translationX: -2,
-            at: Date(timeIntervalSince1970: 3_000),
-            isPlaying: false,
-            currentIndex: 10,
-            wordCount: 100
-        )
-
-        #expect(session.endGesture() == .togglePlayback)
+        _ = drag(session, to: -2, from: 10)
+        #expect(session.endGesture(at: 0, track: track) == .togglePlayback)
+        #expect(!session.isAnimating)
     }
 
     @Test func scrubDirectionAndBoundsUseWordCoordinates() throws {
-        let forward = RSVPPresentationSession()
-        let forwardUpdate = try #require(forward.updateGesture(
-            translationX: -80,
-            isPlaying: false,
-            currentIndex: 95,
-            wordCount: 100
-        ))
-        #expect(forwardUpdate.targetIndex == 99)
-        #expect(forwardUpdate.wordDelta > 0)
+        let forward = try #require(drag(RSVPPresentationSession(), to: -800, from: 95))
+        #expect(forward.targetIndex == 99)
+        #expect(forward.wordDelta == 4)
 
-        let backward = RSVPPresentationSession()
-        let backwardUpdate = try #require(backward.updateGesture(
-            translationX: 80,
-            isPlaying: false,
-            currentIndex: 3,
-            wordCount: 100
-        ))
-        #expect(backwardUpdate.targetIndex == 0)
-        #expect(backwardUpdate.wordDelta < 0)
+        let backward = try #require(drag(RSVPPresentationSession(), to: 800, from: 3))
+        #expect(backward.targetIndex == 0)
+        #expect(backward.wordDelta == -3)
     }
 
     @Test func subThresholdMovementDoesNotSeek() {
         let session = RSVPPresentationSession()
-        let update = session.updateGesture(
-            translationX: ReaderConfig.RSVP.scrubActivationDistance - 1,
-            isPlaying: false,
-            currentIndex: 5,
-            wordCount: 10
-        )
-
-        #expect(update == nil)
-        #expect(session.endGesture() == .togglePlayback)
+        #expect(drag(session, to: ReaderConfig.RSVP.scrubActivationDistance - 1, from: 5, wordCount: 10) == nil)
+        #expect(session.scrub == nil)
+        #expect(session.endGesture(at: 0, track: track) == .togglePlayback)
     }
 
-    @Test func zeroElapsedTimeKeepsBaseScrubResolution() throws {
+    @Test func theLineMovesExactlyWithTheFinger() throws {
+        // Mutations: a points-per-word constant instead of the track (the line outruns the finger),
+        // or truncating instead of handing over at the halfway point.
         let session = RSVPPresentationSession()
-        let now = Date(timeIntervalSince1970: 5_000)
-        _ = try #require(session.updateGesture(
-            translationX: -ReaderConfig.RSVP.basePointsPerWord,
-            at: now,
-            isPlaying: false,
-            currentIndex: 10,
-            wordCount: 100
-        ))
-
-        let update = try #require(session.updateGesture(
-            translationX: -2 * ReaderConfig.RSVP.basePointsPerWord,
-            at: now,
-            isPlaying: false,
-            currentIndex: 11,
-            wordCount: 100
-        ))
-
-        #expect(update.velocity == 0)
-        #expect(update.effectivePointsPerWord == ReaderConfig.RSVP.basePointsPerWord)
-        #expect(update.wordDelta == 1)
-    }
-
-    @Test func withinGestureVelocityAcceleratesAndCapsScrubResolution() throws {
-        let session = RSVPPresentationSession()
-        let start = Date(timeIntervalSince1970: 6_000)
-        _ = try #require(session.updateGesture(
-            translationX: -8,
-            at: start,
-            isPlaying: false,
-            currentIndex: 10,
-            wordCount: 1_000
-        ))
-
-        let accelerated = try #require(session.updateGesture(
-            translationX: -24,
-            at: start.addingTimeInterval(0.01),
-            isPlaying: false,
-            currentIndex: 11,
-            wordCount: 1_000
-        ))
-        #expect(accelerated.velocity > ReaderConfig.RSVP.velocityPointsPerSecond)
-        #expect(accelerated.effectivePointsPerWord < ReaderConfig.RSVP.basePointsPerWord)
-
-        let capped = try #require(session.updateGesture(
-            translationX: -124,
-            at: start.addingTimeInterval(0.011),
-            isPlaying: false,
-            currentIndex: accelerated.targetIndex,
-            wordCount: 1_000
-        ))
-        let minimumPointsPerWord = ReaderConfig.RSVP.basePointsPerWord
-            / (ReaderConfig.RSVP.maximumVelocityMultiplier / ReaderConfig.RSVP.basePointsPerWord)
-        #expect(abs(capped.effectivePointsPerWord - minimumPointsPerWord) < 0.0001)
-        #expect(capped.wordDelta > accelerated.wordDelta)
-    }
-
-    @Test func theScrubTracksWhereTheLineOfWordsIsBetweenWords() throws {
-        // Mutations: truncate instead of rounding (the strip would drag a full word before the
-        // next one is shown), or reset the start each update (the caption would count from 0).
-        let session = RSVPPresentationSession()
-        let base = ReaderConfig.RSVP.basePointsPerWord
-        let start = Date(timeIntervalSince1970: 7_000)
         #expect(session.scrub == nil)
 
-        // Under half a word: still on word 10, the line dragged most of the way to word 11.
-        #expect(session.updateGesture(
-            translationX: -0.43 * base, at: start, isPlaying: false, currentIndex: 10, wordCount: 100
-        ) == nil)
-        let partial = try #require(session.scrub)
-        #expect(partial.startIndex == 10)
-        #expect(abs(partial.offset - 0.43) < 0.001)
+        // The strip appears as soon as the touch is a drag, before any word changes.
+        #expect(drag(session, to: -8, from: 10) == nil)
+        #expect(abs(try #require(session.scrub).offset - 8 / wordTravel) < 0.0001)
 
-        // Past half a word: word 11 is shown, and the line is still short of it.
-        let update = try #require(session.updateGesture(
-            translationX: -0.71 * base, at: start, isPlaying: false, currentIndex: 10, wordCount: 100))
+        // Just short of halfway: still word 10, the line dragged 59 points toward word 11.
+        #expect(drag(session, to: -59, from: 10) == nil)
+        #expect(abs(try #require(session.scrub).offset - 59 / wordTravel) < 0.0001)
+
+        // Past halfway: word 11 is on the guides, 59 points short of them.
+        let update = try #require(drag(session, to: -61, from: 10))
         #expect(update.targetIndex == 11)
+        #expect(update.haptic == .word)
         let past = try #require(session.scrub)
         #expect(past.startIndex == 10)
-        #expect(abs(past.offset - (-0.29)) < 0.001)
+        #expect(abs(past.offset - (-59 / wordTravel)) < 0.0001)
 
-        #expect(session.endGesture() == .scrubbed)
-        #expect(session.scrub == nil)
+        // Three and a bit words in one move: one update, one tick.
+        let jump = try #require(drag(session, to: -61 - 3 * wordTravel - 10, from: 11))
+        #expect(jump.targetIndex == 14)
+        #expect(jump.wordDelta == 3)
     }
 
-    @Test func theLineCannotBeDraggedPastEitherEndOfTheBook() throws {
-        let base = ReaderConfig.RSVP.basePointsPerWord
+    @Test func theLineStopsAtEitherEndOfTheBookWithOneKnockAndAVisibleStretch() throws {
+        // Mutation: drop the edge latch, and every frame against the end knocks again.
         let atEnd = RSVPPresentationSession()
-        _ = atEnd.updateGesture(translationX: -0.4 * base, isPlaying: false, currentIndex: 9, wordCount: 10)
+        let knock = try #require(drag(atEnd, to: -40, from: 99))
+        #expect(knock.haptic == .edge)
+        #expect(knock.wordDelta == 0)
         #expect(try #require(atEnd.scrub).offset == 0)
+        // Past the last word the line gives toward the next word that is not there.
+        #expect(try #require(atEnd.scrub).stretch == RSVPScrubStretch.displayed(40))
+        #expect(drag(atEnd, to: -90, from: 99) == nil)
+        #expect(try #require(atEnd.scrub).stretch == RSVPScrubStretch.displayed(90))
+        // Easing off takes up the stretch first and does not knock again.
+        #expect(drag(atEnd, to: -50, from: 99) == nil)
+        #expect(try #require(atEnd.scrub).stretch == RSVPScrubStretch.displayed(50))
+        // Coming fully back moves the line toward the previous word; returning knocks again.
+        #expect(drag(atEnd, to: 30, from: 99) == nil)
+        let away = try #require(atEnd.scrub)
+        #expect(away.stretch == 0)
+        #expect(abs(away.offset - (-30 / wordTravel)) < 0.0001)
+        #expect(drag(atEnd, to: -140, from: 99)?.haptic == .edge)
+        #expect(try #require(atEnd.scrub).stretch == RSVPScrubStretch.displayed(140))
 
+        // At the first word, dragging right (back) gives the other way: the user sees the end.
         let atStart = RSVPPresentationSession()
-        _ = atStart.updateGesture(translationX: 0.4 * base, isPlaying: false, currentIndex: 0, wordCount: 10)
-        #expect(try #require(atStart.scrub).offset == 0)
+        #expect(drag(atStart, to: 40, from: 0)?.haptic == .edge)
+        let start = try #require(atStart.scrub)
+        #expect(start.offset == 0)
+        #expect(start.stretch == RSVPScrubStretch.displayed(-40))
+        #expect(start.stretch < 0)
+    }
 
-        let inside = RSVPPresentationSession()
-        _ = inside.updateGesture(translationX: 0.4 * base, isPlaying: false, currentIndex: 5, wordCount: 10)
-        #expect(try #require(inside.scrub).offset < 0)
+    @Test func aStretchedLineSpringsBackOnceLetGo() throws {
+        // Mutation: never relax the stretch, and the line stays pulled off its word.
+        let session = RSVPPresentationSession()
+        _ = drag(session, to: 120, from: 0)
+        #expect(session.endGesture(at: 0, track: track) == .scrubbed)
+        var last = abs(try #require(session.scrub).stretch)
+        #expect(last > 0)
+        var now: TimeInterval = 0
+        while now < ReaderConfig.RSVP.settleDuration {
+            now += 1.0 / 60
+            #expect(session.advance(at: now, track: track) == nil)
+            let given = abs(session.scrub?.stretch ?? 0)
+            #expect(given <= last)
+            last = given
+        }
+        #expect(session.scrub?.stretch == 0)
+        _ = runUntilStill(session, from: now)
+        #expect(session.scrub == nil)
+        #expect(!session.isAnimating)
     }
 
     @Test func aTapOrADragWhilePlayingIsNotAScrub() {
         let tap = RSVPPresentationSession()
-        _ = tap.updateGesture(translationX: -2, isPlaying: false, currentIndex: 5, wordCount: 10)
+        _ = drag(tap, to: -2, from: 5, wordCount: 10)
         #expect(tap.scrub == nil)
 
         let playing = RSVPPresentationSession()
-        _ = playing.updateGesture(translationX: -80, isPlaying: true, currentIndex: 5, wordCount: 10)
+        _ = drag(playing, to: -80, isPlaying: true, from: 5, wordCount: 10)
         #expect(playing.scrub == nil)
     }
 
     @Test func playingAndEmptyStreamsCannotSeek() {
         let playing = RSVPPresentationSession()
-        #expect(playing.updateGesture(
-            translationX: -80,
-            isPlaying: true,
-            currentIndex: 5,
-            wordCount: 10
-        ) == nil)
-        #expect(playing.endGesture() == .scrubbed)
+        #expect(drag(playing, to: -300, isPlaying: true, from: 5, wordCount: 10) == nil)
+        #expect(playing.endGesture(at: 0, track: track) == .scrubbed)
+        #expect(!playing.isAnimating)
 
         let empty = RSVPPresentationSession()
         #expect(empty.updateGesture(
-            translationX: -80,
-            isPlaying: false,
-            currentIndex: 0,
-            wordCount: 0
-        ) == nil)
-        #expect(empty.endGesture() == .scrubbed)
+            translationX: -300, at: 0, isPlaying: false, currentIndex: 0, wordCount: 0,
+            track: RSVPScrubTrack(words: [], advance: 20, availableWidth: 400)) == nil)
+        #expect(empty.endGesture(at: 0, track: track) == .scrubbed)
+        #expect(!empty.isAnimating)
+    }
+
+    @Test func aFlickGlidesOnTickingWordByWordThenLandsAndFades() throws {
+        let session = RSVPPresentationSession()
+        flick(session, to: -50, at: 1, from: 30)
+        #expect(session.endGesture(at: 1, track: track) == .scrubbed)
+        #expect(session.isAnimating)
+
+        let updates = runUntilStill(session, from: 1)
+        #expect(!session.isAnimating)
+        #expect(session.scrub == nil)
+        // 2,500 points a second for 0.25 s is 625 points from 50 in: nearest is six words on.
+        let landed = try #require(updates.last).targetIndex
+        #expect(landed == 36)
+        #expect(updates.allSatisfy { $0.haptic == .word && $0.wordDelta > 0 })
+        #expect(updates.map(\.wordDelta).reduce(0, +) == 6)
+    }
+
+    @Test func theStripFadesOutAfterLanding() throws {
+        let session = RSVPPresentationSession()
+        _ = drag(session, to: -20, from: 30)
+        _ = session.endGesture(at: 0, track: track)
+        // Settling back onto word 30 takes the settle duration; then the fade.
+        _ = session.advance(at: ReaderConfig.RSVP.settleDuration, track: track)
+        #expect(try #require(session.scrub).offset == 0)
+        let fadeStart = ReaderConfig.RSVP.settleDuration
+        _ = session.advance(at: fadeStart + ReaderConfig.RSVP.stripFadeDuration / 2, track: track)
+        let halfway = try #require(session.scrub).opacity
+        #expect(halfway > 0.4 && halfway < 0.6)
+        _ = session.advance(at: fadeStart + ReaderConfig.RSVP.stripFadeDuration + 0.001, track: track)
+        #expect(session.scrub == nil)
+        #expect(!session.isAnimating)
+    }
+
+    @Test func aTouchDuringAGlideCatchesTheLineAndDoesNotPlay() throws {
+        // Mutation: let the caught touch fall through as a tap, and stopping a glide starts reading.
+        let session = RSVPPresentationSession()
+        flick(session, to: -50, at: 0, from: 30)
+        _ = session.endGesture(at: 0, track: track)
+        let lastFrame = try #require(session.advance(at: 0.15, track: track)).targetIndex
+        #expect(lastFrame == 33)
+
+        // The line moved on between the last frame and the touch: the words it crossed are reported.
+        // Mutation: count the catch's words from the caught position, and the reader misses them.
+        let caught = try #require(drag(session, to: 0, at: 0.3, from: lastFrame))
+        #expect(caught.targetIndex == 35)
+        #expect(caught.wordDelta == 2)
+        #expect(!session.isAnimating)
+        #expect(session.endGesture(at: 0.31, track: track) == .scrubbed)
+        // Settles onto the word it was caught on, never on past it.
+        let rest = runUntilStill(session, from: 0.31)
+        #expect(rest.allSatisfy { $0.targetIndex == 35 })
+        #expect(session.scrub == nil)
+    }
+
+    @Test func aSuddenLastTouchEventCannotFlingASlowDrag() throws {
+        // A slow drag (100 points a second, at 60 Hz) whose last event lands a millisecond after
+        // the one before, 6 points on. Measured from those two alone that is 6,000 points a
+        // second, a fling of tens of words: a reader rereading one word would be thrown off.
+        // Mutation: measure from the last two events, and the line flies.
+        let session = RSVPPresentationSession()
+        var x: CGFloat = 0
+        var now: TimeInterval = 0
+        for _ in 0..<30 {
+            now += 1.0 / 60
+            x -= 100.0 / 60
+            _ = drag(session, to: x, at: now, from: 30)
+        }
+        now += 0.001
+        x -= 6
+        let held = drag(session, to: x, at: now, from: 30)
+        #expect(held == nil)
+        #expect(session.endGesture(at: now, track: track) == .scrubbed)
+        let updates = runUntilStill(session, from: now)
+        // The finger left the line 56 points along: under half a word, so it settles back on 30.
+        #expect(updates.isEmpty)
+        #expect(session.scrub == nil)
+    }
+
+    @Test func aTapWhileTheStripFadesIsATap() {
+        let session = RSVPPresentationSession()
+        _ = drag(session, to: -20, from: 30)
+        _ = session.endGesture(at: 0, track: track)
+        _ = session.advance(at: ReaderConfig.RSVP.settleDuration, track: track)
+        #expect(session.isAnimating)
+
+        _ = drag(session, to: 0, at: ReaderConfig.RSVP.settleDuration + 0.01, from: 30)
+        #expect(session.scrub == nil)
+        #expect(session.endGesture(at: 1, track: track) == .togglePlayback)
     }
 
     @Test func pauseCommitsTheVisibleIndexWhichReleasesTheOtherDevice() throws {

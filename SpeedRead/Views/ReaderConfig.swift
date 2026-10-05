@@ -21,13 +21,25 @@ enum ReaderConfig {
         static let defaultWPM = 300
         static let minimumEstimateWPM = 60
         static let wpmStep = 25
-        /// A slow drag moves a word per this many points, so a word at a time can be picked out;
-        /// faster drags accelerate down to `basePointsPerWord² / maximumVelocityMultiplier`
-        /// (about 1.3 points a word), the speed scrubbing had before the strip was drawn.
-        static let basePointsPerWord: CGFloat = 14
-        static let velocityPointsPerSecond: CGFloat = 300
-        static let maximumVelocityMultiplier: CGFloat = 150
-        static let hapticWordInterval = 10
+        /// A drag moves the line of words exactly with the finger. When it lifts, the line carries
+        /// on as far as the finger would have gone in `flingProjection` seconds at the speed it
+        /// left at, and lands on the nearest word; slower than `flingMinimumVelocity` (points a
+        /// second) it settles onto the word on the guides instead.
+        nonisolated static let flingProjection: TimeInterval = 0.25
+        nonisolated static let flingMinimumVelocity: CGFloat = 300
+        nonisolated static let flingDurationRange: ClosedRange<TimeInterval> = 0.25...1.1
+        /// A runaway bound on how many words one fling may cross.
+        nonisolated static let flingMaximumWords = 60
+        nonisolated static let settleDuration: TimeInterval = 0.2
+        /// After landing, the words either side fade out over this long.
+        nonisolated static let stripFadeDuration: TimeInterval = 0.18
+        /// The finger's speed at release is measured over its last `releaseVelocityWindow` seconds,
+        /// never over less than a frame, and capped: one late touch event cannot fling the line.
+        nonisolated static let releaseVelocityWindow: TimeInterval = 0.05
+        nonisolated static let releaseVelocityMinimumSpan: TimeInterval = 1.0 / 60
+        nonisolated static let flingMaximumVelocity: CGFloat = 4_000
+        /// The most the line gives, in points, when dragged past either end of the book.
+        nonisolated static let edgeStretchLimit: CGFloat = 60
         static let scrubActivationDistance: CGFloat = 5
         static let controlPanelHeight: CGFloat = 160
         static let controlPanelBottomPadding: CGFloat = 20

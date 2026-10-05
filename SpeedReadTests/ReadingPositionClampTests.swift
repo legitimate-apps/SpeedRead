@@ -36,7 +36,8 @@ struct ReadingPositionClampTests {
         // Mutation: remove either side of the gesture target clamp.
         let session = RSVPPresentationSession()
         let update = try #require(session.updateGesture(
-            translationX: translation, isPlaying: false, currentIndex: 1, wordCount: 3))
+            translationX: translation, at: 0, isPlaying: false, currentIndex: 1, wordCount: 3,
+            track: RSVPScrubTrack(words: ["zero", "one", "two"], advance: 20, availableWidth: 400)))
         #expect(update.targetIndex == (translation < 0 ? 2 : 0))
     }
 
