@@ -56,7 +56,11 @@ jobs:
         run: Scripts/honesty-gates.sh
       - name: External volume mounted (failure artifacts)
         run: |
-          if [ ! -d "/Volumes/Crucial X8" ]; then
+          # mbp-build has no X8; its runner's .env sets SPEEDREAD_FAILURE_ARTIFACT_DIR, which the lane scripts use.
+          if [ -n "${SPEEDREAD_FAILURE_ARTIFACT_DIR:-}" ]; then
+            mkdir -p "$SPEEDREAD_FAILURE_ARTIFACT_DIR"
+            echo "failure artifacts: $SPEEDREAD_FAILURE_ARTIFACT_DIR"
+          elif [ ! -d "/Volumes/Crucial X8" ]; then
             echo "::error::/Volumes/Crucial X8 is not mounted — failure artifacts (lane logs, result bundles) have nowhere to go."
             exit 1
           fi
@@ -166,7 +170,11 @@ jobs:
       # hangs xcodebuild (see the env block); this guard now protects the failure-artifact path.
       - name: External volume mounted (failure artifacts)
         run: |
-          if [ ! -d "/Volumes/Crucial X8" ]; then
+          # mbp-build has no X8; its runner's .env sets SPEEDREAD_FAILURE_ARTIFACT_DIR, which the lane scripts use.
+          if [ -n "${SPEEDREAD_FAILURE_ARTIFACT_DIR:-}" ]; then
+            mkdir -p "$SPEEDREAD_FAILURE_ARTIFACT_DIR"
+            echo "failure artifacts: $SPEEDREAD_FAILURE_ARTIFACT_DIR"
+          elif [ ! -d "/Volumes/Crucial X8" ]; then
             echo "::error::/Volumes/Crucial X8 is not mounted — failure artifacts (lane logs, result bundles) have nowhere to go."
             exit 1
           fi
