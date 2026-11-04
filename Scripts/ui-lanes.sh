@@ -335,6 +335,17 @@ run_lane() {
   fi
 
   echo "  $label: $executed tests executed"
+
+  # Which OS that was, read from the result bundle. Only the iOS lane takes the requirement: the
+  # Studio has no watchOS 27 runtime, so its watch lane runs on watchOS 26.5.
+  local required_major=""
+  if [[ "$scheme" == "SpeedRead" ]]; then
+    required_major="${SPEEDREAD_REQUIRE_IOS_MAJOR:-}"
+  fi
+  if ! python3 "$script_dir/lane-runtime.py" "$result" --require-ios-major "$required_major"; then
+    preserve_failure_evidence "$label" "$log" "$result"
+    failures=$((failures + 1))
+  fi
 }
 
 activate_sim "$ios_udid"

@@ -210,6 +210,18 @@ Scripts/coverage.sh 90
 Scripts/ui-lanes.sh
 ```
 
+**CI has two hosts.** Pushes run headless on the MacBook (`mbp-build-speedread`, Xcode 26.3, iOS
+26.x), which keeps them off the Studio. The MacBook can't install Xcode 27, so a green push says
+nothing about iOS 27. Before a release, run the same jobs on the Studio (`speedread-mac`, Xcode 27,
+iOS 27), which is also what archives the release:
+
+```bash
+ghx workflow run CI --ref main -f ios27=true
+```
+
+That run sets `SPEEDREAD_REQUIRE_IOS_MAJOR=27`. The Studio has no watchOS 27 runtime, so its watch
+lanes run on watchOS 26.5.
+
 `Scripts/coverage.sh` accepts `SPEEDREAD_IOS_DESTINATION` and
 `SPEEDREAD_WATCH_DESTINATION` as complete xcodebuild destination strings. It also accepts
 `SPEEDREAD_DERIVED_DATA_PATH` and `SPEEDREAD_CLONED_SOURCE_PACKAGES_PATH`; otherwise it uses
@@ -220,7 +232,7 @@ Pre-allowed in `.claude/settings.local.json`: `Bash(xcodebuild test:*)`.
 ### Honesty gates — cheap, no simulator, run before any build
 
 ```bash
-Scripts/honesty-gates.sh    # runs all nine, cheapest first. RUN THIS BEFORE EVERY PUSH.
+Scripts/honesty-gates.sh    # runs all ten, cheapest first. RUN THIS BEFORE EVERY PUSH.
 ```
 
 It is the single list; CI runs the same script. Individually:
@@ -234,6 +246,7 @@ python3 Scripts/network-isolation-audit.py # no test-tree session can reach the 
 Scripts/executed-tests-control.sh         # the executed-test parser reports true counts
 python3 Scripts/attributable-coverage.py --self-test   # classifier reads code not comments; and
                                                        # holds non-shipping files out of the grade
+python3 Scripts/lane-runtime.py --self-test            # a lane's OS receipt fails when it can't be read
 python3 Scripts/doc-link-audit.py .       # every relative Markdown link resolves, headings included
 python3 Scripts/doc-link-audit.py --self-test          # and the link gate is proven in both directions
 ```
@@ -274,6 +287,11 @@ inflates confidence, and this project's whole claim to honesty is its evidence t
 the reader at the top of the file and still looks like it worked. Its self-test asserts both
 directions, and it was proven against the real pre-fix tree, not only against fixtures it authored
 itself.
+
+A tenth thing is true of the OS: **a lane has to show which one it ran on.** A passing lane deletes
+its result bundle, and a test that branches on `#available` passes on either side, so a run meant
+to cover iOS 27 could land on an older runtime and stay green. `lane-runtime.py` prints the device
+and OS from each lane's own bundle, and fails an iOS lane that was required to reach another version.
 
 An eighth thing has to be true for a green lane to mean anything: **the tests have to be hermetic**.
 A suite that can reach the network is a suite whose result depends on someone else's server, and it
@@ -394,6 +412,15 @@ guarded by `didLoadSamples` state so it doesn't run on every `.task`.
 - **End-of-book progress.** `RSVPEngine.didFinish` is a separate flag from
   `currentIndex`. `progress` returns 1.0 when finished, even though `currentIndex` sits
   at `count - 1`.
+- **A hosted view outlives its test.** Any `ModelContainer` whose models reach a hosted view needs
+  `.keptAliveForHostedViews()` (`SpeedReadTests/HostedModelContainers.swift`). Without it a queued
+  `.task` or `.onDisappear` reads a `Book` after the container is gone, SwiftData traps, and the
+  test running by then takes the blame. Whether it happens depends on machine speed: this passed on
+  the Studio for months and crashed on the MacBook.
+- **PDFKit changed on OS 27, whatever SDK the app was built with.** Page text can hold U+FFFC, which
+  `AttachmentMarkers` removes, and a page's lines can come back in another order. `PDFDocument`'s
+  writer also drops the outline, while reading one still works, so a fixture that needs an outline
+  has to write its PDF by hand.
 - **`ContentView` reads onboarding from `@AppStorage`**, but UI tests pass it via
   `-hasCompletedOnboarding YES` launch arg (UserDefaults shadow). Both work.
 

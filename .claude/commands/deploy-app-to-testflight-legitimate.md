@@ -22,6 +22,11 @@ cd "$PROJECT_DIR" && xcodebuild test -project SpeedRead.xcodeproj -scheme SpeedR
 ```
 If any non-skipped test fails, STOP. The `engineReachesEndOfText` test is a 500ms-sleep timing flake unrelated to release readiness.
 
+   Then run the iOS 27 lane and wait for it to pass before archiving. Pushes only reach Xcode 26.3 on the MacBook, while this archive is built here with the Studio's Xcode 27, so this is the only CI that sees the SDK and OS the build ships on:
+```bash
+ghx workflow run CI --ref main -f ios27=true
+```
+
 2. **Bump versions if needed.** App Store Connect rejects new builds against an already-released `MARKETING_VERSION`. Before archiving, check:
 ```bash
 python3 - <<'PYEOF'

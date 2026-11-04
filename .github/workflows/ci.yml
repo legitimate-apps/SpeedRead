@@ -1,24 +1,38 @@
 name: CI
 
-# Runs on the operator's own Mac via the self-hosted `speedread-mac` runner. Never on
-# GitHub-hosted macOS — that bills at a 10x multiplier and was ~92% of one project's
-# Actions spend.
+# Pushes run headless on the MacBook build server (`mbp-build-speedread`, Xcode 26.3), which keeps
+# this load off the Studio. Never on GitHub-hosted macOS — that bills at a 10x multiplier and was
+# ~92% of one project's Actions spend.
+#
+# The MacBook can't install Xcode 27, so it never sees iOS 27. Before a release, run the same jobs
+# on the Studio (`speedread-mac`, Xcode 27), which is also what archives the release:
+#   ghx workflow run CI --ref main -f ios27=true
+# That run fails unless its iOS lanes really ran on iOS 27 (Scripts/lane-runtime.py).
 on:
   workflow_dispatch:
+    inputs:
+      ios27:
+        description: Run on the Studio with Xcode 27 and require iOS 27. Do this before a release.
+        type: boolean
+        default: false
   push:
     branches: [main]
   pull_request:
 
 # Rapid pushes must not pile Xcode builds onto a machine that also runs the operator's
-# other work. Newest push wins; older runs are cancelled.
+# other work. Newest push wins; older runs are cancelled. An iOS 27 run is on another host, so it
+# neither cancels a push's run nor gets cancelled by one.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ inputs.ios27 && 'ios27' || 'default' }}
   cancel-in-progress: true
+
+env:
+  SPEEDREAD_REQUIRE_IOS_MAJOR: ${{ inputs.ios27 && '27' || '' }}
 
 jobs:
   hermetic:
     name: Hermetic lanes + honesty gates
-    runs-on: [self-hosted, macOS, speedread]
+    runs-on: ${{ inputs.ios27 && fromJSON('["self-hosted","macOS","ARM64","speedread"]') || fromJSON('["self-hosted","macOS","mbp-build","speedread"]') }}
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -138,10 +152,10 @@ jobs:
 
   ui:
     name: UI lanes
-    runs-on: [self-hosted, macOS, speedread]
-    # Serial after the hermetic gate rather than parallel: this Mac cannot sustain more than
-    # about two concurrent simulator-driving agents, and it is also the operator's own
-    # machine. A UI lane that races the coverage lane gets both OS-killed.
+    runs-on: ${{ inputs.ios27 && fromJSON('["self-hosted","macOS","ARM64","speedread"]') || fromJSON('["self-hosted","macOS","mbp-build","speedread"]') }}
+    # Serial after the hermetic gate rather than parallel: the Studio cannot sustain more than
+    # about two concurrent simulator-driving agents, and both hosts are the operator's own
+    # machines. A UI lane that races the coverage lane gets both OS-killed.
     needs: hermetic
     timeout-minutes: 40
     steps:

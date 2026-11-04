@@ -58,6 +58,7 @@ run_gate "Shared sources are one file, not two"     python3 Scripts/shared-sourc
 run_gate "Test networking cannot reach the wire"   python3 Scripts/network-isolation-audit.py
 run_gate "Executed-test parser reports true counts" Scripts/executed-tests-control.sh
 run_gate "Coverage classifier ignores prose, not code" python3 Scripts/attributable-coverage.py --self-test
+run_gate "Lane-runtime receipt fails when unreadable" python3 Scripts/lane-runtime.py --self-test
 run_gate "Doc links name things that exist"         python3 Scripts/doc-link-audit.py .
 run_gate "Doc-link gate catches a real broken link" python3 Scripts/doc-link-audit.py --self-test
 
