@@ -154,7 +154,7 @@ struct LaunchSurfaceTests {
 
     private func memoryContainer() throws -> ModelContainer {
         try ModelContainer(for: Book.self, Bookmark.self, Highlight.self, OPDSServer.self,
-                           configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+                           configurations: ModelConfiguration(isStoredInMemoryOnly: true)).keptAliveForHostedViews()
     }
 
     // White-box invocation of the real Button action. UIKit/gesture dispatch is not asserted here.

@@ -12,7 +12,7 @@ struct LibraryViewRenderingTests {
         let container = try ModelContainer(
             for: Book.self, Bookmark.self, Highlight.self, OPDSServer.self,
             configurations: configuration
-        )
+        ).keptAliveForHostedViews()
         let root = LibraryView()
             .modelContainer(container)
             .environment(ThemeManager())
@@ -133,7 +133,7 @@ struct LibraryViewRenderingTests {
         return try ModelContainer(
             for: Book.self, Bookmark.self, Highlight.self, OPDSServer.self,
             configurations: configuration
-        )
+        ).keptAliveForHostedViews()
     }
 
     private func writeTemporaryTextFile(named: String, contents: String) throws -> URL {

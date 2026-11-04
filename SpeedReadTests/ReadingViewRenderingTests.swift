@@ -53,6 +53,34 @@ struct ReadingViewRenderingTests {
         #expect(host.view.bounds.height == 844)
     }
 
+    @Test func aReaderTornDownWithItsTaskQueuedLeavesTheBookReadable() async throws {
+        let (book, session) = try await hostAndTearDownReader()
+
+        // Nothing here holds the container or the host now. Whatever the torn-down reader left
+        // queued runs during these yields, and if the container had gone with the test's locals,
+        // reading the book would trap and take the test host down.
+        for _ in 0..<50 { await Task.yield() }
+
+        #expect(session.cachedWords == ["alpha", "beta", "gamma"])
+        #expect(book.lastReadWordIndex == 2)
+    }
+
+    private func hostAndTearDownReader() async throws -> (Book, ReaderSession) {
+        let (container, book) = try makeStoredBook(text: "alpha beta gamma", index: 2)
+        let session = ReaderSession()
+        let host = UIHostingController(rootView: ReaderView(book: book, session: session)
+            .modelContainer(container)
+            .environmentObject(WatchSyncService.shared))
+        let window = try hostInWindow(host)
+        await waitUntil { session.cachedWords.count == 3 }
+        // Commits the update that queues `.task(id: cachedWords.count)`, then leaves before it runs.
+        host.view.setNeedsLayout()
+        host.view.layoutIfNeeded()
+        window.isHidden = true
+        window.rootViewController = nil
+        return (book, session)
+    }
+
     @Test("RSVP exposes play and pause as an assistive-technology control")
     func rsvpPlaybackAffordanceRemainsAccessibleInBothStates() throws {
         // The static body type: evaluating `body` would need the hosted environment objects.
@@ -221,7 +249,6 @@ struct ReadingViewRenderingTests {
 
         #expect(selectedBookmark != nil)
         #expect(selectedHighlight != nil)
-        _ = container
     }
 
     @Test func readerSheetRowLabelsRenderDifferentPayloadsForDifferentRows() async throws {
@@ -246,8 +273,6 @@ struct ReadingViewRenderingTests {
         #expect(!highlightASignatures.isEmpty)
         #expect(!highlightBSignatures.isEmpty)
         #expect(highlightASignatures != highlightBSignatures)
-
-        _ = container
     }
 
     // MARK: - "Reading on Apple Watch"
@@ -271,22 +296,25 @@ struct ReadingViewRenderingTests {
         #expect(tapped)
     }
 
+    private func hostedPNG(
+        rsvp: Bool, book: Book, container: ModelContainer, service: WatchSyncService
+    ) async throws -> Data {
+        let view: AnyView = rsvp
+            ? AnyView(RSVPView(book: book, engine: RSVPEngine()))
+            : AnyView(ReaderView(book: book, session: ReaderSession()))
+        let host = UIHostingController(rootView: view.modelContainer(container).environmentObject(service))
+        let window = try hostInWindow(host)
+        defer { window.isHidden = true }
+        for _ in 0..<20 { await Task.yield() }
+        host.view.setNeedsLayout()
+        host.view.layoutIfNeeded()
+        let image = UIGraphicsImageRenderer(bounds: host.view.bounds).image { host.view.layer.render(in: $0.cgContext) }
+        return try #require(image.pngData())
+    }
+
     @Test(arguments: [false, true])
     func readerAndRSVPShowTheCardOnlyWhileTheWatchReadsThisBook(rsvp: Bool) async throws {
         let (container, book) = try makeStoredBook(text: "zero one two three", index: 1)
-        func render(_ service: WatchSyncService) async throws -> Data {
-            let view: AnyView = rsvp
-                ? AnyView(RSVPView(book: book, engine: RSVPEngine()))
-                : AnyView(ReaderView(book: book, session: ReaderSession()))
-            let host = UIHostingController(rootView: view.modelContainer(container).environmentObject(service))
-            let window = try hostInWindow(host)
-            defer { window.isHidden = true }
-            for _ in 0..<20 { await Task.yield() }
-            host.view.setNeedsLayout()
-            host.view.layoutIfNeeded()
-            let image = UIGraphicsImageRenderer(bounds: host.view.bounds).image { host.view.layer.render(in: $0.cgContext) }
-            return try #require(image.pngData())
-        }
         let quiet = WatchSyncService(session: FakeWatchConnectivitySession())
         let reading = WatchSyncService(session: FakeWatchConnectivitySession())
         let now = Date()
@@ -299,12 +327,11 @@ struct ReadingViewRenderingTests {
         elsewhere.receivePosition(.init(bookId: UUID(), bookTitle: "Other", wordIndex: 1, timestamp: now,
                                         isPlaying: true, playStartedAt: now, sentAt: now))
 
-        let first = try await render(quiet)
-        let control = try await render(quiet)
+        let first = try await hostedPNG(rsvp: rsvp, book: book, container: container, service: quiet)
+        let control = try await hostedPNG(rsvp: rsvp, book: book, container: container, service: quiet)
         #expect(first == control, "The quiet render is stable, so a difference is the card")
-        #expect(try await render(reading) != first)
-        #expect(try await render(elsewhere) == first, "Another book being read leaves this one alone")
-        _ = container
+        #expect(try await hostedPNG(rsvp: rsvp, book: book, container: container, service: reading) != first)
+        #expect(try await hostedPNG(rsvp: rsvp, book: book, container: container, service: elsewhere) == first, "Another book being read leaves this one alone")
     }
 
     private func makeStoredBook(text: String, index: Int) throws -> (ModelContainer, Book) {
@@ -314,7 +341,7 @@ struct ReadingViewRenderingTests {
             Bookmark.self,
             Highlight.self,
             configurations: configuration
-        )
+        ).keptAliveForHostedViews()
         let book = Book(
             title: "Rendered Book",
             author: "Author",

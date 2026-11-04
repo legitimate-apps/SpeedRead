@@ -141,7 +141,7 @@ struct AnnotationListViewRenderingTests {
 
         init() throws {
             container = try ModelContainer(for: Book.self, Bookmark.self, Highlight.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+                configurations: ModelConfiguration(isStoredInMemoryOnly: true)).keptAliveForHostedViews()
             book = Book(title: "Annotations", author: "Reader",
                         extractedText: (0..<80).map { "word\($0)" }.joined(separator: " "),
                         sourceFileName: "annotations.txt")

@@ -32,7 +32,7 @@ struct ServerListLogicTests {
         let container = try ModelContainer(
             for: OPDSServer.self,
             configurations: configuration
-        )
+        ).keptAliveForHostedViews()
         let server = makeServer(name: "Rendered", username: "reader")
         container.mainContext.insert(server)
         try container.mainContext.save()

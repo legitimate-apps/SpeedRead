@@ -508,7 +508,7 @@ struct OPDSServerSurfaceTests {
         init() throws {
             base = URL(string: "https://opds-fixture.invalid")!.appendingPathComponent(UUID().uuidString)
             container = try ModelContainer(for: Book.self, Bookmark.self, Highlight.self, OPDSServer.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+                configurations: ModelConfiguration(isStoredInMemoryOnly: true)).keptAliveForHostedViews()
             session = mockSession(script: script)
             theme = ThemeManager(defaults: UserDefaults(suiteName: defaultsName)!)
         }
