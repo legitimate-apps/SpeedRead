@@ -55,6 +55,10 @@ extraction into the Session types.
 `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the table above are the values IN THE TREE
 (1.4 / 11), which are the uploaded ones. Bump both before the next archive.
 
+Every build through 1.4 (11) shows junk words on iOS 27 for some PDFs (see Gotchas). The fix is in
+the tree, not in a build yet. The next archive is also the first on Xcode 27 and the iOS 27 SDK,
+because that's what the Studio has now; every build so far is `sdkBuild` 23F81a.
+
 > Before any future submission, diff the candidate build's **source** against the live build's
 > source — not just the version number.
 
