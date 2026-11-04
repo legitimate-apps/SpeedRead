@@ -33,11 +33,11 @@ syncs phone ↔ watch over WatchConnectivity.
 
 - Swift 6 language mode, Swift 6.3 toolchain (uses `PBXFileSystemSynchronizedRootGroup` — files dropped into
   source dirs auto-include).
-- `MARKETING_VERSION` = 1.4, `CURRENT_PROJECT_VERSION` = 11.
+- `MARKETING_VERSION` = 1.4, `CURRENT_PROJECT_VERSION` = 12.
 
 ## Release state
 
-**1.4 (build 11) is on TestFlight, uploaded 2026-10-05**: build 7 (chapters, server position sync, EPUB/watch fixes, highlight/note/bookmark sync with CWNG, the warm-palette restyle), build 8's live phone↔watch handoff (one shared place, "Reading on …" card, tap to take over), and build 9's RSVP long tokens (URLs centered and held longer, long words in hyphenated pieces) and bounded-passage marks (`TextEnclosures`), and build 10's visible RSVP scrub (the words around the current one slide with the finger, with a "N words ahead" caption), the Pivot Seal app icon, and the bound that stops an enormous token freezing playback, and build 11's rebuilt scrub (the line moves 1:1 with the finger, glides after a flick, stretches at either end, and ticks with haptics). No App Store version for 1.4 exists yet, and it has not been submitted for review. **1.3 (build 5) is live: released 2026-10-03** (approved after the 2026-09-07 submission, then
+**1.4 (build 12) is on TestFlight, uploaded 2026-11-03**: build 7 (chapters, server position sync, EPUB/watch fixes, highlight/note/bookmark sync with CWNG, the warm-palette restyle), build 8's live phone↔watch handoff (one shared place, "Reading on …" card, tap to take over), and build 9's RSVP long tokens (URLs centered and held longer, long words in hyphenated pieces) and bounded-passage marks (`TextEnclosures`), and build 10's visible RSVP scrub (the words around the current one slide with the finger, with a "N words ahead" caption), the Pivot Seal app icon, and the bound that stops an enormous token freezing playback, and build 11's rebuilt scrub (the line moves 1:1 with the finger, glides after a flick, stretches at either end, and ticks with haptics), and build 12's fix for the junk words iOS 27 adds to some PDFs. No App Store version for 1.4 exists yet, and it has not been submitted for review. **1.3 (build 5) is live: released 2026-10-03** (approved after the 2026-09-07 submission, then
 held in `PENDING_DEVELOPER_RELEASE` for weeks because the version was created `MANUAL`).
 **New versions are created with `releaseType: AFTER_APPROVAL`** — the operator wants an approved
 build live, not parked. If one ever lands in `PENDING_DEVELOPER_RELEASE`, release it
@@ -53,11 +53,11 @@ correctness bugs. Everything else in that range is tests, lane tooling and behav
 extraction into the Session types.
 
 `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the table above are the values IN THE TREE
-(1.4 / 11), which are the uploaded ones. Bump both before the next archive.
+(1.4 / 12), which are the uploaded ones. Bump both before the next archive.
 
-Every build through 1.4 (11) shows junk words on iOS 27 for some PDFs (see Gotchas). The fix is in
-the tree, not in a build yet. The next archive is also the first on Xcode 27 and the iOS 27 SDK,
-because that's what the Studio has now; every build so far is `sdkBuild` 23F81a.
+Every build through 1.4 (11) shows junk words on iOS 27 for some PDFs (see Gotchas), and that
+includes 1.3 on the App Store. 1.4 (12) has the fix and is the first build on Xcode 27 and the iOS 27
+SDK (`sdkBuild` 24A430), because that's what the Studio has now; every earlier build is `sdkBuild` 23F81a.
 
 > Before any future submission, diff the candidate build's **source** against the live build's
 > source — not just the version number.

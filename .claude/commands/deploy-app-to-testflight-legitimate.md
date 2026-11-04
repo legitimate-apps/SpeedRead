@@ -26,6 +26,7 @@ If any non-skipped test fails, STOP. The `engineReachesEndOfText` test is a 500m
 ```bash
 ghx workflow run CI --ref main -f ios27=true
 ```
+A green `ios27=true` run still counts if the source hasn't changed since it: `git diff --stat <its sha> HEAD -- . ':!docs' ':!CLAUDE.md'` prints nothing.
 
 2. **Bump versions if needed.** App Store Connect rejects new builds against an already-released `MARKETING_VERSION`. Before archiving, check:
 ```bash
@@ -88,7 +89,7 @@ cd "$PROJECT_DIR" && rm -rf build/ && xcodebuild archive \
   2>&1 | tail -5
 ```
 
-4. **Inject `ApplicationProperties` into the archive Info.plist.** Xcode 26 + this project's multi-platform `SUPPORTED_PLATFORMS` config (iOS + macOS + visionOS) skips writing this key, which causes every iOS distribution method to reject the archive. Without this step, all uploads fail with `Validation failed n/a`:
+4. **Inject `ApplicationProperties` into the archive Info.plist.** Xcode 26 and 27 + this project's multi-platform `SUPPORTED_PLATFORMS` config (iOS + macOS + visionOS) skips writing this key, which causes every iOS distribution method to reject the archive. Without this step, all uploads fail with `Validation failed n/a`:
 ```bash
 cd "$PROJECT_DIR/build/SpeedRead.xcarchive" && APP=Products/Applications/SpeedRead.app \
   && SHORT=$(plutil -extract CFBundleShortVersionString raw "$APP/Info.plist") \
