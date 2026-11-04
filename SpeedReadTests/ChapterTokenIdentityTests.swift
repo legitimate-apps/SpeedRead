@@ -24,10 +24,7 @@ struct ChapterTokenIdentityTests {
                 "0dc3693dd41795fc70c3d0e3ca3af821be2f94328db6a9e30078a201812ed368",
                 "c0a00492930ff83b79acfd21b9acb3cae2e0c711d30e37a8ba62c9abfe512f54"
             ),
-            "AChristmasCarol.pdf": (
-                "6933321011b85584696482fa42f33b064bc6292f9e7b48622b34cf6a3ad38136",
-                "367cec9836d8076935e1d3bfb1b180474b8a52c47ebb7e3313df41bf95a21578"
-            )
+            "AChristmasCarol.pdf": christmasCarolPDF
         ]
 
         for filename in expected.keys.sorted() {
@@ -45,6 +42,32 @@ struct ChapterTokenIdentityTests {
             #expect(fingerprint(Data(result.text.utf8)) == expectedFingerprint.text)
             #expect(tokenFingerprint(Book.tokenize(result.text)) == expectedFingerprint.tokens)
         }
+    }
+
+    /// On OS 27 PDFKit reads the page's first two lines the other way round, so a fresh import there
+    /// has its own stream. `bundledPDFHoldsTheSameWordsOnEveryOS` is what stops these two values
+    /// from hiding a word gained or lost.
+    private var christmasCarolPDF: (text: String, tokens: String) {
+        if #available(iOS 27, *) {
+            return (
+                "4b27ef40e3be836eca9aaa3681268f300611db7251cc566caaf368d44949199b",
+                "ff9cab45a041b71a6ceef87cada529539470c73b7ef485273a0185245fe2a612"
+            )
+        }
+        return (
+            "6933321011b85584696482fa42f33b064bc6292f9e7b48622b34cf6a3ad38136",
+            "367cec9836d8076935e1d3bfb1b180474b8a52c47ebb7e3313df41bf95a21578"
+        )
+    }
+
+    /// One value for every OS: the words sorted, so reading order can't change it. A marker left in
+    /// the text, or a word PDFKit stops returning, fails here whichever OS it happens on.
+    @Test func bundledPDFHoldsTheSameWordsOnEveryOS() throws {
+        let url = try #require(Bundle.main.url(forResource: "AChristmasCarol", withExtension: "pdf"))
+        let result = try PDFExtractor().extractText(from: Data(contentsOf: url))
+
+        #expect(tokenFingerprint(Book.tokenize(result.text).sorted()) ==
+            "3d422383e05b0ddc5f82ab2f1689c314b1106823a6783800dbd3ec0ad5f45184")
     }
 
     @Test func bundledEPUBsExposeRealNavigationTitlesAtValidTokenOffsets() throws {

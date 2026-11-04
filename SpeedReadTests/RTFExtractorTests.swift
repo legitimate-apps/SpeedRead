@@ -25,6 +25,14 @@ struct RTFExtractorTests {
         #expect(result.text.contains("Second paragraph."))
     }
 
+    @Test func anEmbeddedPictureLeavesNoWordBehind() throws {
+        let png = "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000c49444154789c63f8cfc0000003010100c9fe92ef0000000049454e44ae426082"
+        let rtf = "{\\rtf1\\ansi Before {\\pict\\pngblip\\picw1\\pich1\\picwgoal20\\pichgoal20 \(png)} after\\par}"
+        let result = try RTFExtractor().extractText(from: Data(rtf.utf8))
+
+        #expect(Book.tokenize(result.text) == ["Before", "after"])
+    }
+
     @Test func invalidRTFThrows() {
         let extractor = RTFExtractor()
         #expect(throws: ExtractionError.self) {

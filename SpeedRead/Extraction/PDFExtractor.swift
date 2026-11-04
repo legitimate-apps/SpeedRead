@@ -8,32 +8,36 @@ struct PDFExtractor: TextExtractor {
             throw ExtractionError.invalidData
         }
 
-        var pages: [String] = []
-        var pageStartWordIndices: [Int: Int] = [:]
-        var startWordIndex = 0
-        for i in 0..<document.pageCount {
-            pageStartWordIndices[i] = startWordIndex
-            if let page = document.page(at: i),
-               let text = page.string {
-                pages.append(text)
-                startWordIndex += Book.tokenize(text).count
-            }
-        }
-
-        let fullText = pages.joined(separator: "\n\n")
+        let pages = Self.assemble(pageTexts: (0..<document.pageCount).map { document.page(at: $0)?.string })
         let title = document.documentAttributes?[PDFDocumentAttribute.titleAttribute] as? String
         let author = document.documentAttributes?[PDFDocumentAttribute.authorAttribute] as? String
 
         return ExtractionResult(
-            text: fullText,
+            text: pages.text,
             title: title,
             author: author,
             chapters: Self.chapterMarks(
                 in: document,
-                pageStartWordIndices: pageStartWordIndices,
-                wordCount: startWordIndex
+                pageStartWordIndices: pages.startWordIndices,
+                wordCount: pages.wordCount
             )
         )
+    }
+
+    /// Joins the pages and records the word each one starts at. Markers come out first, so they
+    /// never count as words and a chapter's offset matches the text the reader gets.
+    static func assemble(pageTexts: [String?]) -> (text: String, startWordIndices: [Int: Int], wordCount: Int) {
+        var pages: [String] = []
+        var startWordIndices: [Int: Int] = [:]
+        var wordCount = 0
+        for (index, pageText) in pageTexts.enumerated() {
+            startWordIndices[index] = wordCount
+            guard let pageText else { continue }
+            let text = AttachmentMarkers.removed(from: pageText)
+            pages.append(text)
+            wordCount += Book.tokenize(text).count
+        }
+        return (pages.joined(separator: "\n\n"), startWordIndices, wordCount)
     }
 
     private static func chapterMarks(

@@ -41,6 +41,9 @@ struct BundledSampleBookTests {
         #expect(words.last == "eBooks.")
     }
 
+    /// On OS 27 PDFKit reads this page's first two lines the other way round, so the first word
+    /// depends on the OS. Everything else here doesn't. ChapterTokenIdentityTests holds the words
+    /// themselves equal across OS versions.
     @Test func christmasCarolPDFContentIsPinned() throws {
         let url = try #require(Bundle.main.url(forResource: "AChristmasCarol", withExtension: "pdf"))
         let result = try PDFExtractor().extractText(from: Data(contentsOf: url))
@@ -50,7 +53,11 @@ struct BundledSampleBookTests {
         #expect(result.text.contains("Total Running Time: 03:14:22."))
         #expect(result.text.contains("Cover illustration by John Leech (1843)."))
         #expect(words.count == 187)
-        #expect(words.first == "A")
+        if #available(iOS 27, *) {
+            #expect(words.first == "Picture")
+        } else {
+            #expect(words.first == "A")
+        }
         #expect(words.last == "Dickens")
     }
 
