@@ -306,10 +306,7 @@ struct ReadingViewRenderingTests {
         let window = try hostInWindow(host)
         defer { window.isHidden = true }
         for _ in 0..<20 { await Task.yield() }
-        host.view.setNeedsLayout()
-        host.view.layoutIfNeeded()
-        let image = UIGraphicsImageRenderer(bounds: host.view.bounds).image { host.view.layer.render(in: $0.cgContext) }
-        return try #require(image.pngData())
+        return try await settledPNG(of: host.view)
     }
 
     @Test(arguments: [false, true])
@@ -332,6 +329,27 @@ struct ReadingViewRenderingTests {
         #expect(first == control, "The quiet render is stable, so a difference is the card")
         #expect(try await hostedPNG(rsvp: rsvp, book: book, container: container, service: reading) != first)
         #expect(try await hostedPNG(rsvp: rsvp, book: book, container: container, service: elsewhere) == first, "Another book being read leaves this one alone")
+    }
+
+    /// The first frame that matches the one before it. On iOS 27 two renders of an identical RSVP
+    /// screen came out different (236,139 and 236,273 bytes), so a single frame isn't a stable
+    /// picture of a screen. RSVP animates its progress bar for 0.1 s as the engine loads, which is
+    /// the likely reason.
+    private func settledPNG(of view: UIView) async throws -> Data {
+        func frame() throws -> Data {
+            view.setNeedsLayout()
+            view.layoutIfNeeded()
+            let image = UIGraphicsImageRenderer(bounds: view.bounds).image { view.layer.render(in: $0.cgContext) }
+            return try #require(image.pngData())
+        }
+        var previous = try frame()
+        for _ in 0..<40 {
+            try await Task.sleep(for: .milliseconds(150))
+            let next = try frame()
+            if next == previous { return next }
+            previous = next
+        }
+        return previous
     }
 
     private func makeStoredBook(text: String, index: Int) throws -> (ModelContainer, Book) {
