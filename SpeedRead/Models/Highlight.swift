@@ -18,11 +18,10 @@ final class Highlight {
     /// The server's id for a highlight another reader made. Nil for one made here, whose id is
     /// `id`.
     var syncID: String? = nil
-    /// The reader that made it, when not this app. Only this app's own rows can be changed on
-    /// the server.
+    /// The reader that made it, for one pulled from the server. Nil: made here.
     var syncSource: String? = nil
-    /// The device that made it, as the server names it. An edit sent from here keeps it, so the
-    /// highlight stays credited to the device it came from.
+    /// The device that made it, as the server names it. With `syncSource`, it decides who may
+    /// change it on the server: `AnnotationSyncLogic.isOwned`.
     var syncOriginDevice: String? = nil
 
     init(startWordIndex: Int, endWordIndex: Int, highlightedText: String) {
@@ -34,9 +33,13 @@ final class Highlight {
     }
 
     var annotationID: String { syncID ?? id.uuidString }
-    var isEditableOnServer: Bool { syncSource == nil || syncSource == KOSyncAnnotationPush.source }
-    var needsPush: Bool {
-        guard isEditableOnServer else { return false }
+    func isOwned(by deviceID: String) -> Bool {
+        AnnotationSyncLogic.isOwned(source: syncSource, originDevice: syncOriginDevice, deviceID: deviceID)
+    }
+
+    /// A change made here that the server has not taken yet, on a row this device may change.
+    func needsPush(by deviceID: String) -> Bool {
+        guard isOwned(by: deviceID) else { return false }
         guard let syncedAt else { return true }
         return (modifiedAt ?? createdAt) > syncedAt
     }

@@ -44,20 +44,20 @@ struct HighlightTests {
 
     @Test func onlyThisAppsUnsentHighlightsNeedPushing() {
         let highlight = Highlight(startWordIndex: 0, endWordIndex: 1, highlightedText: "a b")
-        #expect(highlight.needsPush)
+        #expect(highlight.needsPush(by: "this-device"))
         #expect(highlight.annotationID == highlight.id.uuidString)
         highlight.syncedAt = highlight.createdAt.addingTimeInterval(1)
-        #expect(!highlight.needsPush)
+        #expect(!highlight.needsPush(by: "this-device"))
         highlight.setNote("new", at: highlight.createdAt.addingTimeInterval(2))
-        #expect(highlight.needsPush)
+        #expect(highlight.needsPush(by: "this-device"))
 
         let theirs = Highlight(startWordIndex: 0, endWordIndex: 1, highlightedText: "a b")
         theirs.syncID = "kr-1"
         theirs.syncSource = "koreader"
         #expect(theirs.annotationID == "kr-1")
-        #expect(!theirs.isEditableOnServer)
-        #expect(!theirs.needsPush)
+        #expect(!theirs.isOwned(by: "this-device"))
+        #expect(!theirs.needsPush(by: "this-device"))
         theirs.syncSource = "textquote"
-        #expect(theirs.isEditableOnServer)
+        #expect(theirs.isOwned(by: "this-device"))
     }
 }

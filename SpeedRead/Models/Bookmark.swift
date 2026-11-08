@@ -13,8 +13,11 @@ final class Bookmark {
     var syncedAt: Date? = nil
     /// The server's id for a bookmark another reader made. Nil for one made here, whose id is `id`.
     var syncID: String? = nil
-    /// The reader that made it, when not this app.
+    /// The reader that made it, for one pulled from the server. Nil: made here.
     var syncSource: String? = nil
+    /// The device that made it, as the server names it. With `syncSource`, it decides who may
+    /// delete it on the server: `AnnotationSyncLogic.isOwned`.
+    var syncOriginDevice: String? = nil
 
     init(wordIndex: Int, previewText: String) {
         self.id = UUID()
@@ -24,8 +27,12 @@ final class Bookmark {
     }
 
     var annotationID: String { syncID ?? id.uuidString }
-    var isEditableOnServer: Bool { syncSource == nil || syncSource == KOSyncAnnotationPush.source }
-    var needsPush: Bool { isEditableOnServer && syncedAt == nil }
+    func isOwned(by deviceID: String) -> Bool {
+        AnnotationSyncLogic.isOwned(source: syncSource, originDevice: syncOriginDevice, deviceID: deviceID)
+    }
+
+    /// Made here and not yet taken by the server.
+    func needsPush(by deviceID: String) -> Bool { isOwned(by: deviceID) && syncedAt == nil }
 
     static func previewText(from words: [String], at index: Int, windowSize: Int = 5) -> String {
         guard !words.isEmpty else { return "" }

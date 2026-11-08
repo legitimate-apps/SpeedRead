@@ -57,6 +57,26 @@ struct AnnotationListLogic {
         }
     }
 
+    /// What the note editor offers for a highlight on this device.
+    enum NoteAccess: Equatable {
+        case editable
+        /// Another device or reader made it, so only it can change the note on the server. The
+        /// text says where the note can be changed.
+        case readOnly(String)
+    }
+
+    static func noteAccess(for highlight: Highlight, deviceID: String) -> NoteAccess {
+        if highlight.isOwned(by: deviceID) { return .editable }
+        let reason = switch highlight.syncSource {
+        case KOSyncAnnotationPush.source?: "Added on another device. Change its note there."
+        case "koreader"?: "Added in KOReader. Change its note there."
+        case "kobo"?: "Added on a Kobo. Change its note there."
+        case "webreader"?: "Added in the web reader. Change its note there."
+        default: "Added in another reader. Change its note there."
+        }
+        return .readOnly(reason)
+    }
+
     static func positionLabel(wordIndex: Int) -> String {
         "Word \(wordIndex + 1)"
     }

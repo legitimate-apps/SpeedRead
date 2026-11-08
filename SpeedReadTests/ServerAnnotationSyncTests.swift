@@ -32,7 +32,7 @@ struct ServerAnnotationSyncTests {
         #expect(row["text_quote"] as? [String: String] == [
             "exact": "w10 w11 w12", "prefix": "w2 w3 w4 w5 w6 w7 w8 w9", "suffix": "w13 w14 w15 w16 w17 w18 w19 w20",
         ])
-        #expect(!highlight.needsPush)
+        #expect(!highlight.needsPush(by: f.sync.deviceID))
     }
 
     @Test func aBookmarkIsSentAsADogearOnItsWord() async throws {
@@ -81,7 +81,7 @@ struct ServerAnnotationSyncTests {
         #expect(highlight.note == "from the kobo")
         #expect(highlight.syncID == "kr-7")
         #expect(highlight.syncSource == "koreader")
-        #expect(!highlight.isEditableOnServer)
+        #expect(!highlight.isOwned(by: f.sync.deviceID))
         // Nothing to send: the row came from the server.
         #expect(f.script.observed.map(\.url) == [f.authURL, f.fetchURL])
     }
@@ -183,27 +183,101 @@ struct ServerAnnotationSyncTests {
         f.serve(rows: [f.row(highlight.id.uuidString, from: 10, to: 12, source: "textquote", note: "edited there")])
         await f.sync.sync(bookId: f.book.id)
         #expect(highlight.note == "edited there")
-        #expect(!highlight.needsPush)
+        #expect(!highlight.needsPush(by: f.sync.deviceID))
     }
 
-    @Test func aNoteAddedHereToAnotherDevicesHighlightKeepsItCreditedToThatDevice() async throws {
+    @Test func anotherDevicesHighlightIsReadOnlyHereAndNeverSent() async throws {
         let f = try Fixture()
         defer { f.close() }
         f.supportsAnnotations()
-        f.serve(rows: [f.row("phone-1", from: 30, to: 31, source: "textquote")])
+        f.serve(rows: [f.row("phone-1", from: 30, to: 31, source: "textquote", note: "the phone's")])
         await f.sync.sync(bookId: f.book.id)
         let highlight = try #require(f.book.highlights.first)
-        #expect(highlight.isEditableOnServer)
+        #expect(highlight.syncOriginDevice == "OTHER")
+        #expect(!highlight.isOwned(by: f.sync.deviceID))
 
         f.sync.setNote("from the tablet", on: highlight, in: f.context)
-        f.serve(rows: [f.row("phone-1", from: 30, to: 31, source: "textquote")])
+        #expect(highlight.note == "the phone's")
+        // Even a change made underneath the service stays here: the server would refuse it.
+        highlight.setNote("forced", at: Date().addingTimeInterval(60))
+        f.serve(rows: [f.row("phone-1", from: 30, to: 31, source: "textquote", note: "the phone's")])
+        await f.sync.sync(bookId: f.book.id)
+
+        #expect(f.script.observed.map(\.url) == [f.authURL, f.fetchURL, f.fetchURL])
+        #expect(highlight.note == "the phone's")
+    }
+
+    @Test func theOwningDevicesNoteEditArrivesHere() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        f.supportsAnnotations()
+        f.serve(rows: [f.row("phone-1", from: 30, to: 31, source: "textquote", note: "first")])
+        await f.sync.sync(bookId: f.book.id)
+        f.serve(rows: [f.row("phone-1", from: 30, to: 31, source: "textquote", note: "edited on the phone")])
+
+        await f.sync.sync(bookId: f.book.id)
+
+        #expect(f.book.highlights.first?.note == "edited on the phone")
+        #expect(f.script.observed.map(\.url) == [f.authURL, f.fetchURL, f.fetchURL])
+    }
+
+    @Test func aHighlightThisDeviceWroteIsStillItsOwnWhenPulledBack() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        f.supportsAnnotations()
+        f.serve(rows: [f.row("mine-1", from: 30, to: 31, source: "textquote", origin: f.sync.deviceID)])
+        await f.sync.sync(bookId: f.book.id)
+        let highlight = try #require(f.book.highlights.first)
+
+        f.sync.setNote("still mine", on: highlight, in: f.context)
+        f.serve(rows: [f.row("mine-1", from: 30, to: 31, source: "textquote", origin: f.sync.deviceID)])
         f.pushAccepted()
         await f.sync.sync(bookId: f.book.id)
 
         let row = try #require((try f.pushedBody(at: 3)["annotations"] as? [[String: Any]])?.first)
-        #expect(row["annotation_id"] as? String == "phone-1")
-        #expect(row["note_text"] as? String == "from the tablet")
-        #expect(row["device_origin_id"] as? String == "OTHER")
+        #expect(row["annotation_id"] as? String == "mine-1")
+        #expect(row["note_text"] as? String == "still mine")
+        #expect(row["device_origin_id"] as? String == f.sync.deviceID)
+    }
+
+    @Test func deletingAnotherDevicesHighlightOrBookmarkForgetsItHereAndSendsNothing() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        let rows = [f.row("phone-1", from: 30, to: 31, source: "textquote"),
+                    f.row("phone-2", from: 40, to: 40, source: "textquote", type: "dogear")]
+        f.supportsAnnotations()
+        f.serve(rows: rows)
+        await f.sync.sync(bookId: f.book.id)
+        f.sync.delete(try #require(f.book.highlights.first), in: f.context)
+        f.sync.delete(try #require(f.book.bookmarks.first), in: f.context)
+        f.serve(rows: rows)
+
+        await f.sync.flush()
+
+        #expect(f.book.highlights.isEmpty)
+        #expect(f.book.bookmarks.isEmpty)
+        #expect(f.script.observed.map(\.url) == [f.authURL, f.fetchURL, f.fetchURL])
+        let forgotten = f.defaults.defaults.dictionary(forKey: ServerAnnotationSync.forgottenKey) as? [String: [String]]
+        #expect(forgotten?[f.book.id.uuidString] == ["phone-1", "phone-2"])
+        #expect(f.defaults.defaults.dictionary(forKey: ServerAnnotationSync.pendingDeletesKey)?[f.book.id.uuidString] == nil)
+    }
+
+    @Test func aBookmarkPulledBeforeItRecordedItsDeviceTakesItFromTheServer() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        let rows = [f.row("phone-2", from: 40, to: 40, source: "textquote", type: "dogear")]
+        f.supportsAnnotations()
+        f.serve(rows: rows)
+        await f.sync.sync(bookId: f.book.id)
+        let bookmark = try #require(f.book.bookmarks.first)
+        bookmark.syncOriginDevice = nil  // as stored by a build that did not record it
+        #expect(bookmark.isOwned(by: f.sync.deviceID))
+        f.serve(rows: rows)
+
+        await f.sync.sync(bookId: f.book.id)
+
+        #expect(bookmark.syncOriginDevice == "OTHER")
+        #expect(!bookmark.isOwned(by: f.sync.deviceID))
     }
 
     @Test func anEditMadeWhileAPushIsOnTheWireIsStillSent() async throws {
@@ -220,7 +294,7 @@ struct ServerAnnotationSyncTests {
         f.script.release()
         await running.value
 
-        #expect(highlight.needsPush)
+        #expect(highlight.needsPush(by: f.sync.deviceID))
     }
 
     @Test func aFailedPushIsSentAgainAtTheNextFlush() async throws {
@@ -371,10 +445,10 @@ struct ServerAnnotationSyncTests {
 
         /// A row as the server returns it, quoting words `from...to` of this book.
         func row(_ id: String, from start: Int, to end: Int, source: String = "koreader", type: String = "highlight",
-                 note: String? = nil, hidden: Bool = false) -> String {
+                 note: String? = nil, hidden: Bool = false, origin: String = "OTHER") -> String {
             let quote = AnchoredText(book.extractedText).quote(fromToken: start, toToken: end)!
             let noteJSON = note.map { "\"\($0)\"" } ?? "null"
-            return #"{"annotation_id":"\#(id)","source":"\#(source)","type":"\#(type)","hidden":\#(hidden),"note_text":\#(noteJSON),"device_origin_id":"OTHER","text_quote":{"exact":"\#(quote.exact)","prefix":"\#(quote.prefix)","suffix":"\#(quote.suffix)"}}"#
+            return #"{"annotation_id":"\#(id)","source":"\#(source)","type":"\#(type)","hidden":\#(hidden),"note_text":\#(noteJSON),"device_origin_id":"\#(origin)","text_quote":{"exact":"\#(quote.exact)","prefix":"\#(quote.prefix)","suffix":"\#(quote.suffix)"}}"#
         }
 
         func waitForRequests(_ count: Int) async throws {

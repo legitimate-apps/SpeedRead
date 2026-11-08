@@ -77,9 +77,10 @@ nonisolated struct KOSyncRemoteAnnotation: Equatable, Sendable {
     /// 0–1, when the server sends one: it places a quote that occurs more than once.
     let percentage: Double?
 
-    /// Rows this app's source wrote, from this device or another one signed in to the same
-    /// library: the only rows a SpeedRead device may edit or delete on the server.
-    var isTextQuoteSource: Bool { source == KOSyncAnnotationPush.source }
+    /// Whether this device may change the row on the server: `AnnotationSyncLogic.isOwned`.
+    func isOwned(by deviceID: String) -> Bool {
+        AnnotationSyncLogic.isOwned(source: source, originDevice: deviceOriginID, deviceID: deviceID)
+    }
 }
 
 /// What the server made of a push.

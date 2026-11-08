@@ -58,7 +58,7 @@ struct AnnotationWireTests {
                                              "55555555-5555-4555-8555-555555555555", "44444444-4444-4444-8444-444444444444"])
         let koreader = rows[0]
         #expect(koreader.source == "koreader")
-        #expect(!koreader.isTextQuoteSource)
+        #expect(!koreader.isOwned(by: "ko-dev"))
         #expect(koreader.type == .highlight)
         #expect(koreader.quote == TextQuote(exact: "and it took him long, long minutes to crawl across",
                                             prefix: "reduced to the condition of an ancient invalid",
@@ -66,7 +66,7 @@ struct AnnotationWireTests {
         #expect(koreader.note == nil)
         #expect(koreader.deviceOriginID == "ko-dev")
         #expect(rows[1].note == "e2e note")
-        #expect(rows[1].isTextQuoteSource)
+        #expect(rows[1].source == KOSyncAnnotationPush.source)
         #expect(rows[2].type == .dogear)
         #expect(rows[2].quote?.exact == "in")
         #expect(rows[3].hidden)

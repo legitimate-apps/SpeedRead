@@ -18,6 +18,19 @@ struct AnnotationSyncLogicTests {
                                deviceOriginID: nil, percentage: nil)
     }
 
+    /// The server's rule since CWNG v4.1.48: a device changes only its own rows and legacy ones.
+    @Test(arguments: [
+        (nil, nil, true),                            // made here, never pulled
+        ("textquote", nil, true),                    // legacy: the server names no device
+        ("textquote", "this-device", true),          // written by this device before
+        ("textquote", "other-device", false),        // this app on another device
+        ("koreader", nil, false),                    // another reader, whatever the device
+        ("koreader", "this-device", false),
+    ] as [(String?, String?, Bool)])
+    func onlyThisDevicesOwnAndLegacyRowsAreOwned(source: String?, origin: String?, owned: Bool) {
+        #expect(AnnotationSyncLogic.isOwned(source: source, originDevice: origin, deviceID: "this-device") == owned)
+    }
+
     @Test func aDeletionMadeElsewhereDeletesTheLocalCopy() {
         let id = UUID()
         let plan = AnnotationSyncLogic.plan(local: [Self.local("kr-1", id: id)],

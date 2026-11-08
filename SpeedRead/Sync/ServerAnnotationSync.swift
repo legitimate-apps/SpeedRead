@@ -77,7 +77,7 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
 
     func delete(_ highlight: Highlight, in context: ModelContext) {
         let bookId = highlight.book?.id
-        remember(highlight.annotationID, editable: highlight.isEditableOnServer, bookId: bookId)
+        remember(highlight.annotationID, owned: highlight.isOwned(by: deviceID), bookId: bookId)
         context.delete(highlight)
         try? context.save()
         if let bookId { noteChanged(bookId: bookId) }
@@ -85,23 +85,25 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
 
     func delete(_ bookmark: Bookmark, in context: ModelContext) {
         let bookId = bookmark.book?.id
-        remember(bookmark.annotationID, editable: bookmark.isEditableOnServer, bookId: bookId)
+        remember(bookmark.annotationID, owned: bookmark.isOwned(by: deviceID), bookId: bookId)
         context.delete(bookmark)
         try? context.save()
         if let bookId { noteChanged(bookId: bookId) }
     }
 
+    /// Only on a highlight this device owns: the server would refuse any other, silently.
     func setNote(_ text: String?, on highlight: Highlight, in context: ModelContext) {
-        guard highlight.isEditableOnServer else { return }
+        guard highlight.isOwned(by: deviceID) else { return }
         highlight.setNote(text)
         try? context.save()
         if let bookId = highlight.book?.id { noteChanged(bookId: bookId) }
     }
 
     /// Always remembered, even for a row never sent: a push carrying it may already be on the wire.
-    private func remember(_ annotationID: String, editable: Bool, bookId: UUID?) {
+    /// A row this device does not own is only forgotten here: the server would refuse its delete.
+    private func remember(_ annotationID: String, owned: Bool, bookId: UUID?) {
         guard let bookId else { return }
-        let key = editable ? Self.pendingDeletesKey : Self.forgottenKey
+        let key = owned ? Self.pendingDeletesKey : Self.forgottenKey
         var all = defaults.dictionary(forKey: key) as? [String: [String]] ?? [:]
         all[bookId.uuidString, default: []].append(annotationID)
         defaults.set(all, forKey: key)
@@ -197,14 +199,16 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
     private func apply(_ remote: [KOSyncRemoteAnnotation], to bookId: UUID) async {
         guard let book = fetchBook(bookId), let modelContext else { return }
         let forgotten = Set(ids(Self.forgottenKey, bookId: bookId) + ids(Self.pendingDeletesKey, bookId: bookId))
-        let plan = AnnotationSyncLogic.plan(local: Self.locals(of: book), remote: remote, forgotten: forgotten)
+        let plan = AnnotationSyncLogic.plan(local: locals(of: book), remote: remote, forgotten: forgotten)
         let now = Date()
+        Self.recordOrigins(remote, in: book)
         for id in plan.deleteLocal {
             if let highlight = book.highlights.first(where: { $0.id == id }) { modelContext.delete(highlight) }
             if let bookmark = book.bookmarks.first(where: { $0.id == id }) { modelContext.delete(bookmark) }
         }
         for update in plan.updateNote {
-            guard let highlight = book.highlights.first(where: { $0.id == update.id }), !highlight.needsPush else { continue }
+            guard let highlight = book.highlights.first(where: { $0.id == update.id }),
+                  !highlight.needsPush(by: deviceID) else { continue }
             highlight.note = update.note
             highlight.syncedAt = max(now, highlight.modifiedAt ?? highlight.createdAt)
         }
@@ -224,7 +228,7 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
     /// Another reader's annotations, placed in this copy. A row that cannot be placed is left on
     /// the server and tried again at the next sync.
     private func adopt(_ placed: [(KOSyncRemoteAnnotation, ClosedRange<Int>)], into book: Book, in context: ModelContext) {
-        var known = Set(Self.locals(of: book).map { $0.annotationID.lowercased() })
+        var known = Set(locals(of: book).map { $0.annotationID.lowercased() })
         let words = book.words
         for (row, range) in placed where known.insert(row.annotationID.lowercased()).inserted {
             let start = ReadingPositionCoordinator.clampedIndex(range.lowerBound, wordCount: words.count)
@@ -234,6 +238,7 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
                 let bookmark = Bookmark(wordIndex: start, previewText: Bookmark.previewText(from: words, at: start))
                 bookmark.syncID = row.annotationID
                 bookmark.syncSource = row.source ?? "unknown"
+                bookmark.syncOriginDevice = row.deviceOriginID
                 bookmark.syncedAt = Date()
                 bookmark.book = book
                 context.insert(bookmark)
@@ -260,8 +265,6 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
         let start: Int
         let end: Int
         let note: String?
-        /// The device that made it, when that was not this one.
-        let origin: String?
         /// The change being sent; a later one is still unsent after this push.
         let stamp: Date
     }
@@ -269,17 +272,19 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
     private func push(_ bookId: UUID, key: String, configuration: OPDSRequestConfiguration) async -> Bool {
         guard let book = fetchBook(bookId) else { return true }
         let deletes = ids(Self.pendingDeletesKey, bookId: bookId)
-        let outgoing = book.highlights.filter(\.needsPush).map {
+        // Only rows this device owns: the server answers any other with `unchanged` and keeps
+        // its own copy, so sending one would only lose the change silently.
+        let thisDevice = deviceID
+        let outgoing = book.highlights.filter { $0.needsPush(by: thisDevice) }.map {
             Outgoing(id: $0.id, annotationID: $0.annotationID, kind: .highlight, start: $0.startWordIndex,
-                     end: $0.endWordIndex, note: $0.note, origin: $0.syncOriginDevice,
-                     stamp: $0.modifiedAt ?? $0.createdAt)
-        } + book.bookmarks.filter(\.needsPush).map {
+                     end: $0.endWordIndex, note: $0.note, stamp: $0.modifiedAt ?? $0.createdAt)
+        } + book.bookmarks.filter { $0.needsPush(by: thisDevice) }.map {
             Outgoing(id: $0.id, annotationID: $0.annotationID, kind: .bookmark, start: $0.wordIndex,
-                     end: $0.wordIndex, note: nil, origin: nil, stamp: $0.createdAt)
+                     end: $0.wordIndex, note: nil, stamp: $0.createdAt)
         }
         guard !outgoing.isEmpty || !deletes.isEmpty else { return true }
 
-        let text = book.extractedText, wordCount = book.wordCount, thisDevice = deviceID
+        let text = book.extractedText, wordCount = book.wordCount
         let rows: [(UUID, KOSyncAnnotationPush.Row?)] = await Task.detached {
             let prepared = AnchoredText(text)
             return outgoing.map { item in
@@ -288,7 +293,7 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
                     KOSyncAnnotationPush.Row(
                         annotationID: item.annotationID, type: item.kind == .bookmark ? .dogear : .highlight,
                         quote: $0, percentage: AnnotationSyncLogic.percentage(token: item.start, wordCount: wordCount),
-                        note: item.note, deviceOriginID: item.origin ?? thisDevice)
+                        note: item.note, deviceOriginID: thisDevice)
                 })
             }
         }.value
@@ -321,11 +326,27 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
 
     // MARK: Servers
 
-    private static func locals(of book: Book) -> [AnnotationSyncLogic.Local] {
-        book.highlights.map {
-            .init(id: $0.id, annotationID: $0.annotationID, kind: .highlight, note: $0.note, needsPush: $0.needsPush)
+    private func locals(of book: Book) -> [AnnotationSyncLogic.Local] {
+        let deviceID = deviceID
+        return book.highlights.map {
+            .init(id: $0.id, annotationID: $0.annotationID, kind: .highlight, note: $0.note,
+                  needsPush: $0.needsPush(by: deviceID))
         } + book.bookmarks.map {
-            .init(id: $0.id, annotationID: $0.annotationID, kind: .bookmark, note: nil, needsPush: $0.needsPush)
+            .init(id: $0.id, annotationID: $0.annotationID, kind: .bookmark, note: nil,
+                  needsPush: $0.needsPush(by: deviceID))
+        }
+    }
+
+    /// Bookmarks pulled before they recorded their device read as legacy, so as this device's;
+    /// the server's row names the device, so take it from there.
+    private static func recordOrigins(_ remote: [KOSyncRemoteAnnotation], in book: Book) {
+        let origins = Dictionary(remote.compactMap { row in row.deviceOriginID.map { (row.annotationID.lowercased(), $0) } },
+                                 uniquingKeysWith: { first, _ in first })
+        for bookmark in book.bookmarks where bookmark.syncSource != nil && bookmark.syncOriginDevice == nil {
+            bookmark.syncOriginDevice = origins[bookmark.annotationID.lowercased()]
+        }
+        for highlight in book.highlights where highlight.syncSource != nil && highlight.syncOriginDevice == nil {
+            highlight.syncOriginDevice = origins[highlight.annotationID.lowercased()]
         }
     }
 

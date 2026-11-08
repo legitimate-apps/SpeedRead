@@ -4,7 +4,7 @@ import Foundation
 /// input is a value, so each rule is testable without a server or a model context.
 ///
 /// The rules, in the server's own terms: a deletion is only ever named (a hidden row), never
-/// inferred from a row being absent; this app may change only rows its own source wrote; and a
+/// inferred from a row being absent; a device may change only the rows it wrote itself; and a
 /// local change not yet sent beats whatever the server holds.
 nonisolated enum AnnotationSyncLogic {
     enum Kind: Equatable, Sendable {
@@ -18,7 +18,7 @@ nonisolated enum AnnotationSyncLogic {
         let annotationID: String
         let kind: Kind
         let note: String?
-        /// Changed here since the server last agreed. Never true for another reader's row.
+        /// Changed here since the server last agreed. Never true for a row this device does not own.
         let needsPush: Bool
     }
 
@@ -34,6 +34,20 @@ nonisolated enum AnnotationSyncLogic {
         var updateNote: [NoteUpdate] = []
         /// Rows from elsewhere this device does not have yet; each still has to be placed.
         var adopt: [KOSyncRemoteAnnotation] = []
+    }
+
+    /// Whether this device may change an annotation on the server: edit its note, or delete it.
+    /// The server (CWNG since v4.1.48) lets an identified device change only its own rows and
+    /// legacy ones that carry no device. It answers anything else with `unchanged`, and no retry
+    /// can grant ownership, so another device's row is the user's to read here, not to change.
+    ///
+    /// - `source` nil: made here and never pulled, so this device's.
+    /// - This app's source: this device's when it names no device (legacy) or names this one.
+    /// - Any other reader (KOReader, Kobo, the web reader): never.
+    static func isOwned(source: String?, originDevice: String?, deviceID: String) -> Bool {
+        guard let source else { return true }
+        guard source == KOSyncAnnotationPush.source else { return false }
+        return originDevice == nil || originDevice == deviceID
     }
 
     /// The annotation keys a server knows a book by, best first: its own book id, then the digest

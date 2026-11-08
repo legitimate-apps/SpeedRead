@@ -33,7 +33,7 @@ syncs phone ↔ watch over WatchConnectivity.
 
 - Swift 6 language mode, Swift 6.3 toolchain (uses `PBXFileSystemSynchronizedRootGroup` — files dropped into
   source dirs auto-include).
-- `MARKETING_VERSION` = 1.4, `CURRENT_PROJECT_VERSION` = 12.
+- `MARKETING_VERSION` = 1.4, `CURRENT_PROJECT_VERSION` = 13.
 
 ## Release state
 
@@ -53,7 +53,7 @@ correctness bugs. Everything else in that range is tests, lane tooling and behav
 extraction into the Session types.
 
 `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the table above are the values IN THE TREE
-(1.4 / 12), which are the uploaded ones. Bump both before the next archive.
+(1.4 / 13), which are the uploaded ones. Bump both before the next archive.
 
 Every build through 1.4 (11) shows junk words on iOS 27 for some PDFs (see Gotchas), and that
 includes 1.3 on the App Store. 1.4 (12) has the fix and is the first build on Xcode 27 and the iOS 27

@@ -22,6 +22,29 @@ struct AnnotationListLogicTests {
     }
 
 
+    @Test func onlyThisDevicesHighlightsHaveAnEditableNote() {
+        let local = makeHighlight(start: 0, end: 1)
+        #expect(AnnotationListLogic.noteAccess(for: local, deviceID: "me") == .editable)
+
+        let legacy = makeHighlight(start: 0, end: 1)
+        legacy.syncSource = "textquote"
+        #expect(AnnotationListLogic.noteAccess(for: legacy, deviceID: "me") == .editable)
+        legacy.syncOriginDevice = "me"
+        #expect(AnnotationListLogic.noteAccess(for: legacy, deviceID: "me") == .editable)
+
+        let otherDevice = makeHighlight(start: 0, end: 1)
+        otherDevice.syncSource = "textquote"
+        otherDevice.syncOriginDevice = "phone"
+        #expect(AnnotationListLogic.noteAccess(for: otherDevice, deviceID: "me")
+            == .readOnly("Added on another device. Change its note there."))
+
+        let koreader = makeHighlight(start: 0, end: 1)
+        koreader.syncSource = "koreader"
+        koreader.syncOriginDevice = "me"
+        #expect(AnnotationListLogic.noteAccess(for: koreader, deviceID: "me")
+            == .readOnly("Added in KOReader. Change its note there."))
+    }
+
     // MARK: - Ordering is by position in the book, never by insertion order
 
     @Test func bookmarksOrderByWordIndexRegardlessOfTheOrderTheyWereCreatedIn() {

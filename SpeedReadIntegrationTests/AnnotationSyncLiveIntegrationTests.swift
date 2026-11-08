@@ -42,8 +42,8 @@ struct AnnotationSyncLiveIntegrationTests {
         let highlight = phone.addHighlight(start, end, note: note)
         let bookmark = phone.addBookmark(start + 40)
         await phone.sync.sync(bookId: phone.book.id)
-        #expect(!highlight.needsPush)
-        #expect(!bookmark.needsPush)
+        #expect(!highlight.needsPush(by: phone.sync.deviceID))
+        #expect(!bookmark.needsPush(by: phone.sync.deviceID))
 
         // The server placed both on its own copy, so KOReader and the web reader see them too.
         let stored = try await phone.rawRows()
@@ -60,15 +60,29 @@ struct AnnotationSyncLiveIntegrationTests {
         #expect(highlightCopy.startWordIndex == start)
         #expect(highlightCopy.endWordIndex == end)
         #expect(highlightCopy.note == note)
-        #expect(highlightCopy.isEditableOnServer)
         #expect(tablet.bookmark(bookmark.annotationID)?.wordIndex == start + 40)
 
+        // The server lets only the device that made a row change it (CWNG v4.1.48+). The tablet is
+        // not offered the edit, and an attempt anyway is neither kept nor sent.
+        #expect(!highlightCopy.isOwned(by: tablet.sync.deviceID))
+        #expect(AnnotationListLogic.noteAccess(for: highlightCopy, deviceID: tablet.sync.deviceID)
+            == .readOnly("Added on another device. Change its note there."))
+        let before = try #require(try await phone.rawRows()[highlight.annotationID.lowercased()])
         tablet.sync.setNote("edited on the tablet", on: highlightCopy, in: tablet.context)
+        #expect(highlightCopy.note == note)
         await tablet.sync.sync(bookId: tablet.book.id)
+        let untouched = try #require(try await phone.rawRows()[highlight.annotationID.lowercased()])
+        #expect(untouched["note_text"] as? String == note)
+        #expect(untouched["content_revision"] as? Int == before["content_revision"] as? Int)
+        #expect(untouched["server_modified_at"] as? String == before["server_modified_at"] as? String)
+
+        // The owner's edit travels.
+        phone.sync.setNote("edited on the phone", on: highlight, in: phone.context)
         await phone.sync.sync(bookId: phone.book.id)
-        #expect(highlight.note == "edited on the tablet")
+        await tablet.sync.sync(bookId: tablet.book.id)
+        #expect(highlightCopy.note == "edited on the phone")
         let edited = try await phone.rawRows()[highlight.annotationID.lowercased()]
-        #expect(edited?["note_text"] as? String == "edited on the tablet")
+        #expect(edited?["note_text"] as? String == "edited on the phone")
         #expect(edited?["device_origin_id"] as? String == phone.sync.deviceID, "an edit re-credited the highlight")
 
         phone.sync.delete(highlight, in: phone.context)
@@ -102,7 +116,7 @@ struct AnnotationSyncLiveIntegrationTests {
         #expect(copy.highlightedText.split(whereSeparator: \.isWhitespace).joined(separator: " ")
             == "and it took him long, long minutes to crawl across")
         #expect(copy.syncSource == "koreader")
-        #expect(!copy.isEditableOnServer)
+        #expect(!copy.isOwned(by: phone.sync.deviceID))
         #expect(phone.book.words[copy.startWordIndex...copy.endWordIndex].joined(separator: " ")
             == copy.highlightedText.split(whereSeparator: \.isWhitespace).joined(separator: " "))
 

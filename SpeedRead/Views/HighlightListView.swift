@@ -8,7 +8,9 @@ struct HighlightListView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @State private var editingNote: Highlight?
+    @State private var readingNote: Highlight?
     @State private var noteDraft = ""
+    private let deviceID = ServerAnnotationSync.shared.deviceID
 
     var body: some View {
         let displayedHighlights = AnnotationListLogic.ordered(book.highlights)
@@ -74,12 +76,20 @@ struct HighlightListView: View {
                             }
                             .listRowBackground(Color.appSurfaceRaised)
                             .swipeActions(edge: .leading) {
-                                if highlight.isEditableOnServer {
+                                switch AnnotationListLogic.noteAccess(for: highlight, deviceID: deviceID) {
+                                case .editable:
                                     Button {
                                         noteDraft = highlight.note ?? ""
                                         editingNote = highlight
                                     } label: {
                                         Label(highlight.note == nil ? "Add Note" : "Edit Note", systemImage: "note.text")
+                                    }
+                                    .tint(Color.agedGold)
+                                case .readOnly:
+                                    Button {
+                                        readingNote = highlight
+                                    } label: {
+                                        Label("View Note", systemImage: "note.text")
                                     }
                                     .tint(Color.agedGold)
                                 }
@@ -110,6 +120,16 @@ struct HighlightListView: View {
                     editingNote = nil
                 }
                 Button("Cancel", role: .cancel) { editingNote = nil }
+            }
+            .alert("Note", isPresented: Binding(
+                get: { readingNote != nil },
+                set: { if !$0 { readingNote = nil } }
+            ), presenting: readingNote) { _ in
+                Button("OK", role: .cancel) { readingNote = nil }
+            } message: { highlight in
+                if case .readOnly(let reason) = AnnotationListLogic.noteAccess(for: highlight, deviceID: deviceID) {
+                    Text([highlight.note ?? "No note.", reason].joined(separator: "\n\n"))
+                }
             }
             .navigationTitle("Highlights")
             .navigationBarTitleDisplayMode(.inline)
