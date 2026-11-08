@@ -33,7 +33,9 @@ four-space-indented line as section content, so an aligned comment silently beco
     • Tappable word reader with three cozy themes — parchment, sepia, night
     • Tap-to-RSVP — drop into speed mode mid-sentence, jump back exactly where you stopped
     • Adjustable WPM 60–900 with Optimal Recognition Point (ORP) alignment
-    • Bookmarks, highlights, last-read tracking — all local
+    • Bookmarks, highlights and notes, and your place kept in every book
+    • Chapters you can jump between without losing your place
+    • Your own Calibre, Calibre-Web or other OPDS library: browse it, download books, and on a server that supports sync, keep your place, highlights and notes in step with it
     • Adjustable font size and line spacing
     • Reading-time estimates at your current speed
     • Apple Watch companion for hands-free reading on the go
@@ -42,7 +44,7 @@ four-space-indented line as section content, so an aligned comment silently beco
     Import your own PDF, EPUB, RTF and TXT files from anywhere — Files, iCloud, AirDrop, email. The library ships with four classics so you can start reading immediately: The Yellow Wallpaper, Metamorphosis, and A Christmas Carol (in both PDF and EPUB).
     
     PRIVACY FIRST
-    Nothing leaves your device. No account, no ads, no tracking, no analytics. Your library, your speed, your business.
+    SpeedRead collects nothing. No account, no ads, no tracking, no analytics. Your books, highlights and place stay on your devices, and go to a library server only if you connect one of your own.
     
     ABOUT RSVP
     Rapid Serial Visual Presentation is a research-backed reading technique that presents text one word at a time at the same on-screen position. By eliminating saccadic eye movement, readers can comprehend text 2–4× faster than traditional reading. SpeedRead pairs RSVP with a classic paragraph reader so you can switch modes whenever you want — speed when you need to cover ground, paragraph when you want to savor it.
