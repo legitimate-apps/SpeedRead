@@ -82,7 +82,7 @@ def api(method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
         raw = r.read()
         return r.status, (json.loads(raw) if raw else {})
     except urllib.error.HTTPError as e:
-        return e.code, {"error": e.read().decode()[:400]}
+        return e.code, {"error": e.read().decode()[:4000]}
 
 
 def editable_version() -> str:
