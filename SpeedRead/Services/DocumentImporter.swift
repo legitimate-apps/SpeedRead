@@ -22,6 +22,13 @@ struct DocumentImporter {
         try importBytes(data, filename: filename, origin: origin)
     }
 
+    /// Import a book already on disk (an OPDS download). The bytes are mapped, not read into
+    /// memory, so a large PDF is paged in by the extractor as it reads.
+    func importDownloaded(at location: URL, filename: String, origin: BookOrigin? = nil) throws -> Book {
+        let data = try Data(contentsOf: location, options: .mappedIfSafe)
+        return try importBytes(data, filename: filename, origin: origin)
+    }
+
     private func importBytes(_ data: Data, filename: String, origin: BookOrigin? = nil) throws -> Book {
         let fileExtension = (filename as NSString).pathExtension
         guard let format = SupportedFormat(fileExtension: fileExtension) else {

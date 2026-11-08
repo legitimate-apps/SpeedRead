@@ -43,9 +43,10 @@ final class RemoteBookDetailSession {
         downloadError = nil
         let client = makeClient()
         do {
-            let payload = try await client.download(from: acquisition.url, on: OPDSRequestConfiguration(server))
+            let file = try await client.downloadFile(from: acquisition.url, on: OPDSRequestConfiguration(server))
+            defer { file.remove() }
             let filename = RemoteBookDetailLogic.ensureExtension(
-                payload.filename,
+                file.filename,
                 mimeType: acquisition.mimeType,
                 fallbackTitle: entry.title
             )
@@ -55,7 +56,7 @@ final class RemoteBookDetailSession {
                 entryID: entry.id,
                 serverBookID: BookOrigin.serverBookID(fromAcquisition: acquisition.url)
             )
-            let book = try importer.importData(payload.data, filename: filename, origin: origin)
+            let book = try importer.importDownloaded(at: file.location, filename: filename, origin: origin)
             onAdded(book.title)
             dismiss()
         } catch {

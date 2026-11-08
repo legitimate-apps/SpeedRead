@@ -46,6 +46,7 @@ struct BrowseServerLogic {
         case hidden
         case loading
         case loadMore
+        case failed(String)
     }
 
     enum ToastPresentation: Equatable {
@@ -95,10 +96,13 @@ struct BrowseServerLogic {
     static func paginationPresentation(
         nextPageURL: URL?,
         searchText: String,
-        loadingMore: Bool
+        loadingMore: Bool,
+        loadMoreError: String? = nil
     ) -> PaginationPresentation {
         guard nextPageURL != nil, searchText.isEmpty else { return .hidden }
-        return loadingMore ? .loading : .loadMore
+        if loadingMore { return .loading }
+        if let loadMoreError { return .failed(loadMoreError) }
+        return .loadMore
     }
 
     static func toastPresentation(

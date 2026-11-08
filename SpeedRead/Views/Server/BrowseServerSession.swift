@@ -10,6 +10,7 @@ final class BrowseServerSession {
     private(set) var nextPageURL: URL?
     private(set) var paginatedEntries: [OPDSEntry] = []
     private(set) var loadingMore = false
+    private(set) var loadMoreError: String?
     private(set) var loading = true
     private(set) var error: String?
     var searchText: String = ""
@@ -41,6 +42,7 @@ final class BrowseServerSession {
             self.feed = result
             self.paginatedEntries = result.entries
             self.nextPageURL = result.nextPageURL
+            self.loadMoreError = nil
             server.lastUsedAt = Date()
             try? modelContext.save()
         } catch let opdsError as OPDSError {
@@ -54,14 +56,16 @@ final class BrowseServerSession {
     func loadMore(on server: OPDSServer, makeClient: () -> OPDSClient) async {
         guard let next = nextPageURL, !loadingMore else { return }
         loadingMore = true
+        loadMoreError = nil
         let client = makeClient()
         do {
             let more = try await client.fetchFeed(url: next, on: OPDSRequestConfiguration(server))
             self.paginatedEntries.append(contentsOf: more.entries)
             self.nextPageURL = more.nextPageURL
         } catch {
-            // Don't blow up the whole view for pagination — just stop the spinner.
-            self.nextPageURL = nil
+            // The page is still there: keep it, so the reader can try again, and say what went
+            // wrong where the next page would be. Clearing it made a timeout look like the end.
+            self.loadMoreError = (error as? OPDSError)?.errorDescription ?? error.localizedDescription
         }
         loadingMore = false
     }

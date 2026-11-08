@@ -110,6 +110,19 @@ struct BrowseServerLogicTests {
         ) == .loading)
     }
 
+    @Test func aFailedPageShowsItsFailureUntilTheRetryStarts() {
+        let next = URL(string: "https://books.example/opds?page=2")!
+        #expect(BrowseServerLogic.paginationPresentation(
+            nextPageURL: next, searchText: "", loadingMore: false, loadMoreError: "Offline."
+        ) == .failed("Offline."))
+        #expect(BrowseServerLogic.paginationPresentation(
+            nextPageURL: next, searchText: "", loadingMore: true, loadMoreError: "Offline."
+        ) == .loading)
+        #expect(BrowseServerLogic.paginationPresentation(
+            nextPageURL: next, searchText: "query", loadingMore: false, loadMoreError: "Offline."
+        ) == .hidden)
+    }
+
     @Test func completedDownloadToastTakesPrecedenceOverAnError() {
         #expect(BrowseServerLogic.toastPresentation(
             completedTitle: nil,

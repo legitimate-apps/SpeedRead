@@ -270,7 +270,8 @@ private struct BrowseFeedView: View {
                     let pagination = BrowseServerLogic.paginationPresentation(
                         nextPageURL: session.nextPageURL,
                         searchText: session.searchText,
-                        loadingMore: session.loadingMore
+                        loadingMore: session.loadingMore,
+                        loadMoreError: session.loadMoreError
                     )
                     if pagination != .hidden {
                         HStack {
@@ -281,6 +282,15 @@ private struct BrowseFeedView: View {
                             case .loadMore:
                                 Button("Load more") { Task { await session.loadMore(on: server, makeClient: makeClient) } }
                                     .foregroundStyle(Color.appAccent)
+                            case .failed(let message):
+                                VStack(spacing: 6) {
+                                    Text(message)
+                                        .font(.caption)
+                                        .foregroundStyle(Color.appInkSecondary)
+                                        .multilineTextAlignment(.center)
+                                    Button("Try again") { Task { await session.loadMore(on: server, makeClient: makeClient) } }
+                                        .foregroundStyle(Color.appAccent)
+                                }
                             case .hidden:
                                 EmptyView()
                             }

@@ -51,7 +51,7 @@ struct OPDSServerSurfaceTests {
         let loading = try await hosted.signature()
         f.script.release()
         try await eventually { f.browse.loading == false }
-        #expect(f.browse.error?.contains("Network error") == true)
+        #expect(f.browse.error?.contains("couldn't reach the server") == true)
         let failed = try await hosted.signature()
         #expect(failed != loading)
         #expect(server.lastUsedAt == nil)
@@ -80,14 +80,14 @@ struct OPDSServerSurfaceTests {
         #expect(f.browse.displayEntries.map(\.title) == ["Original book"])
         f.script.enqueue(f.url("search/broken"), status: 503)
         await search("broken")
-        #expect(f.browse.error == "Server error (503). Try again later.")
+        #expect(f.browse.error == OPDSError.httpError(status: 503).errorDescription)
         #expect(f.browse.displayEntries.map(\.title) == ["Original book"])
         #expect(f.script.observed.compactMap { $0.url?.lastPathComponent }
                 == [f.base.lastPathComponent, f.base.lastPathComponent, "hit", "miss", "broken"])
         #expect(f.script.remaining == 0)
     }
 
-    @Test func paginationRunsFromRowTaskAndFailureStopsFurtherPages() async throws {
+    @Test func paginationRunsFromRowTaskAndAFailedPageSaysSoAndCanBeRetried() async throws {
         let f = try Fixture()
         defer { f.close() }
         _ = f.server()
@@ -116,11 +116,22 @@ struct OPDSServerSurfaceTests {
         f.script.release()
         await task.value
         try await eventually { f.browse.loadingMore == false }
-        #expect(f.browse.nextPageURL == nil)
+        // A failed page is not the end of the library: the next page is kept, the failure is said
+        // in words where the row was, and nothing retries on its own.
+        #expect(f.browse.nextPageURL == last)
+        #expect(f.browse.loadMoreError == OPDSError.transport(URLError(.notConnectedToInternet)).errorDescription)
         #expect(f.browse.error == nil)
         #expect(f.browse.displayEntries.map(\.title) == ["First page", "Second page"])
+        let failed = try await hosted.signature()
+        #expect(failed != after)
+        #expect(f.script.observed.count == 3, "A failed page must wait for the reader, not retry itself")
+        f.script.enqueue(last, data: atom(books: ["Third page"]))
         await more()
-        #expect(f.script.observed.map(\.url) == [f.base, next, last])
+        #expect(f.browse.loadMoreError == nil)
+        #expect(f.browse.nextPageURL == nil)
+        #expect(f.browse.displayEntries.map(\.title) == ["First page", "Second page", "Third page"])
+        await more()
+        #expect(f.script.observed.map(\.url) == [f.base, next, last, last])
         #expect(f.script.remaining == 0)
     }
 
@@ -211,7 +222,7 @@ struct OPDSServerSurfaceTests {
         #expect(try await hosted.signature() != runningPixels)
         f.script.enqueue(plain, status: 401)
         await test()
-        #expect(f.editor.testState == .failure("Authentication failed (401). Check the username and password."))
+        #expect(f.editor.testState == .failure(OPDSError.httpError(status: 401).errorDescription!))
         #expect(save())
         let saved = try f.container.mainContext.fetch(FetchDescriptor<OPDSServer>())
         #expect(saved.count == 1)
@@ -236,7 +247,7 @@ struct OPDSServerSurfaceTests {
         f.script.fail(f.url("updated"))
         await f.probeConnection()
         if case .failure(let message) = f.editor.testState {
-            #expect(message.contains("Network error"))
+            #expect(message.contains("couldn't reach the server"))
         } else { Issue.record("The editor must render the transport failure") }
         #expect(f.save())
         #expect(server.name == "Updated")
@@ -265,6 +276,7 @@ struct OPDSServerSurfaceTests {
         let downloadURL = book.acquisitions[1].url
         f.script.enqueue(downloadURL, data: Data("The downloaded text has real words.".utf8),
                          headers: ["Content-Disposition": "attachment; filename=Selected.txt"], held: true)
+        let leftovers = try OPDSDownloadedFile.directoryContents()
         let download = f.download
         let task = Task { await download() }
         try await eventually { f.script.observed.count == 2 }
@@ -278,6 +290,7 @@ struct OPDSServerSurfaceTests {
         #expect(f.detail.downloadError == nil)
         #expect(added == ["Selected"])
         #expect(f.dismissCount == 1)
+        #expect(try OPDSDownloadedFile.directoryContents() == leftovers, "The downloaded file is removed once imported")
         let books = try f.container.mainContext.fetch(FetchDescriptor<Book>())
         #expect(books.count == 1)
         #expect(books.first?.extractedText == "The downloaded text has real words.")
@@ -304,7 +317,7 @@ struct OPDSServerSurfaceTests {
         let download = f.download
         f.script.enqueue(url, status: 403)
         await download()
-        #expect(f.detail.downloadError == "Access denied (403). The user account may lack OPDS permission.")
+        #expect(f.detail.downloadError == OPDSError.httpError(status: 403).errorDescription)
         #expect(f.detail.downloading == false)
         #expect(try await hosted.signature() != initial)
         f.script.enqueue(url, data: Data("This is not a PDF".utf8))
@@ -312,7 +325,7 @@ struct OPDSServerSurfaceTests {
         #expect(f.detail.downloadError == ExtractionError.invalidData.errorDescription)
         f.script.fail(url)
         await download()
-        #expect(f.detail.downloadError?.contains("Network error") == true)
+        #expect(f.detail.downloadError?.contains("couldn't reach the server") == true)
         #expect(f.detail.downloading == false)
         #expect(added == false)
         #expect(f.dismissCount == 0)

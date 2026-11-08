@@ -216,4 +216,59 @@ struct OPDSClientTests {
         let name = OPDSClient.deriveFilename(response: resp, fallbackURL: URL(string: "https://x.test/")!)
         #expect(name == "The Yellow Wallpaper.epub")
     }
+
+    /// CWNG's own header (helper.py): `filename=` and `filename*=` both percent-encoded, plain first.
+    /// OBSERVED for an Arabic title. The decoded RFC 5987 value wins.
+    @Test func contentDispositionPrefersTheExtendedFilenameOverAnEscapedPlainOne() {
+        let escaped = "%D8%A7%D9%84%D9%83%D8%AA%D8%A7%D8%A8"
+        let resp = HTTPURLResponse(
+            url: URL(string: "https://x.test")!, statusCode: 200, httpVersion: nil,
+            headerFields: ["Content-Disposition": "attachment; filename=\(escaped).epub; filename*=UTF-8''\(escaped).epub"]
+        )!
+        #expect(OPDSClient.deriveFilename(response: resp, fallbackURL: URL(string: "https://x.test/")!)
+            == "\u{627}\u{644}\u{643}\u{62A}\u{627}\u{628}.epub")
+    }
+
+    /// RFC 5987 names the charset; ISO-8859-1 is the other one it requires a reader to know.
+    @Test func contentDispositionDecodesTheCharsetItNames() {
+        let resp = HTTPURLResponse(
+            url: URL(string: "https://x.test")!, statusCode: 200, httpVersion: nil,
+            headerFields: ["Content-Disposition": "attachment; filename=\"rates.epub\"; filename*=iso-8859-1'en'%A3%20rates.epub"]
+        )!
+        #expect(OPDSClient.deriveFilename(response: resp, fallbackURL: URL(string: "https://x.test/")!) == "\u{A3} rates.epub")
+    }
+
+    /// A book is written to disk as it arrives rather than held in memory, and the caller owns
+    /// the file it gets back.
+    @Test func aBookDownloadsToAFileTheCallerOwns() async throws {
+        let server = makeServer()
+        let bookData = Data((0..<200_000).map { UInt8($0 % 251) })
+        MockURLProtocol.handler = { req in
+            let resp = HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil,
+                headerFields: ["Content-Disposition": "attachment; filename*=UTF-8''Big%20Book.pdf"])!
+            return (resp, bookData)
+        }
+        let client = OPDSClient(session: mockSession())
+        let file = try await client.downloadFile(from: URL(string: "https://books.example.com/opds/download/7/pdf/")!,
+                                                 on: OPDSRequestConfiguration(server))
+        defer { file.remove() }
+        #expect(file.filename == "Big Book.pdf")
+        #expect(try Data(contentsOf: file.location) == bookData)
+        file.remove()
+        #expect(!FileManager.default.fileExists(atPath: file.location.path))
+    }
+
+    @Test func aRefusedBookDownloadLeavesNoFile() async throws {
+        let server = makeServer()
+        MockURLProtocol.handler = { req in
+            (HTTPURLResponse(url: req.url!, statusCode: 404, httpVersion: nil, headerFields: nil)!, Data("missing".utf8))
+        }
+        let client = OPDSClient(session: mockSession())
+        let before = try OPDSDownloadedFile.directoryContents()
+        await #expect(throws: OPDSError.httpError(status: 404)) {
+            _ = try await client.downloadFile(from: URL(string: "https://books.example.com/opds/download/7/pdf/")!,
+                                              on: OPDSRequestConfiguration(server))
+        }
+        #expect(try OPDSDownloadedFile.directoryContents() == before)
+    }
 }
