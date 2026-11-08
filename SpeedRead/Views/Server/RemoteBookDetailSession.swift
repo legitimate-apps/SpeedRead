@@ -58,12 +58,14 @@ final class RemoteBookDetailSession {
             let book = try importer.importData(payload.data, filename: filename, origin: origin)
             onAdded(book.title)
             dismiss()
-        } catch let err as OPDSError {
-            downloadError = err.errorDescription
-        } catch let err as ExtractionError {
-            downloadError = "Couldn't extract text from the downloaded file (\(err))."
         } catch {
-            downloadError = error.localizedDescription
+            let failure = RemoteBookDetailLogic.downloadFailure(
+                error, among: supportedAcquisitions
+            )
+            downloadError = failure.message
+            if let alternative = failure.alternativeIndex {
+                selectedAcquisitionIndex = alternative
+            }
         }
         downloading = false
     }

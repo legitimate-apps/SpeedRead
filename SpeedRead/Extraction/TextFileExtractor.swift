@@ -20,7 +20,7 @@ struct TextFileExtractor: TextExtractor {
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !normalized.isEmpty else {
-            throw ExtractionError.parsingFailed("File is empty")
+            throw ExtractionError.noReadableText(.plainText)
         }
 
         let (title, body) = Self.detectTitle(in: normalized)

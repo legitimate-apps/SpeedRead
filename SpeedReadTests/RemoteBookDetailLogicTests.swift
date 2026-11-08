@@ -119,6 +119,41 @@ struct RemoteBookDetailLogicTests {
         #expect(RemoteBookDetailLogic.resolvedAcquisition(at: -1, in: []) == nil)
     }
 
+    // MARK: - A download that does not become a book
+
+    /// A scanned PDF on a Calibre-family server often sits beside an EPUB of the same book.
+    /// The page names that format and selects it, so one tap tries the copy that has text.
+    @Test func aTextlessDownloadPointsAtTheSameBookInAnotherReadableFormat() {
+        let offered = [acquisition("https://x/a.pdf", "application/pdf"),
+                       acquisition("https://x/b.txt", "text/plain"),
+                       acquisition("https://x/c.epub", "application/epub+zip")]
+        let failure = RemoteBookDetailLogic.downloadFailure(
+            ExtractionError.noReadableText(.pdf), among: offered)
+        #expect(failure.alternativeIndex == 2)
+        #expect(failure.message.hasPrefix(ExtractionError.noReadableText(.pdf).errorDescription!))
+        #expect(failure.message.contains("as EPUB, which is selected now"))
+    }
+
+    @Test func aTextlessDownloadWithNoOtherFormatOnlyExplains() {
+        let offered = [acquisition("https://x/a.pdf", "application/pdf"),
+                       acquisition("https://x/b.pdf", "application/pdf")]
+        let failure = RemoteBookDetailLogic.downloadFailure(
+            ExtractionError.noReadableText(.pdf), among: offered)
+        #expect(failure == .init(message: ExtractionError.noReadableText(.pdf).errorDescription!,
+                                 alternativeIndex: nil))
+    }
+
+    /// A damaged file is not a reason to switch formats: only "no text" is.
+    @Test func otherFailuresKeepTheSelectionAndSayWhatHappened() {
+        let offered = [acquisition("https://x/a.pdf", "application/pdf"),
+                       acquisition("https://x/c.epub", "application/epub+zip")]
+        let damaged = RemoteBookDetailLogic.downloadFailure(ExtractionError.invalidData, among: offered)
+        #expect(damaged == .init(message: ExtractionError.invalidData.errorDescription!, alternativeIndex: nil))
+        let denied = RemoteBookDetailLogic.downloadFailure(OPDSError.httpError(status: 403), among: offered)
+        #expect(denied.message == OPDSError.httpError(status: 403).errorDescription)
+        #expect(denied.alternativeIndex == nil)
+    }
+
     // MARK: - Helper
 
     private func acquisition(_ url: String, _ mime: String) -> OPDSAcquisition {

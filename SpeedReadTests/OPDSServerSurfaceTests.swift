@@ -309,7 +309,7 @@ struct OPDSServerSurfaceTests {
         #expect(try await hosted.signature() != initial)
         f.script.enqueue(url, data: Data("This is not a PDF".utf8))
         await download()
-        #expect(f.detail.downloadError?.contains("Couldn't extract text") == true)
+        #expect(f.detail.downloadError == ExtractionError.invalidData.errorDescription)
         f.script.fail(url)
         await download()
         #expect(f.detail.downloadError?.contains("Network error") == true)
@@ -318,6 +318,43 @@ struct OPDSServerSurfaceTests {
         #expect(f.dismissCount == 0)
         #expect(try f.container.mainContext.fetchCount(FetchDescriptor<Book>()) == 0)
         #expect(f.script.observed.count == 3)
+        #expect(f.script.remaining == 0)
+    }
+
+    /// A scanned PDF from the server is refused with a reason, and the page selects the same
+    /// book's other format so the next tap downloads the copy that has text.
+    @Test func aScannedPDFDownloadSelectsTheOtherFormatAndTheRetryBecomesABook() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        let server = f.server()
+        let book = entry(f, types: ["application/pdf", "text/plain"])
+        var added: [String] = []
+        let hosted = try f.host(RemoteBookDetailView(server: server, entry: book) { added.append($0) })
+        defer { hosted.close() }
+        _ = try await hosted.signature()
+        let scan = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792)).pdfData { pdf in
+            pdf.beginPage()
+            UIColor.darkGray.setFill()
+            UIRectFill(CGRect(x: 72, y: 72, width: 468, height: 648))
+        }
+        f.script.enqueue(book.acquisitions[0].url, data: scan,
+                         headers: ["Content-Disposition": "attachment; filename=Scanned.pdf"])
+        await f.download()
+        #expect(f.detail.downloadError?.hasPrefix(ExtractionError.noReadableText(.pdf).errorDescription!) == true)
+        #expect(f.detail.downloadError?.contains("as TXT, which is selected now") == true)
+        #expect(f.detail.selectedAcquisitionIndex == 1)
+        #expect(f.detail.downloading == false)
+        #expect(added.isEmpty)
+        #expect(f.dismissCount == 0)
+        #expect(try f.container.mainContext.fetchCount(FetchDescriptor<Book>()) == 0)
+
+        f.script.enqueue(book.acquisitions[1].url, data: Data("The same book, with its words.".utf8),
+                         headers: ["Content-Disposition": "attachment; filename=Same.txt"])
+        await f.download()
+        #expect(f.detail.downloadError == nil)
+        #expect(added == ["Same"])
+        #expect(try f.container.mainContext.fetch(FetchDescriptor<Book>()).map(\.sourceFileName) == ["Same.txt"])
+        #expect(f.script.observed.map(\.url) == book.acquisitions.map(\.url))
         #expect(f.script.remaining == 0)
     }
 

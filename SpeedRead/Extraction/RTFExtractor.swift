@@ -23,7 +23,7 @@ struct RTFExtractor: TextExtractor {
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !plain.isEmpty else {
-            throw ExtractionError.parsingFailed("RTF document contains no text")
+            throw ExtractionError.noReadableText(.richText)
         }
 
         let (title, _) = TextFileExtractor.detectTitle(in: plain)

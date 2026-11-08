@@ -78,6 +78,27 @@ struct LibraryViewRenderingTests {
         #expect(session.importError == "simulated picker error")
     }
 
+    /// The alert shows `importError` as its message, so this is the sentence a reader sees.
+    @Test func libraryImportSessionExplainsAScannedPDFInWords() throws {
+        let container = try makeStoredContainer()
+        let session = LibraryImportSession()
+        let scan = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792)).pdfData { pdf in
+            pdf.beginPage()
+            UIColor.darkGray.setFill()
+            UIRectFill(CGRect(x: 72, y: 72, width: 468, height: 648))
+        }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("library-import-scan-\(UUID().uuidString).pdf")
+        try scan.write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        session.handleImport(.success([url]), modelContext: container.mainContext)
+
+        #expect(session.showError)
+        #expect(session.importError == ExtractionError.noReadableText(.pdf).errorDescription)
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Book>()) == 0)
+    }
+
     @Test func libraryImportSessionNoSelectionIsNoop() throws {
         let container = try makeStoredContainer()
         let session = LibraryImportSession()

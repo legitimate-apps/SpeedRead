@@ -15,7 +15,7 @@ saying "New in 1.2." while 1.3 was being prepared. Re-read this line at every re
 Note also: continuation lines here must NOT be indented four spaces. parse_metadata treats any
 four-space-indented line as section content, so an aligned comment silently becomes the copy. -->
 
-    A book can finish now. Reach the last word and it says finished — 100%, not 99% — on your iPhone and your Apple Watch. New in 1.3.
+    Chapters, plus your place, highlights and notes kept in step with your library server. iPhone and Apple Watch now share one place. New in 1.4.
 
 ## Keywords (100 byte max)
 
@@ -51,12 +51,16 @@ four-space-indented line as section content, so an aligned comment silently beco
 
 ## What's New (4000 max)
 
-    A book can finish now.
+    Chapters. Jump around a book from its chapter list without losing your place.
 
-    Reaching the last word marks a book complete — 100%, and it says "finished" instead of sitting at 99% with "under a minute left" forever. Your Apple Watch agrees with your iPhone about it.
+    Your library server keeps up. On a server that supports it, your reading position, highlights, notes and bookmarks follow the book.
 
-    Long words stay on screen in RSVP. They scale down to fit, and the red pivot letter stays exactly where your eye is already looking rather than sliding around.
+    iPhone and Apple Watch share one place. Start on one and the other shows "Reading on...". Tap to take over.
 
-    Apple Watch syncing is more careful. Your iPhone no longer tells you a book was sent when the watch turned it down, and a reading position that arrives late can no longer overwrite a newer one you just made.
+    A scrub you can see. Drag in RSVP and the words move with your finger, glide after a flick and tick as they pass.
 
-    Damaged EPUB files are rejected with a clear message instead of importing with text quietly missing.
+    Long tokens read cleanly. Web addresses stay whole and hold longer, and very long words break into hyphenated pieces.
+
+    PDFs you import on iOS 27 no longer pick up stray junk words, and a scanned PDF with no text now says so instead of opening as an empty book.
+
+    And a new app icon.

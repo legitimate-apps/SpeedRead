@@ -52,6 +52,11 @@ struct DocumentImporter {
             sourceFileName: filename,
             chapters: result.chapters
         )
+        // Counted the way the reader counts, so whitespace or markers alone are no text either.
+        // A scanned PDF used to land here as a 0-word book with nothing to say why.
+        guard book.wordCount > 0 else {
+            throw ExtractionError.noReadableText(format)
+        }
         // Over the bytes exactly as received: this is what a sync server registered when it
         // served them.
         book.sourceDigest = KOReaderPartialMD5.digest(of: data)

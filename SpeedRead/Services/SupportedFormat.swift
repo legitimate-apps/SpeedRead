@@ -1,6 +1,6 @@
 import Foundation
 
-enum SupportedFormat: CaseIterable {
+nonisolated enum SupportedFormat: CaseIterable, Sendable {
     case epub
     case pdf
     case plainText

@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import SwiftData
+import UIKit
 @testable import SpeedRead
 
 private func inMemoryContext() throws -> ModelContext {
@@ -113,5 +114,33 @@ struct DocumentImporterDataTests {
         let text = "one two three four five six seven eight nine ten"
         let book = try importer.importData(Data(text.utf8), filename: "ten.txt")
         #expect(book.wordCount == Book.tokenize(book.extractedText).count)
+    }
+
+    /// A scan: every page is a picture, so PDFKit finds no text. This imported as a 0-word book
+    /// with no error until 1.4 (13); 26 of 117 PDFs on the developer's Mac had no text layer.
+    @Test func aPDFWithOnlyPicturesIsRefusedAndNothingIsSaved() throws {
+        let context = try inMemoryContext()
+        let importer = DocumentImporter(modelContext: context)
+        let scan = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792)).pdfData { pdf in
+            for shade in [0.2, 0.6] {
+                pdf.beginPage()
+                UIColor(white: shade, alpha: 1).setFill()
+                UIRectFill(CGRect(x: 72, y: 72, width: 468, height: 648))
+            }
+        }
+
+        #expect(throws: ExtractionError.noReadableText(.pdf)) {
+            try importer.importData(scan, filename: "Scanned.pdf")
+        }
+        #expect(try context.fetchCount(FetchDescriptor<Book>()) == 0)
+    }
+
+    @Test func aTextFileOfOnlyWhitespaceIsRefusedAsHavingNoText() throws {
+        let context = try inMemoryContext()
+        let importer = DocumentImporter(modelContext: context)
+        #expect(throws: ExtractionError.noReadableText(.plainText)) {
+            try importer.importData(Data("  \n\t \n".utf8), filename: "blank.txt")
+        }
+        #expect(try context.fetchCount(FetchDescriptor<Book>()) == 0)
     }
 }
