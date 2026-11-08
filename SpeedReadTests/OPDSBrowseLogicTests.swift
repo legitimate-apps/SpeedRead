@@ -72,6 +72,21 @@ struct OPDSBrowseLogicTests {
         ) == .fetch(URL(string: "https://search.example/who%20goes%20there%3F")!))
     }
 
+    /// CWNG decodes the search term with `unquote_plus` (OBSERVED on v4.1.63: `/opds/search/C++`
+    /// searched "C"; `/opds/search/C%2B%2B` searched "C++"). So `+` and every other reserved
+    /// character a server might read as syntax is escaped, in a path template and a query one.
+    @Test("a search term reaches the server as typed", arguments: [
+        ("https://books.example/opds/search/{searchTerms}", "C++", "https://books.example/opds/search/C%2B%2B"),
+        ("https://books.example/opds/search?query={searchTerms}", "C++ & Rust=fun",
+         "https://books.example/opds/search?query=C%2B%2B%20%26%20Rust%3Dfun"),
+        ("https://books.example/opds/search/{searchTerms}", "AC/DC #1", "https://books.example/opds/search/AC%2FDC%20%231"),
+        ("https://books.example/opds/search/{searchTerms}", "caf\u{E9}", "https://books.example/opds/search/caf%C3%A9"),
+    ])
+    func aSearchTermReachesTheServerAsTyped(template: String, query: String, expected: String) {
+        #expect(OPDSBrowseLogic.searchAction(query: query, advertisedTemplate: template, baseURL: nil)
+            == .fetch(URL(string: expected)!))
+    }
+
     @Test func searchFallsBackToNormalizedServerPathAndCanBeUnavailable() {
         #expect(OPDSBrowseLogic.searchAction(
             query: "swift",

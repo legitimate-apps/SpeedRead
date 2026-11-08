@@ -44,11 +44,18 @@ nonisolated enum OPDSBrowseLogic {
         }
         let resolved = template.replacingOccurrences(
             of: "{searchTerms}",
-            with: query.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? query
+            with: query.addingPercentEncoding(withAllowedCharacters: searchTermAllowed) ?? query
         )
         guard let url = URL(string: resolved) else { return .unavailable }
         return .fetch(url)
     }
+
+    /// RFC 3986's unreserved characters, ASCII only; everything else is escaped. A server that
+    /// decodes the term with `unquote_plus` (CWNG does) reads a raw `+` as a space, so "C++"
+    /// searched "C"; `&`, `=`, `/`, `?` and `#` would end the term in a query or a path.
+    private static let searchTermAllowed = CharacterSet(
+        charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+    )
 
     private static func defaultSearchTemplate(baseURL: URL?) -> String? {
         guard let baseURL else { return nil }
