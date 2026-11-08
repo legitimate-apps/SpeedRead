@@ -30,6 +30,12 @@ struct OPDSEntryRowView: View {
                         .foregroundStyle(Color.appInkSecondary)
                         .lineLimit(1)
                 }
+                if let series = entry.series {
+                    Text(OPDSMetadataLogic.seriesText(for: series))
+                        .font(.caption)
+                        .foregroundStyle(Color.appInkSecondary)
+                        .lineLimit(1)
+                }
                 ForEach(OPDSMetadataLogic.discoveryFields(for: entry)) { field in
                     Text(field.text)
                         .font(.caption)

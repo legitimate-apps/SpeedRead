@@ -40,6 +40,11 @@ struct RemoteBookDetailView: View {
                                 .italic()
                                 .foregroundStyle(Color.appInkSecondary)
                         }
+                        if let series = entry.series {
+                            Text(OPDSMetadataLogic.seriesText(for: series))
+                                .font(.bodySerif(size: 15))
+                                .foregroundStyle(Color.appInkSecondary)
+                        }
                         ForEach(OPDSMetadataLogic.detailFields(for: entry)) { field in
                             Text(field.text)
                                 .font(.caption)

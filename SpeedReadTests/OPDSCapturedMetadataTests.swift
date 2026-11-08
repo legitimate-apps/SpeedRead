@@ -88,6 +88,40 @@ struct OPDSCapturedMetadataTests {
         #expect(feed.entries.last?.language == nil)
     }
 
+    /// CWNG's feed.xml carries `calibre:series`, `calibre:series_index` and `dcterms:isPartOf` for a
+    /// book in a series. Captured from a real CWNG catalog: four of its sixty books are in one.
+    @Test func capturedSeriesAreNotDropped() throws {
+        let feed = try parse("cwng-new")
+        let series = feed.entries.compactMap { entry in entry.series.map { (entry.title, $0) } }
+        #expect(series.map(\.0) == ["2001: A Space Odyssey", "Neuromancer", "Less : A Novel",
+                                     "All the Light We Cannot See(elib.cc)"])
+        #expect(series.map(\.1) == [
+            OPDSSeries(name: "Space Odyssey", index: 1), OPDSSeries(name: "Neuromancer", index: 1),
+            OPDSSeries(name: "Less", index: 1), OPDSSeries(name: "Pulitzer Prize Winner", index: 2015),
+        ])
+        #expect(feed.entries.first?.series == nil)
+    }
+
+    /// The template's current shape: an escaped name, a two-place index, and the Dublin Core
+    /// fallback alone for a feed that has only that.
+    @Test func seriesNamesIndexesAndTheDublinCoreFallback() throws {
+        let feed = try OPDSAtomParser(baseURL: base).parse(data: Data("""
+        <feed xmlns="http://www.w3.org/2005/Atom" xmlns:dcterms="http://purl.org/dc/terms/" \
+        xmlns:calibre="http://calibre.kovidgoyal.net/2009/metadata">
+        <entry><title>Abaddon's Gate</title><calibre:series>Leviathan &amp; Co</calibre:series>
+        <calibre:series_index>3.00</calibre:series_index><dcterms:isPartOf>Leviathan &amp; Co</dcterms:isPartOf></entry>
+        <entry><title>Between</title><calibre:series>Leviathan</calibre:series><calibre:series_index>2.50</calibre:series_index></entry>
+        <entry><title>Generic</title><dcterms:isPartOf>Earthsea</dcterms:isPartOf></entry>
+        <entry><title>Unnumbered</title><calibre:series>Discworld</calibre:series><calibre:series_index></calibre:series_index></entry>
+        <entry><title>Alone</title><calibre:series>  </calibre:series></entry>
+        </feed>
+        """.utf8))
+        #expect(feed.entries.map(\.series) == [
+            OPDSSeries(name: "Leviathan & Co", index: 3), OPDSSeries(name: "Leviathan", index: 2.5),
+            OPDSSeries(name: "Earthsea", index: nil), OPDSSeries(name: "Discworld", index: nil), nil,
+        ])
+    }
+
     private func parse(_ name: String) throws -> OPDSFeed {
         try OPDSAtomParser(baseURL: base).parse(data: OPDSCapturedFixture.data(name))
     }

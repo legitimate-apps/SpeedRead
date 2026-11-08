@@ -29,6 +29,15 @@ nonisolated struct OPDSEntry: Equatable, Identifiable, Sendable {
     let acquisitions: [OPDSAcquisition]
     var categories: [OPDSCategory] = []
     var publisher: String? = nil
+    var series: OPDSSeries? = nil
+}
+
+/// The series a book is in, from Calibre's `calibre:series` / `calibre:series_index` (what CWNG's
+/// feed.xml emits) or Dublin Core's `dcterms:isPartOf` alone.
+nonisolated struct OPDSSeries: Equatable, Sendable {
+    let name: String
+    /// The book's number in it; Calibre allows fractions ("2.50").
+    let index: Double?
 }
 
 nonisolated struct OPDSCategory: Equatable, Sendable {
@@ -110,6 +119,9 @@ nonisolated final class OPDSAtomParser: NSObject {
     private var currentEntryThumbnail: URL?
     private var currentEntryNavigationLink: URL?
     private var currentEntryAcquisitions: [OPDSAcquisition] = []
+    private var currentEntrySeriesName: String?
+    private var currentEntrySeriesIndex: Double?
+    private var currentEntryPartOf: String?
 
     init(baseURL: URL) {
         self.baseURL = baseURL
@@ -233,6 +245,9 @@ nonisolated extension OPDSAtomParser: XMLParserDelegate {
             currentEntryThumbnail = nil
             currentEntryNavigationLink = nil
             currentEntryAcquisitions = []
+            currentEntrySeriesName = nil
+            currentEntrySeriesIndex = nil
+            currentEntryPartOf = nil
         case "author" where parent == "entry":
             inAuthor = true
         case "category" where parent == "entry":
@@ -283,6 +298,12 @@ nonisolated extension OPDSAtomParser: XMLParserDelegate {
                 currentEntryLanguage = trimmed.isEmpty ? nil : trimmed
             case "publisher" where parent == "entry":
                 currentEntryPublisher = trimmed.isEmpty ? nil : trimmed
+            case "series" where parent == "entry":
+                currentEntrySeriesName = trimmed.isEmpty ? nil : trimmed
+            case "series_index" where parent == "entry":
+                currentEntrySeriesIndex = Double(trimmed).flatMap { $0.isFinite ? $0 : nil }
+            case "ispartof" where parent == "entry":
+                currentEntryPartOf = trimmed.isEmpty ? nil : trimmed
             case "name" where inAuthor && parent == "author":
                 if !trimmed.isEmpty { currentEntryAuthors.append(trimmed) }
             case "author" where parent == "entry":
@@ -301,7 +322,10 @@ nonisolated extension OPDSAtomParser: XMLParserDelegate {
                     navigationLink: currentEntryNavigationLink,
                     acquisitions: currentEntryAcquisitions,
                     categories: currentEntryCategories,
-                    publisher: currentEntryPublisher
+                    publisher: currentEntryPublisher,
+                    series: (currentEntrySeriesName ?? currentEntryPartOf).map {
+                        OPDSSeries(name: $0, index: currentEntrySeriesIndex)
+                    }
                 )
                 entries.append(entry)
                 inEntry = false

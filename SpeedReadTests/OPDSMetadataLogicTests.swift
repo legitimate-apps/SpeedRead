@@ -32,4 +32,13 @@ struct OPDSMetadataLogicTests {
         #expect(OPDSMetadataLogic.discoveryFields(for: empty).isEmpty)
         #expect(OPDSMetadataLogic.detailFields(for: empty).isEmpty)
     }
+
+    @Test("a series reads as the book's place in it", arguments: [
+        (OPDSSeries(name: "The Expanse", index: 3), "Book 3 of The Expanse"),
+        (OPDSSeries(name: "The Expanse", index: 2.5), "Book 2.5 of The Expanse"),
+        (OPDSSeries(name: "Earthsea", index: nil), "Part of Earthsea"),
+    ])
+    func seriesText(series: OPDSSeries, expected: String) {
+        #expect(OPDSMetadataLogic.seriesText(for: series) == expected)
+    }
 }

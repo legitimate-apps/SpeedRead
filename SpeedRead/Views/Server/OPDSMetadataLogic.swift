@@ -21,6 +21,13 @@ nonisolated enum OPDSMetadataLogic {
         return fields
     }
 
+    /// "Book 3 of The Expanse", or "Part of Earthsea" when the feed gives no number.
+    static func seriesText(for series: OPDSSeries) -> String {
+        guard let index = series.index else { return "Part of \(series.name)" }
+        let number = index.rounded() == index && abs(index) < 1e15 ? String(Int(index)) : String(index)
+        return "Book \(number) of \(series.name)"
+    }
+
     static func detailFields(for entry: OPDSEntry) -> [Field] {
         var fields = discoveryFields(for: entry)
         if let language = entry.language, !language.isEmpty {
