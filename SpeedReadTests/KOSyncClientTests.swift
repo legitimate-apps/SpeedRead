@@ -92,7 +92,86 @@ struct KOSyncClientTests {
         #expect(try KOSyncWire.decodePosition(Data(#"{"percentage":-1}"#.utf8)) == nil)
     }
 
+    @Test func aPushCarriesWhenTheReaderWasThere() throws {
+        let push = KOSyncPush(document: "42", percentage: 0.2, device: "d", deviceID: "D-1", anchor: nil,
+                              timestamp: 1_790_000_000)
+        #expect(String(decoding: try KOSyncWire.encode(push), as: UTF8.self).contains(#""timestamp":1790000000"#))
+    }
+
+    /// CWNG's `client_clock` ignores a time more than five minutes ahead of its receipt or before
+    /// 2000, so a push never sends one: a clock ahead of now is sent as now, an absurd one not at all.
+    @Test func aReadingTimeIsSentAsCWNGWillTakeIt() {
+        let now = Date(timeIntervalSince1970: 1_790_000_000.75)
+        #expect(KOSyncWire.clientClock(Date(timeIntervalSince1970: 1_789_999_000.9), now: now) == 1_789_999_000)
+        #expect(KOSyncWire.clientClock(now.addingTimeInterval(3_600), now: now) == 1_790_000_000)
+        #expect(KOSyncWire.clientClock(Date(timeIntervalSince1970: 946_684_799), now: now) == nil)
+        #expect(KOSyncWire.clientClock(.distantPast, now: now) == nil)
+        #expect(KOSyncWire.clientClock(nil, now: now) == nil)
+    }
+
+    @Test("a server says whether it shares this device's place", arguments: [
+        (#"{"authorized":"OK","capabilities":["anchor"]}"#, KOSyncPlaceSharing.notGated),
+        (#"{"authorized":"OK","share_place_gates":false}"#, .notGated),
+        (#"{"authorized":"OK","share_place_gates":true}"#, .notShared),
+        (#"{"authorized":"OK","share_place_gates":true,"share_place":false}"#, .notShared),
+        (#"{"authorized":"OK","share_place_gates":true,"share_place":true}"#, .shared),
+        ("<html>", .notGated),
+    ])
+    func placeSharingIsRead(body: String, expected: KOSyncPlaceSharing) {
+        #expect(KOSyncWire.placeSharing(fromAuthBody: Data(body.utf8)) == expected)
+    }
+
     // MARK: Client
+
+    @Test func theProbeSaysWhetherThePlaceIsShared() async throws {
+        let f = Fixture()
+        defer { f.close() }
+        f.script.enqueue(f.authURL, data: Data(#"{"authorized":"OK","capabilities":["anchor"],"share_place_gates":true}"#.utf8))
+        #expect(try await f.client.status(of: f.configuration)
+            == KOSyncServerStatus(support: .anchorPositions, placeSharing: .notShared))
+    }
+
+    @Test func anIdentifiedClientNamesItsDeviceOnEveryPositionCall() async throws {
+        let device = KOSyncDevice(id: "D-1", name: "SpeedRead (iPhone)")
+        let f = Fixture(device: device)
+        defer { f.close() }
+        let pushURL = URL(string: "https://books.example.com/kosync/syncs/progress")!
+        let fetchURL = KOSyncWire.fetchURL(base: URL(string: "https://books.example.com/kosync")!, document: "abc")!
+        f.script.enqueue(f.authURL, data: Data(#"{"authorized":"OK","capabilities":["anchor"]}"#.utf8))
+        f.script.enqueue(pushURL)
+        f.script.enqueue(fetchURL, data: Data("{}".utf8))
+
+        _ = try await f.client.status(of: f.configuration)
+        try await f.client.push(KOSyncPush(document: "abc", percentage: 0.2, device: device.name, deviceID: device.id,
+                                           anchor: nil), to: f.configuration)
+        _ = try await f.client.position(of: "abc", on: f.configuration)
+
+        #expect(f.script.observed.count == 3)
+        for request in f.script.observed {
+            #expect(request.value(forHTTPHeaderField: "X-CWNG-Device-ID") == "D-1")
+            #expect(request.value(forHTTPHeaderField: "X-CWNG-Device-Name") == "SpeedRead (iPhone)")
+        }
+        #expect(KOSyncClient(session: f.client.session).identified(as: device).device == device)
+    }
+
+    /// CWNG serves an annotation GET that names a device only that device's own highlights (its
+    /// share-my-place spec, §17), which would stop highlights made in other readers reaching this
+    /// one. Annotation calls stay anonymous; the body's `device_id` still says who made each row.
+    @Test func annotationCallsDoNotNameTheDevice() async throws {
+        let f = Fixture(device: KOSyncDevice(id: "D-1", name: "SpeedRead (iPhone)"))
+        defer { f.close() }
+        let base = URL(string: "https://books.example.com/kosync")!
+        f.script.enqueue(KOSyncWire.annotationsFetchURL(base: base, document: "abc"),
+                         data: Data(#"{"annotations":[]}"#.utf8))
+        f.script.enqueue(KOSyncWire.annotationsPushURL(base: base), data: Data("{}".utf8))
+
+        _ = try await f.client.annotations(of: "abc", on: f.configuration)
+        _ = try await f.client.push(KOSyncAnnotationPush(document: "abc", device: "d", deviceID: "D-1",
+                                                         annotations: [], deleted: []), to: f.configuration)
+
+        #expect(f.script.observed.count == 2)
+        #expect(f.script.observed.allSatisfy { $0.value(forHTTPHeaderField: "X-CWNG-Device-ID") == nil })
+    }
 
     @Test func theProbeSendsTheOPDSCredentials() async throws {
         let f = Fixture()
@@ -227,8 +306,8 @@ struct KOSyncClientTests {
         let authURL = URL(string: "https://books.example.com/kosync/users/auth")!
         private let tag: String
 
-        init(base: String = "https://books.example.com/opds") {
-            client = KOSyncClient(session: mockSession(script: script))
+        init(base: String = "https://books.example.com/opds", device: KOSyncDevice? = nil) {
+            client = KOSyncClient(session: mockSession(script: script), device: device)
             let server = OPDSServer(name: "Library", baseURL: URL(string: base)!, username: "reader")
             tag = server.keychainTag
             try? KeychainStore.setPassword("hunter2", for: tag)

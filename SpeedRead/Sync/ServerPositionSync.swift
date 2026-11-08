@@ -42,6 +42,9 @@ final class ServerPositionSync: ServerPositionPushing {
     private(set) var pendingOffer: Offer?
     /// Servers not getting this device's place for a reason the reader can act on, by server id.
     private(set) var problems: [UUID: ServerSyncProblem] = [:]
+    /// Servers that keep this device's place from the account's other readers.
+    private(set) var unsharedPlaces: Set<UUID> = []
+    private(set) var dismissedPlaceNotices: Set<String> = []
 
     @ObservationIgnored let deviceID: String
     @ObservationIgnored let deviceName: String
@@ -65,6 +68,7 @@ final class ServerPositionSync: ServerPositionPushing {
     private static let logger = Logger(subsystem: "com.legitimateapps.SpeedRead", category: "ServerSync")
     static let deviceIDKey = "positionSyncDeviceID"
     static let declinedOffersKey = "positionSyncDeclinedOffers"
+    static let dismissedPlaceNoticesKey = "positionSyncDismissedPlaceNotices"
 
     init(
         client: KOSyncClient = KOSyncClient(),
@@ -72,16 +76,19 @@ final class ServerPositionSync: ServerPositionPushing {
         deviceName: String = ServerPositionSync.defaultDeviceName,
         pushDelay: Duration = .seconds(10)
     ) {
-        self.client = client
         self.defaults = defaults
         self.deviceName = deviceName
         self.pushDelay = pushDelay
+        let deviceID: String
         if let stored = defaults.string(forKey: Self.deviceIDKey) {
             deviceID = stored
         } else {
             deviceID = UUID().uuidString
             defaults.set(deviceID, forKey: Self.deviceIDKey)
         }
+        self.deviceID = deviceID
+        self.client = client.identified(as: KOSyncDevice(id: deviceID, name: deviceName))
+        dismissedPlaceNotices = Set(defaults.stringArray(forKey: Self.dismissedPlaceNoticesKey) ?? [])
     }
 
     static var defaultDeviceName: String {
@@ -161,7 +168,7 @@ final class ServerPositionSync: ServerPositionPushing {
         guard let book = fetchBook(bookId), syncTarget(for: book) != nil else { return true }
         let revision = revisions[bookId, default: 0]
         let text = book.extractedText, index = book.lastReadWordIndex
-        let finished = book.finishedAt != nil
+        let finished = book.finishedAt != nil, readAt = book.lastReadDate
         let percentage = ServerPositionLogic.pushPercentage(index: index, wordCount: book.wordCount, finished: finished)
         let anchor = finished ? nil : await Task.detached {
             ReadingAnchor.build(text: text, tokenIndex: index)?.wireSafe()
@@ -181,7 +188,8 @@ final class ServerPositionSync: ServerPositionPushing {
         // offer must not be echoed, so a changed revision means this snapshot is not to be sent.
         guard revisions[bookId, default: 0] == revision, let target = syncTarget(for: book) else { return true }
         let position = KOSyncPush(document: target.keys[0], percentage: percentage, device: deviceName,
-                                  deviceID: deviceID, anchor: anchor)
+                                  deviceID: deviceID, anchor: anchor,
+                                  timestamp: KOSyncWire.clientClock(readAt, now: Date()))
         do {
             try await client.push(position, to: OPDSRequestConfiguration(target.server))
         } catch OPDSError.deviceRemoved(let message) {
@@ -296,10 +304,23 @@ final class ServerPositionSync: ServerPositionPushing {
         let prefix = "\(server.id.uuidString)|"
         supportCache = supportCache.filter { !$0.key.hasPrefix(prefix) }
         problems[server.id] = nil
+        unsharedPlaces.remove(server.id)
         if !server.syncsReadingPosition, pendingOffer?.serverID == server.id { pendingOffer = nil }
     }
 
     func problem(for serverID: UUID) -> ServerSyncProblem? { problems[serverID] }
+
+    static let placeNotice = "So your other readers get your place, turn on Share my place for this device in your library's device settings."
+
+    /// The one-time note for a server that keeps this device's place to itself, until dismissed.
+    func placeNotice(for serverID: UUID) -> String? {
+        unsharedPlaces.contains(serverID) && !dismissedPlaceNotices.contains(serverID.uuidString) ? Self.placeNotice : nil
+    }
+
+    func dismissPlaceNotice(for serverID: UUID) {
+        dismissedPlaceNotices.insert(serverID.uuidString)
+        defaults.set(dismissedPlaceNotices.sorted(), forKey: Self.dismissedPlaceNoticesKey)
+    }
 
     private func declinedTimestamp(for bookId: UUID) -> Date? {
         let declined = defaults.dictionary(forKey: Self.declinedOffersKey) as? [String: Double]
@@ -331,9 +352,10 @@ final class ServerPositionSync: ServerPositionPushing {
         let key = "\(server.id.uuidString)|\(server.baseURLString)|\(server.username)"
         if let cached = supportCache[key] { return cached }
         do {
-            let support = try await client.support(of: OPDSRequestConfiguration(server))
-            supportCache[key] = support
-            return support
+            let status = try await client.status(of: OPDSRequestConfiguration(server))
+            supportCache[key] = status.support
+            if status.placeSharing == .notShared { unsharedPlaces.insert(server.id) } else { unsharedPlaces.remove(server.id) }
+            return status.support
         } catch {
             Self.logger.error("Sync support probe failed: \(error.localizedDescription)")
             return nil

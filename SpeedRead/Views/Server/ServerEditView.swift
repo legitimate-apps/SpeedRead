@@ -78,6 +78,12 @@ struct ServerEditView: View {
                         Text(problem.message)
                             .foregroundStyle(Color.appError)
                     }
+                    if let server, let notice = ServerPositionSync.shared.placeNotice(for: server.id) {
+                        Text(notice)
+                            .foregroundStyle(Color.appInk)
+                        Button("Got it") { ServerPositionSync.shared.dismissPlaceNotice(for: server.id) }
+                            .font(.footnote.weight(.semibold))
+                    }
                     Text("For books downloaded from this server: your place, highlights, notes and bookmarks are saved to it, and you get the ones you made in other readers that sync with it. Only servers that support text-anchored sync are used.")
                 }
             }

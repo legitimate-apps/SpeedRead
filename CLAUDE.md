@@ -164,6 +164,7 @@ the whole life of the watch app because Swift 5 does not run the check.
 | `rsvpHasScrubbed` | Bool | RSVPView — hides the "Drag right to go back, left to go ahead" hint after the first drag |
 | `positionSyncDeviceID` | String (UUID) | ServerPositionSync — this device's KOSync `device_id`; renaming it makes the server see a new device |
 | `positionSyncDeclinedOffers` | [String: Double] | ServerPositionSync — book id → declined server timestamp |
+| `positionSyncDismissedPlaceNotices` | [String] | ServerPositionSync — server ids whose "turn on Share my place" note the reader dismissed |
 | `annotationSyncPendingDeletes` | [String: [String]] | ServerAnnotationSync — book id → this app's annotation ids deleted here, not yet deleted on the server |
 | `annotationSyncForgotten` | [String: [String]] | ServerAnnotationSync — book id → other readers' annotation ids deleted here (only their reader can delete them on the server), so they are not taken back |
 

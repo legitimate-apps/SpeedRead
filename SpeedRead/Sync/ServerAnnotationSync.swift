@@ -44,16 +44,19 @@ final class ServerAnnotationSync: AnnotationChangeNoting {
         deviceName: String = ServerPositionSync.defaultDeviceName,
         pushDelay: Duration = .seconds(10)
     ) {
-        self.client = client
         self.defaults = defaults
         self.deviceName = deviceName
         self.pushDelay = pushDelay
+        let deviceID: String
         if let stored = defaults.string(forKey: ServerPositionSync.deviceIDKey) {
             deviceID = stored
         } else {
             deviceID = UUID().uuidString
             defaults.set(deviceID, forKey: ServerPositionSync.deviceIDKey)
         }
+        self.deviceID = deviceID
+        // Its probe names the device, like position sync's; its annotation calls do not (see `send`).
+        self.client = client.identified(as: KOSyncDevice(id: deviceID, name: deviceName))
     }
 
     func configure(modelContainer: ModelContainer) {

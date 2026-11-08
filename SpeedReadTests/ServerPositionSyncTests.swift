@@ -32,6 +32,66 @@ struct ServerPositionSyncTests {
                            "after": "w121 w122 w123 w124 w125 w126 w127 w128"])
     }
 
+    /// The push says when the reader was at the place, so CWNG decides between two readers by
+    /// when each was reading rather than when each push arrived; and it names this device.
+    @Test func aPushSaysWhenAndWhoReadThere() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        f.supportsAnchors()
+        f.pushAccepted()
+        let readAt = Date(timeIntervalSince1970: 1_790_000_000)
+
+        _ = ReadingPositionCoordinator.commit(120, wordCount: f.book.wordCount, book: f.book,
+                                              saver: f.context, sync: RecordingSync(), serverSync: f.sync, now: readAt)
+        await f.sync.flush()
+
+        #expect(try f.pushedBody(at: 1)["timestamp"] as? Int == 1_790_000_000)
+        #expect(f.script.observed.allSatisfy { $0.value(forHTTPHeaderField: "X-CWNG-Device-ID") == f.sync.deviceID })
+        #expect(f.script.observed.allSatisfy { $0.value(forHTTPHeaderField: "X-CWNG-Device-Name") == "SpeedRead (Test)" })
+    }
+
+    @Test func aServerThatKeepsThisPlacePrivateSaysHowToShareItOnce() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        f.script.enqueue(f.authURL, data: Data(#"{"authorized":"OK","capabilities":["anchor"],"share_place_gates":true}"#.utf8))
+        f.pushAccepted()
+        #expect(f.sync.placeNotice(for: f.server.id) == nil)
+
+        f.sync.noteCommitted(bookId: f.book.id)
+        await f.sync.flush()
+
+        #expect(f.sync.placeNotice(for: f.server.id) == ServerPositionSync.placeNotice)
+        f.sync.dismissPlaceNotice(for: f.server.id)
+        #expect(f.sync.placeNotice(for: f.server.id) == nil)
+        // Dismissed for good: a new sync on the same defaults does not show it again.
+        let again = ServerPositionSync(client: KOSyncClient(session: mockSession(script: f.script)),
+                                       defaults: f.defaults.defaults, deviceName: "SpeedRead (Test)")
+        again.configure(modelContainer: f.container)
+        f.script.enqueue(f.authURL, data: Data(#"{"authorized":"OK","capabilities":["anchor"],"share_place_gates":true}"#.utf8))
+        f.pushAccepted()
+        again.noteCommitted(bookId: f.book.id)
+        await again.flush()
+        #expect(again.placeNotice(for: f.server.id) == nil)
+        #expect(f.script.remaining == 0)
+    }
+
+    @Test("no note when the place is shared or not gated", arguments: [
+        #"{"authorized":"OK","capabilities":["anchor"],"share_place_gates":true,"share_place":true}"#,
+        #"{"authorized":"OK","capabilities":["anchor"]}"#,
+    ])
+    func noPlaceNoticeWhenThePlaceIsShared(auth: String) async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        f.script.enqueue(f.authURL, data: Data(auth.utf8))
+        f.pushAccepted()
+
+        f.sync.noteCommitted(bookId: f.book.id)
+        await f.sync.flush()
+
+        #expect(f.script.remaining == 0)
+        #expect(f.sync.placeNotice(for: f.server.id) == nil)
+    }
+
     @Test func aFinishedBookPushesOneHundredPercentWithNoAnchor() async throws {
         let f = try Fixture()
         defer { f.close() }

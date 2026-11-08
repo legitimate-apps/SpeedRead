@@ -12,6 +12,29 @@ nonisolated enum KOSyncServerSupport: Equatable, Sendable {
     case credentialsRefused
 }
 
+/// Whether a server shares this device's place with the account's other readers, from the auth
+/// answer. CWNG gates places per device (`share_place_gates`); a device starts unshared.
+nonisolated enum KOSyncPlaceSharing: Equatable, Sendable {
+    /// The server does not gate places by device: every place is shared.
+    case notGated
+    case shared
+    /// Gated, and this device's place is not known to be shared.
+    case notShared
+}
+
+/// What the auth probe learned.
+nonisolated struct KOSyncServerStatus: Equatable, Sendable {
+    let support: KOSyncServerSupport
+    let placeSharing: KOSyncPlaceSharing
+}
+
+/// How this device names itself to the server: the `device_id` its pushes already carry, sent as
+/// `X-CWNG-Device-ID` so CWNG can tell its readers apart.
+nonisolated struct KOSyncDevice: Equatable, Sendable {
+    let id: String
+    let name: String
+}
+
 /// A position pushed for one book: a percentage plus the words at it, never an xpointer.
 nonisolated struct KOSyncPush: Encodable, Equatable, Sendable {
     let document: String
@@ -19,10 +42,12 @@ nonisolated struct KOSyncPush: Encodable, Equatable, Sendable {
     let device: String
     let deviceID: String
     let anchor: ReadingAnchor?
+    /// When the reader was at this place, epoch seconds (CWNG's `client_clock`).
+    var timestamp: Int? = nil
     let positionKind = "percentage"
 
     enum CodingKeys: String, CodingKey {
-        case document, percentage, device, anchor
+        case document, percentage, device, anchor, timestamp
         case deviceID = "device_id"
         case positionKind = "position_kind"
     }
@@ -80,6 +105,29 @@ nonisolated enum KOSyncWire {
         return Set((try? JSONDecoder().decode(Auth.self, from: data))?.capabilities ?? [])
     }
 
+    /// `share_place_gates` says the server keeps each device's place private unless it is shared;
+    /// `share_place`, when the server sends it, says whether this device's is. Absent means not known
+    /// to be shared, so the reader is still told how.
+    static func placeSharing(fromAuthBody data: Data) -> KOSyncPlaceSharing {
+        struct Auth: Decodable {
+            let share_place_gates: Bool?
+            let share_place: Bool?
+        }
+        guard let auth = try? JSONDecoder().decode(Auth.self, from: data), auth.share_place_gates == true else {
+            return .notGated
+        }
+        return auth.share_place == true ? .shared : .notShared
+    }
+
+    /// CWNG's `client_clock` throws away a time before 2000 or more than five minutes past its own
+    /// receipt, and then judges the push by when it arrived. A clock ahead of `now` is sent as `now`.
+    static func clientClock(_ date: Date?, now: Date) -> Int? {
+        guard let date else { return nil }
+        let seconds = min(date, now).timeIntervalSince1970
+        guard seconds.isFinite, seconds >= 946_684_800 else { return nil }
+        return Int(seconds.rounded(.down))
+    }
+
     static func support(fromAuthBody data: Data) -> KOSyncServerSupport {
         capabilities(fromAuthBody: data).contains("anchor") ? .anchorPositions : .unsupported
     }
@@ -128,10 +176,18 @@ nonisolated enum KOSyncWire {
 /// KOSync over the library server's own OPDS credentials (HTTP Basic). Shares `OPDSError` and
 /// the insecure-HTTP gate with `OPDSClient`, so a server behaves the same in both.
 actor KOSyncClient {
-    let session: URLSession
+    nonisolated let session: URLSession
 
-    init(session: URLSession = .shared) {
+    nonisolated let device: KOSyncDevice?
+
+    init(session: URLSession = .shared, device: KOSyncDevice? = nil) {
         self.session = session
+        self.device = device
+    }
+
+    /// This client, naming itself as `device` on its position calls.
+    nonisolated func identified(as device: KOSyncDevice) -> KOSyncClient {
+        KOSyncClient(session: session, device: device)
     }
 
     private enum Probe {
@@ -142,7 +198,8 @@ actor KOSyncClient {
 
     private func probe(_ server: OPDSRequestConfiguration) async throws -> Probe {
         guard let base = KOSyncWire.kosyncBase(fromOPDS: server.baseURL) else { return .absent }
-        let (data, status) = try await send(KOSyncWire.authURL(base: base), method: "GET", server: server)
+        let (data, status) = try await perform(request(KOSyncWire.authURL(base: base), method: "GET", server: server,
+                                                        identified: true))
         switch status {
         case 200...299: return .answered(data)
         // CWNG answers a wrong password with 401 (OBSERVED, v4.1.63). A stock server does too,
@@ -161,17 +218,23 @@ actor KOSyncClient {
         return KOSyncWire.capabilities(fromAuthBody: data)
     }
 
-    func support(of server: OPDSRequestConfiguration) async throws -> KOSyncServerSupport {
+    func status(of server: OPDSRequestConfiguration) async throws -> KOSyncServerStatus {
         switch try await probe(server) {
-        case .answered(let data): KOSyncWire.support(fromAuthBody: data)
-        case .refused: .credentialsRefused
-        case .absent: .unsupported
+        case .answered(let data):
+            KOSyncServerStatus(support: KOSyncWire.support(fromAuthBody: data),
+                               placeSharing: KOSyncWire.placeSharing(fromAuthBody: data))
+        case .refused: KOSyncServerStatus(support: .credentialsRefused, placeSharing: .notGated)
+        case .absent: KOSyncServerStatus(support: .unsupported, placeSharing: .notGated)
         }
+    }
+
+    func support(of server: OPDSRequestConfiguration) async throws -> KOSyncServerSupport {
+        try await status(of: server).support
     }
 
     func push(_ position: KOSyncPush, to server: OPDSRequestConfiguration) async throws {
         guard let base = KOSyncWire.kosyncBase(fromOPDS: server.baseURL) else { throw OPDSError.invalidURL }
-        var request = try request(KOSyncWire.pushURL(base: base), method: "PUT", server: server)
+        var request = try request(KOSyncWire.pushURL(base: base), method: "PUT", server: server, identified: true)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try KOSyncWire.encode(position)
         let (data, status) = try await perform(request)
@@ -184,7 +247,7 @@ actor KOSyncClient {
     func position(of document: String, on server: OPDSRequestConfiguration) async throws -> KOSyncRemotePosition? {
         guard let base = KOSyncWire.kosyncBase(fromOPDS: server.baseURL),
               let url = KOSyncWire.fetchURL(base: base, document: document) else { throw OPDSError.invalidURL }
-        let (data, status) = try await perform(request(url, method: "GET", server: server))
+        let (data, status) = try await perform(request(url, method: "GET", server: server, identified: true))
         guard (200...299).contains(status) else { throw OPDSError.httpError(status: status) }
         do {
             return try KOSyncWire.decodePosition(data)
@@ -193,6 +256,8 @@ actor KOSyncClient {
         }
     }
 
+    /// Annotation calls. These never name the device: CWNG serves an annotation GET that names one
+    /// only that device's own highlights (its share-my-place spec, §17).
     func send(_ url: URL, method: String, server: OPDSRequestConfiguration, body: Data? = nil) async throws -> (Data, Int) {
         var request = try request(url, method: method, server: server)
         if let body {
@@ -202,7 +267,8 @@ actor KOSyncClient {
         return try await perform(request)
     }
 
-    private func request(_ url: URL, method: String, server: OPDSRequestConfiguration) throws -> URLRequest {
+    private func request(_ url: URL, method: String, server: OPDSRequestConfiguration,
+                         identified: Bool = false) throws -> URLRequest {
         guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
             throw OPDSError.invalidURL
         }
@@ -211,6 +277,10 @@ actor KOSyncClient {
         request.httpMethod = method
         request.setValue(KOSyncWire.accept, forHTTPHeaderField: "Accept")
         request.setValue("SpeedRead/1.0 KOSync-Client", forHTTPHeaderField: "User-Agent")
+        if identified, let device {
+            request.setValue(device.id, forHTTPHeaderField: "X-CWNG-Device-ID")
+            request.setValue(device.name, forHTTPHeaderField: "X-CWNG-Device-Name")
+        }
         if server.requiresAuth {
             let password = KeychainStore.password(for: server.keychainTag) ?? ""
             let credentials = Data("\(server.username):\(password)".utf8).base64EncodedString()
