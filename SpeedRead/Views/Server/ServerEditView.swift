@@ -73,7 +73,13 @@ struct ServerEditView: View {
             } header: {
                 Text("Reading Sync")
             } footer: {
-                Text("For books downloaded from this server: your place, highlights, notes and bookmarks are saved to it, and you get the ones you made in other readers that sync with it. Only servers that support text-anchored sync are used.")
+                VStack(alignment: .leading, spacing: 6) {
+                    if let server, let problem = ServerPositionSync.shared.problem(for: server.id) {
+                        Text(problem.message)
+                            .foregroundStyle(Color.appError)
+                    }
+                    Text("For books downloaded from this server: your place, highlights, notes and bookmarks are saved to it, and you get the ones you made in other readers that sync with it. Only servers that support text-anchored sync are used.")
+                }
             }
 
             Section {

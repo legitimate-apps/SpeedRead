@@ -96,6 +96,55 @@ struct ServerPositionSyncTests {
         #expect(f.script.observed.map(\.url) == [f.authURL])
     }
 
+    /// CWNG answers a wrong password with 401. Nothing is written, as for a stock server, but the
+    /// reader is told it is the password, and saving the server asks again.
+    @Test func aRefusedPasswordIsNamedUntilTheServerIsSaved() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        f.script.enqueue(f.authURL, status: 401)
+        #expect(f.sync.problem(for: f.server.id) == nil)
+
+        f.sync.noteCommitted(bookId: f.book.id)
+        await f.sync.flush()
+
+        #expect(f.sync.problem(for: f.server.id) == .credentialsRefused)
+        #expect(f.sync.problem(for: f.server.id)?.message.contains("password") == true)
+        #expect(f.script.observed.map(\.url) == [f.authURL])
+        f.sync.serverSettingsChanged(f.server)
+        #expect(f.sync.problem(for: f.server.id) == nil)
+    }
+
+    @Test func aStockServerIsNotAProblem() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        f.script.enqueue(f.authURL, status: 404)
+        f.sync.noteCommitted(bookId: f.book.id)
+        await f.sync.flush()
+        #expect(f.sync.problem(for: f.server.id) == nil)
+    }
+
+    /// A device removed in CWNG gets 409 `device_inactive` on every push. It is not retried and
+    /// not queued again, and the reader is told in the server's words.
+    @Test func aRemovedDeviceStopsPushingAndSaysSo() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        f.supportsAnchors()
+        let body = #"{"error":"device_inactive","message":"This device was removed from the account, so it no longer syncs"}"#
+        f.script.enqueue(f.pushURL, data: Data(body.utf8), status: 409)
+
+        f.sync.noteCommitted(bookId: f.book.id)
+        await f.sync.flush()
+        await f.sync.flush()
+        f.sync.noteCommitted(bookId: f.book.id)
+        await f.sync.flush()
+
+        #expect(f.script.observed.map(\.url) == [f.authURL, f.pushURL])
+        let problem = try #require(f.sync.problem(for: f.server.id))
+        #expect(problem == .deviceRemoved("This device was removed from the account, so it no longer syncs"))
+        #expect(problem.message.hasPrefix("This device was removed from the account, so it no longer syncs."))
+        #expect(f.script.remaining == 0)
+    }
+
     @Test func aFailedPushIsSentAgainAtTheNextFlush() async throws {
         let f = try Fixture()
         defer { f.close() }

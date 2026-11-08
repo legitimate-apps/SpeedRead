@@ -7,6 +7,9 @@ nonisolated enum KOSyncServerSupport: Equatable, Sendable {
     /// A stock KOSync server, an older server, or none at all. A stock server would trust any
     /// `progress` we sent as an xpointer and mis-seek KOReader, so SpeedRead never pushes to one.
     case unsupported
+    /// The server has sync but refused these credentials (401 or 403 from CWNG): nothing is
+    /// written, and the reader is told it is the username and password.
+    case credentialsRefused
 }
 
 /// A position pushed for one book: a percentage plus the words at it, never an xpointer.
@@ -81,6 +84,17 @@ nonisolated enum KOSyncWire {
         capabilities(fromAuthBody: data).contains("anchor") ? .anchorPositions : .unsupported
     }
 
+    /// CWNG's answer to a push from a device removed from the account: 409
+    /// `{"error":"device_inactive","message":"…"}`. The outer optional is whether it is that
+    /// answer at all; the inner, whether it carried a message.
+    static func removedDeviceMessage(_ data: Data) -> String?? {
+        struct Body: Decodable { let error: String?; let message: String? }
+        guard let body = try? JSONDecoder().decode(Body.self, from: data), body.error == "device_inactive" else {
+            return nil
+        }
+        return .some(body.message?.isEmpty == false ? body.message : nil)
+    }
+
     static func encode(_ push: KOSyncPush) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
@@ -120,21 +134,39 @@ actor KOSyncClient {
         self.session = session
     }
 
-    /// Every capability the server names in its auth answer; empty for a stock or older server.
-    func capabilities(of server: OPDSRequestConfiguration) async throws -> Set<String> {
-        guard let base = KOSyncWire.kosyncBase(fromOPDS: server.baseURL) else { return [] }
+    private enum Probe {
+        case answered(Data)
+        case refused
+        case absent
+    }
+
+    private func probe(_ server: OPDSRequestConfiguration) async throws -> Probe {
+        guard let base = KOSyncWire.kosyncBase(fromOPDS: server.baseURL) else { return .absent }
         let (data, status) = try await send(KOSyncWire.authURL(base: base), method: "GET", server: server)
-        // A stock server answers Basic with 401 (it wants its own x-auth headers); a server
-        // without KOSync answers 404. Neither is a failure: it is a server we do not write to.
-        guard (200...299).contains(status) else {
-            if [401, 403, 404, 405].contains(status) { return [] }
-            throw OPDSError.httpError(status: status)
+        switch status {
+        case 200...299: return .answered(data)
+        // CWNG answers a wrong password with 401 (OBSERVED, v4.1.63). A stock server does too,
+        // since it wants its own x-auth headers, so this is never written to either way.
+        case 401, 403: return .refused
+        // No KOSync at all.
+        case 404, 405: return .absent
+        default: throw OPDSError.httpError(status: status)
         }
+    }
+
+    /// Every capability the server names in its auth answer; empty for a stock or older server,
+    /// or one that refused the credentials.
+    func capabilities(of server: OPDSRequestConfiguration) async throws -> Set<String> {
+        guard case .answered(let data) = try await probe(server) else { return [] }
         return KOSyncWire.capabilities(fromAuthBody: data)
     }
 
     func support(of server: OPDSRequestConfiguration) async throws -> KOSyncServerSupport {
-        try await capabilities(of: server).contains("anchor") ? .anchorPositions : .unsupported
+        switch try await probe(server) {
+        case .answered(let data): KOSyncWire.support(fromAuthBody: data)
+        case .refused: .credentialsRefused
+        case .absent: .unsupported
+        }
     }
 
     func push(_ position: KOSyncPush, to server: OPDSRequestConfiguration) async throws {
@@ -142,8 +174,11 @@ actor KOSyncClient {
         var request = try request(KOSyncWire.pushURL(base: base), method: "PUT", server: server)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try KOSyncWire.encode(position)
-        let (_, status) = try await perform(request)
-        guard (200...299).contains(status) else { throw OPDSError.httpError(status: status) }
+        let (data, status) = try await perform(request)
+        guard (200...299).contains(status) else {
+            if status == 409, let message = KOSyncWire.removedDeviceMessage(data) { throw OPDSError.deviceRemoved(message) }
+            throw OPDSError.httpError(status: status)
+        }
     }
 
     func position(of document: String, on server: OPDSRequestConfiguration) async throws -> KOSyncRemotePosition? {
@@ -188,10 +223,8 @@ actor KOSyncClient {
         let data: Data, response: URLResponse
         do {
             (data, response) = try await session.data(for: request)
-        } catch let error as URLError where error.code == .cancelled {
-            throw OPDSError.cancelled
         } catch {
-            throw OPDSError.networkError(error.localizedDescription)
+            throw OPDSError.transport(error)
         }
         guard let http = response as? HTTPURLResponse else { throw OPDSError.networkError("Non-HTTP response") }
         return (data, http.statusCode)

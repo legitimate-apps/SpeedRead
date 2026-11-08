@@ -73,6 +73,11 @@ struct ServerListView: View {
             Text(ServerListLogic.accountDetail(username: server.username))
                 .font(.caption2)
                 .foregroundStyle(Color.appInkSecondary)
+            if let problem = ServerPositionSync.shared.problem(for: server.id) {
+                Text(problem.message)
+                    .font(.caption2)
+                    .foregroundStyle(Color.appError)
+            }
         }
         .padding(.vertical, 4)
     }

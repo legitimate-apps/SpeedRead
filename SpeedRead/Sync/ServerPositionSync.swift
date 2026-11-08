@@ -40,6 +40,8 @@ final class ServerPositionSync: ServerPositionPushing {
     }
 
     private(set) var pendingOffer: Offer?
+    /// Servers not getting this device's place for a reason the reader can act on, by server id.
+    private(set) var problems: [UUID: ServerSyncProblem] = [:]
 
     @ObservationIgnored let deviceID: String
     @ObservationIgnored let deviceName: String
@@ -168,8 +170,13 @@ final class ServerPositionSync: ServerPositionPushing {
         switch await support(of: target.server) {
         case nil: return false
         case .unsupported: return true
+        case .credentialsRefused:
+            problems[target.server.id] = .credentialsRefused
+            return true
         case .anchorPositions: break
         }
+        // A removed device is told so on every push; sending more would only be refused again.
+        if case .deviceRemoved? = problems[target.server.id] { return true }
         // Everything above could suspend. A newer commit is queued behind this one and an accepted
         // offer must not be echoed, so a changed revision means this snapshot is not to be sent.
         guard revisions[bookId, default: 0] == revision, let target = syncTarget(for: book) else { return true }
@@ -177,6 +184,10 @@ final class ServerPositionSync: ServerPositionPushing {
                                   deviceID: deviceID, anchor: anchor)
         do {
             try await client.push(position, to: OPDSRequestConfiguration(target.server))
+        } catch OPDSError.deviceRemoved(let message) {
+            Self.logger.error("Position push refused: this device was removed from the server's account")
+            problems[target.server.id] = .deviceRemoved(message)
+            return true
         } catch {
             Self.logger.error("Position push failed: \(error.localizedDescription)")
             return false
@@ -279,12 +290,16 @@ final class ServerPositionSync: ServerPositionPushing {
     }
 
     /// A server's settings were saved. Its answer to the probe is asked again, since a refusal
-    /// may have been a wrong password; and when its sync is off, nothing it said stays on offer.
+    /// may have been a wrong password, and any problem it had is forgotten until it recurs; and
+    /// when its sync is off, nothing it said stays on offer.
     func serverSettingsChanged(_ server: OPDSServer) {
         let prefix = "\(server.id.uuidString)|"
         supportCache = supportCache.filter { !$0.key.hasPrefix(prefix) }
+        problems[server.id] = nil
         if !server.syncsReadingPosition, pendingOffer?.serverID == server.id { pendingOffer = nil }
     }
+
+    func problem(for serverID: UUID) -> ServerSyncProblem? { problems[serverID] }
 
     private func declinedTimestamp(for bookId: UUID) -> Date? {
         let declined = defaults.dictionary(forKey: Self.declinedOffersKey) as? [String: Double]

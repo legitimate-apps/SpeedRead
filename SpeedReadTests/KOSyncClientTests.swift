@@ -108,12 +108,51 @@ struct KOSyncClientTests {
         #expect(request.value(forHTTPHeaderField: "Accept") == KOSyncWire.accept)
     }
 
-    @Test("a server that refuses Basic or has no KOSync is not an error", arguments: [401, 403, 404, 405])
-    func refusalsAreUnsupported(status: Int) async throws {
+    @Test("a server with no KOSync is not an error", arguments: [404, 405])
+    func noSyncEndpointIsUnsupported(status: Int) async throws {
         let f = Fixture()
         defer { f.close() }
         f.script.enqueue(f.authURL, status: status)
         #expect(try await f.client.support(of: f.configuration) == .unsupported)
+    }
+
+    /// CWNG answers 401 to a wrong password on `/kosync/users/auth` (OBSERVED, v4.1.63). That is
+    /// the reader's credentials being refused, not a server without sync, and it must read so.
+    @Test("a refused password is told apart from a server without sync", arguments: [401, 403])
+    func refusedCredentialsAreNamed(status: Int) async throws {
+        let f = Fixture()
+        defer { f.close() }
+        f.script.enqueue(f.authURL, status: status)
+        #expect(try await f.client.support(of: f.configuration) == .credentialsRefused)
+        // Annotation sync reads capabilities only, and still writes nothing to such a server.
+        f.script.enqueue(f.authURL, status: status)
+        #expect(try await f.client.capabilities(of: f.configuration).isEmpty)
+    }
+
+    /// The body a removed device gets from CWNG v4.1.63, as OBSERVED with curl.
+    @Test func aRemovedDeviceIsToldSoInTheServersWords() async {
+        let f = Fixture()
+        defer { f.close() }
+        let body = #"{"error":"device_inactive","message":"This device was removed from the account, so it no longer syncs"}"#
+        f.script.enqueue(URL(string: "https://books.example.com/kosync/syncs/progress")!, data: Data(body.utf8), status: 409)
+        await #expect(throws: OPDSError.deviceRemoved("This device was removed from the account, so it no longer syncs")) {
+            try await f.client.push(KOSyncPush(document: "abc", percentage: 0.25, device: "d", deviceID: "D", anchor: nil),
+                                    to: f.configuration)
+        }
+        #expect(OPDSError.deviceRemoved("This device was removed from the account, so it no longer syncs").errorDescription?
+            .hasPrefix("This device was removed from the account, so it no longer syncs. ") == true)
+        #expect(OPDSError.deviceRemoved(nil).errorDescription?.hasSuffix(".") == true)
+    }
+
+    @Test func aConflictThatIsNotARemovedDeviceIsAnHTTPError() async {
+        let f = Fixture()
+        defer { f.close() }
+        f.script.enqueue(URL(string: "https://books.example.com/kosync/syncs/progress")!,
+                         data: Data(#"{"error":"other"}"#.utf8), status: 409)
+        await #expect(throws: OPDSError.httpError(status: 409)) {
+            try await f.client.push(KOSyncPush(document: "abc", percentage: 0.25, device: "d", deviceID: "D", anchor: nil),
+                                    to: f.configuration)
+        }
     }
 
     @Test func aServerErrorDuringTheProbeIsThrownSoItIsNotRemembered() async {
