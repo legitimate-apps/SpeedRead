@@ -102,14 +102,7 @@ final class BrowseServerSession {
         let client = makeClient()
         do {
             let payload = try await client.download(from: url, on: OPDSRequestConfiguration(server))
-            #if canImport(UIKit)
-            if let ui = UIImage(data: payload.data) {
-                let image = Image(uiImage: ui)
-                OPDSCoverCache.shared.store(image, for: url)
-                return image
-            }
-            #endif
-            return nil
+            return OPDSCoverCache.shared.store(data: payload.data, for: url)
         } catch {
             return nil
         }

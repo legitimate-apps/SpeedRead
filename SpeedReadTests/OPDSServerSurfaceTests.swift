@@ -159,6 +159,22 @@ struct OPDSServerSurfaceTests {
         #expect(f.script.remaining == 0)
     }
 
+    /// CWNG sends covers with `Cache-Control: no-store`. SpeedRead keeps its own downscaled copy,
+    /// so the next launch shows the cover without asking again.
+    @Test func aCoverTheServerSaysNotToStoreIsStillKept() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        let server = f.server()
+        let cover = f.url("no-store-cover")
+        f.script.enqueue(cover, data: coverData(), headers: ["Cache-Control": "no-store"])
+
+        #expect(await f.browse.fetchCover(url: cover, on: server, makeClient: f.client) != nil)
+
+        let nextLaunch = OPDSCoverCache(directory: OPDSCoverCache.shared.directory)
+        #expect(nextLaunch.image(for: cover) != nil)
+        #expect(f.script.observed.map(\.url) == [cover])
+    }
+
     @Test(arguments: [false, true])
     func browseCoverFailureDoesNotHideTheBook(transportFailure: Bool) async throws {
         let f = try Fixture()
