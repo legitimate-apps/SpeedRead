@@ -317,6 +317,16 @@ final class ServerPositionSync: ServerPositionPushing {
         unsharedPlaces.contains(serverID) && !dismissedPlaceNotices.contains(serverID.uuidString) ? Self.placeNotice : nil
     }
 
+    /// The same note for the server a book came from, so the reader sees it where they read.
+    func placeNotice(forBook book: Book) -> String? {
+        book.origin.flatMap { placeNotice(for: $0.serverID) }
+    }
+
+    func dismissPlaceNotice(forBook book: Book) {
+        guard let serverID = book.origin?.serverID else { return }
+        dismissPlaceNotice(for: serverID)
+    }
+
     func dismissPlaceNotice(for serverID: UUID) {
         dismissedPlaceNotices.insert(serverID.uuidString)
         defaults.set(dismissedPlaceNotices.sorted(), forKey: Self.dismissedPlaceNoticesKey)

@@ -104,9 +104,16 @@ struct ReaderView: View {
                     },
                     onDismiss: { serverSync.decline(offer) }
                 )
+            } else if let notice = serverSync.placeNotice(forBook: book) {
+                ServerPlaceNoticeBanner(
+                    text: notice,
+                    palette: currentTheme,
+                    onDismiss: { serverSync.dismissPlaceNotice(forBook: book) }
+                )
             }
         }
         .animation(.easeInOut, value: serverSync.pendingOffer)
+        .animation(.easeInOut, value: serverSync.placeNotice(forBook: book))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(currentTheme.barBackground, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
@@ -498,6 +505,36 @@ struct ServerPositionOfferBanner: View {
         .transition(.move(edge: .top).combined(with: .opacity))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("server-position-offer")
+    }
+}
+
+/// The one-time note that this device's place is private on its library server, shown where the
+/// reader reads, since few open the server's settings.
+struct ServerPlaceNoticeBanner: View {
+    let text: String
+    let palette: ReaderPalette
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(text)
+                .font(.system(size: 14))
+                .foregroundStyle(palette.bodyText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button("Got it", action: onDismiss)
+                .buttonStyle(.bordered)
+                .tint(palette.accent)
+                .accessibilityIdentifier("server-place-notice-dismiss")
+        }
+        .padding(14)
+        .background(palette.background, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(palette.barText.opacity(0.12)))
+        .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("server-place-notice")
     }
 }
 

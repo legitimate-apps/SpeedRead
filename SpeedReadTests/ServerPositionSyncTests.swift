@@ -75,6 +75,25 @@ struct ServerPositionSyncTests {
         #expect(f.script.remaining == 0)
     }
 
+    @Test func theReaderShowsTheSameNoteForABookFromThatServerAndDismissesItForTheServer() async throws {
+        let f = try Fixture()
+        defer { f.close() }
+        f.script.enqueue(f.authURL, data: Data(#"{"authorized":"OK","capabilities":["anchor"],"share_place_gates":true}"#.utf8))
+        f.pushAccepted()
+        let local = Book(title: "Imported", author: "", extractedText: "one two", sourceFileName: "imported.txt")
+
+        f.sync.noteCommitted(bookId: f.book.id)
+        await f.sync.flush()
+
+        #expect(f.sync.placeNotice(forBook: f.book) == ServerPositionSync.placeNotice)
+        #expect(f.sync.placeNotice(forBook: local) == nil)
+        f.sync.dismissPlaceNotice(forBook: local)
+        #expect(f.sync.placeNotice(forBook: f.book) == ServerPositionSync.placeNotice)
+        f.sync.dismissPlaceNotice(forBook: f.book)
+        #expect(f.sync.placeNotice(forBook: f.book) == nil)
+        #expect(f.sync.placeNotice(for: f.server.id) == nil)
+    }
+
     @Test("no note when the place is shared or not gated", arguments: [
         #"{"authorized":"OK","capabilities":["anchor"],"share_place_gates":true,"share_place":true}"#,
         #"{"authorized":"OK","capabilities":["anchor"]}"#,
