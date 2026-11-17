@@ -7,6 +7,14 @@ gotchas change. Keep this concise — this file is loaded into every session.
 > *what this project is* — the thesis, design principles, architectural invariants, and the
 > operator's standing goals. Facts we've learned live in the per-project memory dir.
 
+## This repository is public
+
+Since 2026-11-17, under Apache 2.0 (`LICENSE`, `NOTICE`). Everything committed is world-readable, and
+so are the Actions logs. Keep personal names and home paths, home-lab hostnames and addresses, other
+projects and accounts, and credentials out of code, docs, commit messages and anything a CI step
+prints. Tests read servers and credentials from the environment (below). Before the history went
+public it was rewritten once to remove those things; every commit, author and date was kept.
+
 ## What this app is
 
 **SpeedRead** is a SwiftUI e-reader for iPhone + Apple Watch with two reading modes:
