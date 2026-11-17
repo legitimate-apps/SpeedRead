@@ -29,3 +29,7 @@ docs/testing/*.jsonl
 SpeedReadTests/Fixtures/*.store-shm
 SpeedReadTests/Fixtures/*.store-wal
 marketing/icon/candidates/
+
+# Python bytecode
+__pycache__/
+*.pyc
