@@ -316,7 +316,7 @@ run_lane() {
     -resultBundlePath "$result" \
     >"$log" 2>&1; then
     echo "error: $label failed; final build output follows" >&2
-    tail -n 120 "$log" >&2
+    tail -n 120 "$log" | sed -f "$script_dir/lib/public-log.sed" >&2
     preserve_failure_evidence "$label" "$log" "$result"
     failures=$((failures + 1))
     return

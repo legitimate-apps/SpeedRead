@@ -245,7 +245,7 @@ Pre-allowed in `.claude/settings.local.json`: `Bash(xcodebuild test:*)`.
 ### Honesty gates — cheap, no simulator, run before any build
 
 ```bash
-Scripts/honesty-gates.sh    # runs all ten, cheapest first. RUN THIS BEFORE EVERY PUSH.
+Scripts/honesty-gates.sh    # runs all eleven, cheapest first. RUN THIS BEFORE EVERY PUSH.
 ```
 
 It is the single list; CI runs the same script. Individually:
@@ -257,6 +257,7 @@ python3 Scripts/lane-audit.py             # every target in a plan, every plan i
 python3 Scripts/shared-source-audit.py    # no filename may exist in both trees as two real files
 python3 Scripts/network-isolation-audit.py # no test-tree session can reach the wire un-stubbed
 Scripts/executed-tests-control.sh         # the executed-test parser reports true counts
+Scripts/public-log-filter-control.sh      # lane output printed to public CI logs names no physical device
 python3 Scripts/attributable-coverage.py --self-test   # classifier reads code not comments; and
                                                        # holds non-shipping files out of the grade
 python3 Scripts/lane-runtime.py --self-test            # a lane's OS receipt fails when it can't be read
