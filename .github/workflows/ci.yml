@@ -35,7 +35,12 @@ jobs:
     runs-on: ${{ inputs.ios27 && fromJSON('["self-hosted","macOS","ARM64","speedread"]') || fromJSON('["self-hosted","macOS","mbp-build","speedread"]') }}
     timeout-minutes: 40
     steps:
+      # checkout copies $HOME/.gitconfig and logs that path. On the Studio the runner runs as a
+      # personal account, so the log printed its home folder on a public repo. An empty HOME
+      # for this step leaves nothing to copy; checkout configures git auth itself.
       - uses: actions/checkout@v4
+        env:
+          HOME: ${{ runner.temp }}/checkout-home
 
       # DerivedData goes on the BOOT VOLUME, not the Crucial X8. That reverses standing project
       # policy deliberately and loudly: as of 2026-09-03 xcodebuild HANGS when DerivedData lives
@@ -159,7 +164,12 @@ jobs:
     needs: hermetic
     timeout-minutes: 40
     steps:
+      # checkout copies $HOME/.gitconfig and logs that path. On the Studio the runner runs as a
+      # personal account, so the log printed its home folder on a public repo. An empty HOME
+      # for this step leaves nothing to copy; checkout configures git auth itself.
       - uses: actions/checkout@v4
+        env:
+          HOME: ${{ runner.temp }}/checkout-home
 
       # DerivedData goes on the BOOT VOLUME, not the Crucial X8. That reverses standing project
       # policy deliberately and loudly: as of 2026-09-03 xcodebuild HANGS when DerivedData lives
